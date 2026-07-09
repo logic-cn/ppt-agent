@@ -7,6 +7,15 @@ import type {
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "@/services/storage";
 
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSave(settings: AppSettings) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveSettings(settings).catch(console.error);
+  }, 300);
+}
+
 function defaultSettings(): AppSettings {
   const providers = {} as Record<LLMProviderId, LLMProviderConfig>;
   (Object.keys(PROVIDER_PRESETS) as LLMProviderId[]).forEach((id) => {
@@ -14,6 +23,7 @@ function defaultSettings(): AppSettings {
     providers[id] = { ...preset, apiKey: "", enabled: false };
   });
   return {
+    version: 1,
     activeProvider: "openai",
     providers,
     imageEnabled: false,
@@ -48,7 +58,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setActiveProvider: (id) => {
     set((s) => {
       const settings = { ...s.settings, activeProvider: id };
-      void saveSettings(settings);
+      void debouncedSave(settings);
       return { settings };
     });
   },
@@ -60,7 +70,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         [id]: { ...s.settings.providers[id], ...patch },
       };
       const settings = { ...s.settings, providers };
-      void saveSettings(settings);
+      void debouncedSave(settings);
       return { settings };
     });
   },
@@ -68,7 +78,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setImageEnabled: (enabled) => {
     set((s) => {
       const settings = { ...s.settings, imageEnabled: enabled };
-      void saveSettings(settings);
+      void debouncedSave(settings);
       return { settings };
     });
   },
@@ -76,7 +86,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setImageProvider: (cfg) => {
     set((s) => {
       const settings = { ...s.settings, imageProvider: cfg };
-      void saveSettings(settings);
+      void debouncedSave(settings);
       return { settings };
     });
   },

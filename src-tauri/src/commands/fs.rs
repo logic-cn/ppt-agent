@@ -8,7 +8,7 @@ pub fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))
 }
 
-/// 写入二进制文件
+/// 写入二进制文件（原子写：tmp + rename）
 #[tauri::command]
 pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
     if let Some(parent) = PathBuf::from(&path).parent() {
@@ -16,19 +16,22 @@ pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
             fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
         }
     }
-    fs::write(&path, data).map_err(|e| format!("写入文件失败: {}", e))
+    let tmp_path = format!("{}.tmp", &path);
+    fs::write(&tmp_path, &data).map_err(|e| format!("写入临时文件失败: {}", e))?;
+    fs::rename(&tmp_path, &path).map_err(|e| format!("重命名文件失败: {}", e))
 }
 
-/// 写入文本文件
+/// 写入文本文件（原子写：tmp + rename）
 #[tauri::command]
 pub fn write_text_file(path: String, content: String) -> Result<(), String> {
-    // 确保父目录存在
     if let Some(parent) = PathBuf::from(&path).parent() {
         if !parent.exists() {
             fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
         }
     }
-    fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))
+    let tmp_path = format!("{}.tmp", &path);
+    fs::write(&tmp_path, &content).map_err(|e| format!("写入临时文件失败: {}", e))?;
+    fs::rename(&tmp_path, &path).map_err(|e| format!("重命名文件失败: {}", e))
 }
 
 /// 删除文件

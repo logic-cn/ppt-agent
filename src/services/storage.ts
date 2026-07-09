@@ -1,6 +1,9 @@
-import type { AppSettings, Deck } from "@/types";
+import type { AppSettings, Deck, DeckMeta } from "@/types";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { DEFAULT_THEME_ID } from "@/themes";
+
+const CURRENT_DECK_VERSION = 1;
+const CURRENT_SETTINGS_VERSION = 1;
 
 // 动态检测是否在 Tauri 环境中
 const isTauri =
@@ -73,6 +76,7 @@ export async function loadSettings(): Promise<AppSettings | null> {
   if (!raw) return null;
   try {
     const saved = JSON.parse(raw) as AppSettings;
+    if (!saved.version) saved.version = CURRENT_SETTINGS_VERSION;
     // 合并新预设（兼容旧版本）
     for (const id of Object.keys(
       PROVIDER_PRESETS,
@@ -103,7 +107,9 @@ export async function loadDeck(id: string): Promise<Deck | null> {
   const raw = await readText(path);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Deck;
+    const deck = JSON.parse(raw) as Deck;
+    if (!deck.version) deck.version = CURRENT_DECK_VERSION;
+    return deck;
   } catch {
     return null;
   }
@@ -113,67 +119,146 @@ export async function saveDeck(deck: Deck): Promise<void> {
   const dir = await getDataDir();
   const path = await joinPath(dir, "decks", `${deck.id}.json`);
   await writeText(path, JSON.stringify(deck, null, 2));
+  await updateIndex(dir, {
+    id: deck.id,
+    title: deck.title,
+    slidesCount: deck.slides.length,
+    createdAt: deck.createdAt,
+    updatedAt: deck.updatedAt,
+  });
 }
 
-export async function listDecks(): Promise<Deck[]> {
-  const dir = await getDataDir();
+// ---- 索引管理 ----
+
+async function indexPath(dir: string): Promise<string> {
+  return joinPath(dir, "decks", "index.json");
+}
+
+async function readIndex(dir: string): Promise<DeckMeta[] | null> {
+  const path = await indexPath(dir);
+  const raw = await readText(path);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed as DeckMeta[];
+  } catch {
+    return null;
+  }
+}
+
+async function writeIndex(dir: string, index: DeckMeta[]): Promise<void> {
+  const path = await indexPath(dir);
+  await writeText(path, JSON.stringify(index, null, 2));
+}
+
+async function updateIndex(dir: string, meta: DeckMeta): Promise<void> {
+  const index = (await readIndex(dir)) || (await rebuildIndex(dir));
+  if (!index) return;
+  const existing = index.findIndex((m) => m.id === meta.id);
+  if (existing !== -1) {
+    index[existing] = meta;
+  } else {
+    index.push(meta);
+  }
+  index.sort((a, b) => b.updatedAt - a.updatedAt);
+  await writeIndex(dir, index);
+}
+
+async function removeFromIndex(dir: string, id: string): Promise<void> {
+  const index = (await readIndex(dir)) || (await rebuildIndex(dir));
+  if (!index) return;
+  const filtered = index.filter((m) => m.id !== id);
+  await writeIndex(dir, filtered);
+}
+
+async function rebuildIndex(dir: string): Promise<DeckMeta[]> {
   const decksDir = await joinPath(dir, "decks");
+  const index: DeckMeta[] = [];
+
   if (!isTauri) {
-    // web fallback：扫描 localStorage
-    const decks: Deck[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("ppt-agent-data/decks/")) {
+      if (
+        key &&
+        key.startsWith("ppt-agent-data/decks/") &&
+        !key.endsWith("index.json")
+      ) {
         const raw = localStorage.getItem(key);
         if (raw) {
           try {
-            decks.push(JSON.parse(raw));
+            const deck = JSON.parse(raw) as Deck;
+            index.push({
+              id: deck.id,
+              title: deck.title,
+              slidesCount: deck.slides.length,
+              createdAt: deck.createdAt,
+              updatedAt: deck.updatedAt,
+            });
           } catch {
-            // skip
+            /* skip */
           }
         }
       }
     }
-    return decks.sort((a, b) => b.updatedAt - a.updatedAt);
-  }
-  // Tauri 环境：通过 Rust 命令读取目录
-  try {
-    const inv = await getInvoke();
-    if (!inv) return [];
-    const names = await inv<string[]>("list_directory", { path: decksDir });
-    const decks: Deck[] = [];
-    for (const name of names) {
-      if (name.endsWith(".json")) {
-        const filePath = await joinPath(decksDir, name);
-        const raw = await readText(filePath);
-        if (raw) {
-          try {
-            decks.push(JSON.parse(raw));
-          } catch {
-            // skip
+  } else {
+    try {
+      const inv = await getInvoke();
+      if (inv) {
+        const names = await inv<string[]>("list_directory", { path: decksDir });
+        for (const name of names) {
+          if (name.endsWith(".json") && name !== "index.json") {
+            const filePath = await joinPath(decksDir, name);
+            const raw = await readText(filePath);
+            if (raw) {
+              try {
+                const deck = JSON.parse(raw) as Deck;
+                index.push({
+                  id: deck.id,
+                  title: deck.title,
+                  slidesCount: deck.slides.length,
+                  createdAt: deck.createdAt,
+                  updatedAt: deck.updatedAt,
+                });
+              } catch {
+                /* skip */
+              }
+            }
           }
         }
       }
+    } catch {
+      /* skip */
     }
-    return decks.sort((a, b) => b.updatedAt - a.updatedAt);
-  } catch {
-    return [];
   }
+
+  index.sort((a, b) => b.updatedAt - a.updatedAt);
+  await writeIndex(dir, index);
+  return index;
+}
+
+export async function listDecks(): Promise<DeckMeta[]> {
+  const dir = await getDataDir();
+  const cached = await readIndex(dir);
+  if (cached) return cached;
+  return rebuildIndex(dir);
 }
 
 export async function deleteDeck(id: string): Promise<void> {
+  const dir = await getDataDir();
   if (!isTauri) {
     localStorage.removeItem(`ppt-agent-data/decks/${id}.json`);
+    await removeFromIndex(dir, id);
     return;
   }
   try {
     const inv = await getInvoke();
     if (!inv) return;
-    const dir = await getDataDir();
     const path = await joinPath(dir, "decks", `${id}.json`);
     await inv("delete_file", { path });
-  } catch {
-    // ignore
+    await removeFromIndex(dir, id);
+  } catch (e) {
+    console.error("deleteDeck failed:", e);
   }
 }
 
@@ -183,6 +268,7 @@ export function createEmptyDeck(title = "未命名项目"): Deck {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
+    version: CURRENT_DECK_VERSION,
     title,
     themeId: DEFAULT_THEME_ID,
     slides: [],

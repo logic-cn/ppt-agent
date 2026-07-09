@@ -2,7 +2,8 @@ import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
 import { httpRequest } from "@/services/http-client";
 
-const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export class AnthropicProvider {
   private config: LLMProviderConfig;

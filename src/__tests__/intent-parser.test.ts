@@ -7,6 +7,7 @@ function setupMockDeck() {
   useDeckStore.setState({
     deck: {
       id: "test",
+      version: 1,
       title: "测试",
       themeId: "business-blue",
       slides: [

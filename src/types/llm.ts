@@ -42,6 +42,7 @@ export interface ImageGenResponse {
 }
 
 export interface AppSettings {
+  version: number;
   activeProvider: LLMProviderId;
   providers: Record<LLMProviderId, LLMProviderConfig>;
   imageProvider?: LLMProviderConfig;

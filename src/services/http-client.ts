@@ -1,5 +1,6 @@
 // 检测是否在 Tauri 环境中
-const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** 在 Tauri 环境中通过 Rust proxy 发起 HTTP 请求，绕过浏览器 CORS */
 async function tauriFetch(

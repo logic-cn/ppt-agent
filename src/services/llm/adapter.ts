@@ -64,18 +64,15 @@ export class OpenAICompatProvider {
 
     if (isTauri()) {
       // Tauri 环境：走 Rust proxy，不支持流式，退化为非流式
-      const res = await httpRequest(
-        `${this.config.baseUrl}/chat/completions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.config.apiKey}`,
-          },
-          body: JSON.stringify({ ...body, stream: false }),
-          signal: req.signal,
+      const res = await httpRequest(`${this.config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.config.apiKey}`,
         },
-      );
+        body: JSON.stringify({ ...body, stream: false }),
+        signal: req.signal,
+      });
 
       if (!res.ok) {
         const err = await res.text().catch(() => "未知错误");

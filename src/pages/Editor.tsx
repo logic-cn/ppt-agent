@@ -73,7 +73,7 @@ export default function Editor() {
         });
       }
     });
-  }, [id, isNew, load, deck]);
+  }, [id, isNew, load]);
 
   useKeyboardShortcuts();
 

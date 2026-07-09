@@ -67,6 +67,7 @@ export type DeckSource = "topic" | "doc" | "url";
 
 export interface Deck {
   id: string;
+  version: number;
   title: string;
   themeId: string;
   themeOverrides?: Partial<Theme>;
@@ -74,4 +75,12 @@ export interface Deck {
   createdAt: number;
   updatedAt: number;
   source?: { type: DeckSource; ref: string };
+}
+
+export interface DeckMeta {
+  id: string;
+  title: string;
+  slidesCount: number;
+  createdAt: number;
+  updatedAt: number;
 }

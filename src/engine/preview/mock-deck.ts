@@ -101,6 +101,7 @@ export function createMockDeck(): Deck {
 
   return {
     id: "mock-demo",
+    version: 1,
     title: "Q3 业务复盘汇报（示例）",
     themeId: "business-blue",
     slides,

@@ -35,7 +35,7 @@ export default function Home() {
     navigate(`/editor/${deck.id}?new=1`);
   };
 
-  const getSlideSummary = (slides: unknown[]) => `${slides.length} 页`;
+  const getSlideSummary = (slidesCount: number) => `${slidesCount} 页`;
 
   return (
     <div className="flex h-full flex-col">
@@ -158,7 +158,7 @@ export default function Home() {
                         <FileText className="h-5 w-5 text-accent" />
                       </div>
                       <span className="rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
-                        {getSlideSummary(p.slides)}
+                        {getSlideSummary(p.slidesCount)}
                       </span>
                     </div>
                     <h3 className="mb-1 truncate font-medium text-text-primary group-hover:text-accent">

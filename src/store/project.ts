@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import type { Deck } from "@/types";
+import type { DeckMeta } from "@/types";
 import { listDecks } from "@/services/storage";
 
 interface ProjectStore {
-  recent: Deck[];
+  recent: DeckMeta[];
   loading: boolean;
   loadRecent: () => Promise<void>;
 }
