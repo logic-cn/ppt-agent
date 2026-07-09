@@ -52,7 +52,13 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   load: async (id) => {
     set({ loading: true });
     const deck = await loadDeck(id);
-    set({ deck, loading: false, dirty: false, past: [], future: [] });
+    if (deck) {
+      const bumped = { ...deck, updatedAt: Date.now() };
+      await saveDeck(bumped);
+      set({ deck: bumped, loading: false, dirty: false, past: [], future: [] });
+    } else {
+      set({ deck: null, loading: false });
+    }
   },
 
   createDeck: async (title) => {
