@@ -124,20 +124,33 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
     const items = slide.items.slice(0, colRects.length);
     items.forEach((item, i) => {
       const col = colRects[i];
+      const titleH = 0.08;
       if (item.title) {
-        addText(s, item.title, col, {
-          fontSize: theme.fontSize.h2 - 2,
-          fontFace: theme.fonts.title,
-          color: theme.colors.primary,
-          bold: true,
-          align: "left",
+        addText(
+          s,
+          item.title,
+          { x: col.x, y: col.y, w: col.w, h: titleH * 0.7 },
+          {
+            fontSize: theme.fontSize.h2 - 2,
+            fontFace: theme.fonts.title,
+            color: theme.colors.primary,
+            bold: true,
+            align: "left",
+          },
+        );
+        s.addShape("line", {
+          x: col.x,
+          y: col.y + titleH * 0.78,
+          w: col.w,
+          h: 0,
+          line: { color: theme.colors.secondary, width: 1 },
         });
       }
       const bulletArea: Rect = {
         x: col.x,
-        y: col.y + (item.title ? 0.06 : 0),
+        y: col.y + (item.title ? titleH : 0),
         w: col.w,
-        h: col.h - (item.title ? 0.06 : 0),
+        h: col.h - (item.title ? titleH : 0),
       };
       if (item.bullets && item.bullets.length > 0) {
         const bSegments = item.bullets.map((b) => ({
