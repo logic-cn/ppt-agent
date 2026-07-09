@@ -2,12 +2,12 @@
   "id": "tech-purple",
   "name": "科技紫",
   "colors": {
-    "primary": "#2D1B69",
-    "secondary": "#7C3AED",
-    "accent": "#06B6D4",
-    "background": "#0F0A1E",
-    "surface": "#1A1230",
-    "text": "#E9D5FF",
+    "primary": "#C084FC",
+    "secondary": "#8B5CF6",
+    "accent": "#22D3EE",
+    "background": "#0D0618",
+    "surface": "#1A0F2E",
+    "text": "#F3E8FF",
     "textMuted": "#A78BFA"
   },
   "fonts": {
