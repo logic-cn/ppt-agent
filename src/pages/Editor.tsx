@@ -7,6 +7,7 @@ import {
   Upload,
   Palette,
   Trash2,
+  Check,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -237,7 +238,10 @@ export default function Editor() {
                           className="h-4 w-4 rounded-full border border-border"
                           style={{ background: swatch }}
                         />
-                        {t.name}
+                        <span className="flex-1 text-left">{t.name}</span>
+                        {deck?.themeId === t.id && (
+                          <Check className="h-3.5 w-3.5 text-accent" />
+                        )}
                       </button>
                     );
                   })}
