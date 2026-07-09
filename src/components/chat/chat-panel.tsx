@@ -29,7 +29,7 @@ export function ChatPanel() {
     setTimeout(() => setCopiedId(null), 1500);
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { deck, replaceSlides, addSlide } = useDeckStore();
+  const { deck, replaceSlides, addSlide, setTitle } = useDeckStore();
 
   const addMessage = useCallback(
     (role: "user" | "assistant", content: string) => {
@@ -63,6 +63,15 @@ export function ChatPanel() {
 
         if (deck) {
           await replaceSlides(slides);
+          if (deck.title === "未命名项目") {
+            const name = text
+              .replace(/^(生成|创建|做一个|写一个|关于)\s*/, "")
+              .replace(/一份|一个|一篇/, "")
+              .replace(/^关于/, "")
+              .replace(/[的]?(PPT|幻灯片|汇报|报告|主题)\s*$/, "")
+              .trim();
+            if (name) setTitle(name);
+          }
         } else {
           // 如果没有 deck，依次添加
           slides.forEach((s) => addSlide(s));

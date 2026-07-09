@@ -7,7 +7,7 @@ import {
   Upload,
   Palette,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDeckStore } from "@/store/deck";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
@@ -30,6 +30,23 @@ export default function Editor() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const setTheme = useDeckStore((s) => s.setTheme);
+  const setTitle = useDeckStore((s) => s.setTitle);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTitle) {
+      titleRef.current?.focus();
+      titleRef.current?.select();
+    }
+  }, [editingTitle]);
+
+  const commitTitle = () => {
+    const v = titleInput.trim();
+    if (v && deck) setTitle(v);
+    setEditingTitle(false);
+  };
 
   useEffect(() => {
     if (isNew && deck) return;
@@ -110,9 +127,29 @@ export default function Editor() {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium">
-            {deck?.title ?? "未命名项目"}
-          </span>
+          {editingTitle ? (
+            <input
+              ref={titleRef}
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitTitle();
+                if (e.key === "Escape") setEditingTitle(false);
+              }}
+              className="rounded border border-accent bg-bg-base px-1.5 py-0.5 text-sm font-medium text-text-primary outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => {
+                setTitleInput(deck?.title ?? "未命名项目");
+                setEditingTitle(true);
+              }}
+              className="rounded px-1.5 py-0.5 text-sm font-medium text-text-primary hover:bg-bg-hover"
+            >
+              {deck?.title ?? "未命名项目"}
+            </button>
+          )}
           {deck && (
             <span className="text-xs text-text-muted">
               {deck.slides.length} 页
