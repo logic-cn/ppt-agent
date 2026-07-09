@@ -45,7 +45,7 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
     }
   };
 
-  const addSlide = () => {
+  const addSlide = async () => {
     const lastLayout =
       slides.length > 1 ? slides[slides.length - 2].layout : "content";
     const newSlide: Slide = {
@@ -54,7 +54,7 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
       title: "",
     };
     const updated = [...slides, newSlide];
-    replaceSlides(updated);
+    await replaceSlides(updated);
   };
 
   return (

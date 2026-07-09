@@ -62,7 +62,7 @@ export function ChatPanel() {
         });
 
         if (deck) {
-          replaceSlides(slides);
+          await replaceSlides(slides);
         } else {
           // 如果没有 deck，依次添加
           slides.forEach((s) => addSlide(s));

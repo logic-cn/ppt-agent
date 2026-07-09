@@ -26,7 +26,7 @@ interface DeckStore {
   updateSlide: (id: string, patch: Partial<Deck["slides"][number]>) => void;
   removeSlide: (id: string) => void;
   moveSlide: (from: number, to: number) => void;
-  replaceSlides: (slides: Deck["slides"]) => void;
+  replaceSlides: (slides: Deck["slides"]) => Promise<void>;
 
   // Undo/Redo
   undo: () => void;
@@ -163,7 +163,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     });
   },
 
-  replaceSlides: (slides) => {
+  replaceSlides: async (slides) => {
     set((s) => {
       const snap = snapshot(s.deck);
       return {
@@ -175,7 +175,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
         canRedo: false,
       };
     });
-    get().persist();
+    await get().persist();
   },
 
   undo: () => {

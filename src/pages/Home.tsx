@@ -18,6 +18,8 @@ export default function Home() {
     navigate(`/editor/${deck.id}?new=1`);
   };
 
+  const getSlideSummary = (slides: unknown[]) => `${slides.length} 页`;
+
   return (
     <div className="flex h-full flex-col">
       {/* 顶栏 */}
@@ -124,24 +126,28 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-4">
               {recent.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => navigate(`/editor/${p.id}`)}
-                  className="flex w-full items-center justify-between rounded-lg border border-border bg-bg-surface px-5 py-4 transition hover:border-border-strong hover:bg-bg-elevated"
+                  className="group rounded-xl border border-border bg-bg-surface p-5 text-left transition hover:border-accent hover:shadow-md"
                 >
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-text-secondary" />
-                    <span className="font-medium">{p.title}</span>
-                  </div>
-                  <div className="flex items-center gap-6 text-sm text-text-muted">
-                    <span>{p.slides.length} 页</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft/50">
+                      <FileText className="h-5 w-5 text-accent" />
+                    </div>
+                    <span className="rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
+                      {getSlideSummary(p.slides)}
                     </span>
                   </div>
+                  <h3 className="mb-1 truncate font-medium text-text-primary group-hover:text-accent">
+                    {p.title}
+                  </h3>
+                  <p className="flex items-center gap-1 text-xs text-text-muted">
+                    <Clock className="h-3 w-3" />
+                    {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
+                  </p>
                 </button>
               ))}
             </div>
