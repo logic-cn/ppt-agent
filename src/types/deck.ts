@@ -7,7 +7,13 @@ export type SlideLayout =
   | "two-column"
   | "chart"
   | "image"
-  | "closing";
+  | "closing"
+  // 多列/多项内容布局
+  | "cols-2"
+  | "cols-3"
+  | "cols-4"
+  | "cols-5"
+  | "cols-6";
 
 export type ChartType = "bar" | "pie" | "line" | "doughnut";
 
@@ -50,6 +56,13 @@ export interface SlideElement {
   content?: string;
 }
 
+export interface SlideContentItem {
+  id: string;
+  title?: string;
+  bullets?: string[];
+  body?: string;
+}
+
 export interface Slide {
   id: string;
   layout: SlideLayout;
@@ -57,6 +70,7 @@ export interface Slide {
   subtitle?: string;
   body?: string;
   bullets?: BulletNode[];
+  items?: SlideContentItem[];
   elements?: SlideElement[];
   chart?: ChartSpec;
   image?: ImageSpec;

@@ -42,6 +42,12 @@ const bulletNodeSchema = z.object({
     .optional(),
 });
 
+const slideContentItemSchema = z.object({
+  title: z.string().optional(),
+  bullets: z.array(z.string()).optional(),
+  body: z.string().optional(),
+});
+
 const slideSchema = z.object({
   title: z.string(),
   layout: z.enum([
@@ -52,9 +58,15 @@ const slideSchema = z.object({
     "chart",
     "image",
     "closing",
+    "cols-2",
+    "cols-3",
+    "cols-4",
+    "cols-5",
+    "cols-6",
   ]),
   subtitle: z.string().optional(),
   bullets: z.array(bulletNodeSchema).optional(),
+  items: z.array(slideContentItemSchema).optional(),
   chart: z
     .object({
       type: z.enum(["bar", "pie", "line", "doughnut"]),
@@ -131,5 +143,11 @@ export async function generateOutline(params: {
     ...slide,
     id: nanoid(),
     bullets: slide.bullets ? addBulletIds(slide.bullets) : undefined,
+    items: slide.items
+      ? slide.items.map((item) => ({
+          ...item,
+          id: nanoid(),
+        }))
+      : undefined,
   }));
 }

@@ -1,10 +1,34 @@
 import PptxGenJS from "pptxgenjs";
 import type { Deck, Slide, BulletNode } from "@/types/deck";
-import type { Theme } from "@/types/theme";
+import type { Theme, Rect } from "@/types/theme";
 import { resolveTheme } from "@/themes";
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
+
+function isColsLayout(layout: string): boolean {
+  return layout.startsWith("cols-");
+}
+
+function getColCount(layout: string): number {
+  const m = layout.match(/cols-(\d+)/);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+function getColumnRects(body: Rect, numCols: number): Rect[] {
+  const gap = 0.025;
+  const colW = (body.w - gap * (numCols - 1)) / numCols;
+  const rects: Rect[] = [];
+  for (let i = 0; i < numCols; i++) {
+    rects.push({
+      x: body.x + i * (colW + gap),
+      y: body.y,
+      w: colW,
+      h: body.h,
+    });
+  }
+  return rects;
+}
 
 export async function exportDeck(deck: Deck, path: string): Promise<void> {
   const pptx = new PptxGenJS();
@@ -45,6 +69,8 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
   if (!layout) return;
 
   s.background = { fill: theme.colors.background };
+
+  const isCols = isColsLayout(slide.layout);
 
   // 装饰色带
   if (
@@ -92,8 +118,52 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
     );
   }
 
-  // 正文 / bullets
-  if (layout.body) {
+  // 正文 / bullets / items
+  if (isCols && slide.items && slide.items.length > 0) {
+    const colRects = getColumnRects(layout.body!, getColCount(slide.layout));
+    const items = slide.items.slice(0, colRects.length);
+    items.forEach((item, i) => {
+      const col = colRects[i];
+      if (item.title) {
+        addText(s, item.title, col, {
+          fontSize: theme.fontSize.h2 - 2,
+          fontFace: theme.fonts.title,
+          color: theme.colors.primary,
+          bold: true,
+          align: "left",
+        });
+      }
+      const bulletArea: Rect = {
+        x: col.x,
+        y: col.y + (item.title ? 0.06 : 0),
+        w: col.w,
+        h: col.h - (item.title ? 0.06 : 0),
+      };
+      if (item.bullets && item.bullets.length > 0) {
+        const bSegments = item.bullets.map((b) => ({
+          text: b,
+          options: {
+            fontSize: theme.fontSize.body - 1,
+            fontFace: theme.fonts.body,
+            color: theme.colors.text,
+            bullet: { characterCode: "25CF", color: theme.colors.accent },
+            lineSpacingMultiple: 1.4,
+            paraSpaceAfter: 4,
+          } as Record<string, unknown>,
+        }));
+        addTextSegments(s, bSegments as PptxGenJS.TextProps[], bulletArea, {
+          valign: "top",
+        });
+      } else if (item.body) {
+        addText(s, item.body, bulletArea, {
+          fontSize: theme.fontSize.body - 1,
+          fontFace: theme.fonts.body,
+          color: theme.colors.text,
+          valign: "top",
+        });
+      }
+    });
+  } else if (layout.body) {
     if (slide.bullets && slide.bullets.length > 0) {
       const segments = buildBulletSegments(slide.bullets, theme);
       addTextSegments(s, segments, layout.body, {

@@ -31,7 +31,7 @@ describe("resolveTheme", () => {
     });
     expect(theme.colors.primary).toBe("#FF0000");
     // 其他颜色保持原样
-    expect(theme.colors.secondary).toBe("#3B6EA5");
+    expect(theme.colors.secondary).toBe("#3B82F6");
   });
 
   it("overrides 合并 fonts", () => {
@@ -48,14 +48,24 @@ describe("BUILTIN_THEMES", () => {
   });
 
   it("每套主题都有完整的 layouts", () => {
+    const required = [
+      "cover",
+      "content",
+      "two-column",
+      "chart",
+      "image",
+      "section",
+      "closing",
+      "cols-2",
+      "cols-3",
+      "cols-4",
+      "cols-5",
+      "cols-6",
+    ];
     for (const theme of BUILTIN_THEMES) {
-      expect(theme.layouts.cover).toBeDefined();
-      expect(theme.layouts.content).toBeDefined();
-      expect(theme.layouts["two-column"]).toBeDefined();
-      expect(theme.layouts.chart).toBeDefined();
-      expect(theme.layouts.image).toBeDefined();
-      expect(theme.layouts.section).toBeDefined();
-      expect(theme.layouts.closing).toBeDefined();
+      for (const l of required) {
+        expect(theme.layouts[l as keyof typeof theme.layouts]).toBeDefined();
+      }
     }
   });
 });

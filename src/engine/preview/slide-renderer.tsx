@@ -1,5 +1,5 @@
 import type { Slide, ChartSpec } from "@/types/deck";
-import type { Theme } from "@/types/theme";
+import type { Theme, Rect } from "@/types/theme";
 import { rectToStyle } from "./utils";
 import { BulletList } from "./bullet-list";
 
@@ -10,9 +10,38 @@ interface Props {
   width: number;
 }
 
+/** 判断是否为多列布局 */
+function isColsLayout(layout: string): boolean {
+  return layout.startsWith("cols-");
+}
+
+/** 获取列数，如 "cols-3" → 3 */
+function getColCount(layout: string): number {
+  const m = layout.match(/cols-(\d+)/);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+/** 将 body 区域等分为 N 列，列间保留 gap */
+function getColumnRects(body: Rect, numCols: number): Rect[] {
+  const gap = 0.025;
+  const colW = (body.w - gap * (numCols - 1)) / numCols;
+  const rects: Rect[] = [];
+  for (let i = 0; i < numCols; i++) {
+    rects.push({
+      x: body.x + i * (colW + gap),
+      y: body.y,
+      w: colW,
+      h: body.h,
+    });
+  }
+  return rects;
+}
+
 export function SlideRenderer({ slide, theme, width }: Props) {
   const layout = theme.layouts[slide.layout];
-  const scale = width / 1280; // 基准设计宽度 1280px
+  const scale = width / 1280;
+  const isCols = isColsLayout(slide.layout);
+  const colCount = isCols ? getColCount(slide.layout) : 0;
 
   // 渲染标题块
   const renderTitle = () => {
@@ -77,7 +106,101 @@ export function SlideRenderer({ slide, theme, width }: Props) {
     );
   };
 
-  // 渲染图表占位（M9 接入 chart.js）
+  // 渲染多列 items
+  const renderColumns = () => {
+    if (!isCols || !slide.items || slide.items.length === 0) return null;
+    if (!layout.body) return null;
+
+    const colRects = getColumnRects(layout.body, colCount);
+    const items = slide.items.slice(0, colCount);
+
+    return (
+      <>
+        {items.map((item, i) => {
+          const rect = colRects[i];
+          return (
+            <div
+              key={item.id}
+              style={{
+                position: "absolute",
+                left: `${rect.x * 100}%`,
+                top: `${rect.y * 100}%`,
+                width: `${rect.w * 100}%`,
+                height: `${rect.h * 100}%`,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {item.title && (
+                <h2
+                  style={{
+                    fontSize: `${(theme.fontSize.h2 - 2) * scale}px`,
+                    fontFamily: theme.fonts.title,
+                    color: theme.colors.primary,
+                    fontWeight: 600,
+                    margin: 0,
+                    marginBottom: `${10 * scale}px`,
+                    lineHeight: 1.3,
+                    paddingBottom: `${8 * scale}px`,
+                    borderBottom: `2px solid ${theme.colors.secondary}40`,
+                  }}
+                >
+                  {item.title}
+                </h2>
+              )}
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                {item.bullets && item.bullets.length > 0 ? (
+                  <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                    {item.bullets.map((b, j) => (
+                      <li
+                        key={j}
+                        style={{
+                          fontSize: `${(theme.fontSize.body - 1) * scale}px`,
+                          fontFamily: theme.fonts.body,
+                          color: theme.colors.text,
+                          lineHeight: 1.55,
+                          marginBottom: `${6 * scale}px`,
+                          paddingLeft: `${14 * scale}px`,
+                          position: "relative",
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: `${4 * scale}px`,
+                            width: `${6 * scale}px`,
+                            height: `${6 * scale}px`,
+                            borderRadius: "50%",
+                            background: theme.colors.accent,
+                          }}
+                        />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                ) : item.body ? (
+                  <p
+                    style={{
+                      fontSize: `${(theme.fontSize.body - 1) * scale}px`,
+                      fontFamily: theme.fonts.body,
+                      color: theme.colors.text,
+                      lineHeight: 1.55,
+                      margin: 0,
+                    }}
+                  >
+                    {item.body}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  };
+
+  // 渲染图表占位
   const renderChart = () => {
     if (!slide.chart || !layout.visual) return null;
     return (
@@ -127,7 +250,7 @@ export function SlideRenderer({ slide, theme, width }: Props) {
       className="relative h-full w-full overflow-hidden"
       style={{ background: theme.colors.background }}
     >
-      {/* 装饰：cover/section/closing 带顶部色带 */}
+      {/* 装饰色带 */}
       {(slide.layout === "cover" ||
         slide.layout === "section" ||
         slide.layout === "closing") && (
@@ -144,14 +267,14 @@ export function SlideRenderer({ slide, theme, width }: Props) {
       )}
 
       {renderTitle()}
-      {renderBody()}
+
+      {isCols ? renderColumns() : renderBody()}
 
       {(slide.layout === "two-column" ||
         slide.layout === "chart" ||
         slide.layout === "image") &&
         renderVisual()}
 
-      {/* closing 布局：居中 */}
       {slide.layout === "closing" && (
         <div
           style={{
