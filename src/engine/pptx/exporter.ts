@@ -88,6 +88,23 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
     });
   }
 
+  // 内容页左侧装饰条
+  if (
+    slide.layout !== "cover" &&
+    slide.layout !== "section" &&
+    slide.layout !== "closing"
+  ) {
+    s.addShape("rect", {
+      x: 0,
+      y: SLIDE_H * 0.1,
+      w: 0.06,
+      h: SLIDE_H * 0.8,
+      fill: { color: theme.colors.primary },
+      line: { width: 0 },
+      rectRadius: 0.02,
+    });
+  }
+
   // 标题
   if (layout.title && slide.title) {
     addText(s, slide.title, layout.title, {

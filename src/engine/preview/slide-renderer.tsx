@@ -266,6 +266,24 @@ export function SlideRenderer({ slide, theme, width }: Props) {
         />
       )}
 
+      {/* 内容页左侧装饰条 */}
+      {slide.layout !== "cover" &&
+        slide.layout !== "section" &&
+        slide.layout !== "closing" && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: "10%",
+              width: `${5 * scale}px`,
+              height: "80%",
+              background: `linear-gradient(to bottom, ${theme.colors.primary}, ${theme.colors.secondary})`,
+              borderRadius: `0 ${3 * scale}px ${3 * scale}px 0`,
+              opacity: 0.2,
+            }}
+          />
+        )}
+
       {renderTitle()}
 
       {isCols ? renderColumns() : renderBody()}

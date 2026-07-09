@@ -9,12 +9,13 @@ export function buildOutlineSystemPrompt(): string {
 
 ## 要求
 1. 输出必须是 **合法的 JSON 数组**，数组中的每个元素对应一页幻灯片。
-2. 每页幻灯片必须包含：
-   - "title": 页面标题（简洁有力）
-   - "layout": 布局类型（见下方详细说明）
+2. **每页幻灯片必须包含 "title"（字符串）和 "layout"（下方枚举值之一）**，缺少这两个字段会导致解析失败。
 3. 第一页必须是 "cover" 类型，最后一页必须是 "closing" 类型。
 4. 正文页不要只用 "content" 布局，要根据内容的逻辑关系**多样化选择布局**，让每页内容更有层次。
 5. 语言与用户输入一致（中文输入则中文输出）。
+6. **每页内容要充实饱满**：正文 bullet 至少 4-6 条，每条要有实质性信息，避免空洞短语。
+7. **充分利用可视化元素**：对于包含数据、对比、比例、趋势的内容，优先使用 chart 字段生成图表（bar/pie/line/doughnut）；适合配图的内容使用 "two-column" 或 "image" 布局。
+8. **数据驱动**：尽量在内容中嵌入具体数据（数字、百分比、金额等），并优先以图表形式呈现。
 
 ## 布局类型说明
 
@@ -40,6 +41,9 @@ export function buildOutlineSystemPrompt(): string {
 - items 的 bullets 是字符串数组（无嵌套），每项建议 2-4 条要点。
 - 不要在 cols-N 中使用顶层的 bullets 字段，用 items 替代。
 - 如果一页内容只是单一叙述，没有多个并列维度，使用 "content" 即可。
+- **图表优先**：涉及销售额、增长率、市场占比、趋势对比等内容，必须在 chart 字段中提供结构化数据，不要只在 bullets 里用文字描述数据。
+- **配图增强**：产品展示、架构图、流程图、对比示意图等内容，使用 "two-column" 或 "image" 布局，让视觉区承载配图。
+- 每个 slide 尽量只承载一个核心信息点，并把该信息点讲透（多个 bullets + 子层级 + 必要时配图表）。
 
 ## Schema
 {
@@ -77,7 +81,7 @@ export function buildOutlineUserPrompt(params: {
   }
 
   parts.push(
-    `\n请生成完整的 PPT 大纲 JSON，封面到结尾，正文页包含具体的 bullet 要点，确保内容详实有深度。`,
+    `\n请生成完整的 PPT 大纲 JSON，封面到结尾。正文页必须包含具体的 bullet 要点（每页至少 4-6 条），涉及数据的内容要提供 chart 图表数据，确保每页内容充实饱满、有视觉层次。`,
   );
 
   return parts.join("\n");

@@ -76,8 +76,6 @@ const slideSchema = z.object({
     .optional(),
 });
 
-const outlineSchema = z.array(slideSchema);
-
 /**
  * 生成 PPT 大纲。
  * 输入主题/文档 → LLM JSON mode → 校验 → 附加 id → 返回 Slide[]
@@ -130,16 +128,28 @@ export async function generateOutline(params: {
     }
   }
 
-  // Zod 校验
-  const result = outlineSchema.safeParse(parsed);
-  if (!result.success) {
-    throw new Error(
-      `大纲格式校验失败：${result.error.issues.map((i) => i.message).join("; ")}`,
+  // 逐页校验，过滤无效幻灯片
+  const rawSlides = Array.isArray(parsed) ? parsed : [];
+  const validSlides: z.infer<typeof slideSchema>[] = [];
+  for (const slide of rawSlides) {
+    const result = slideSchema.safeParse(slide);
+    if (result.success) {
+      validSlides.push(result.data);
+    }
+  }
+
+  if (validSlides.length === 0) {
+    throw new Error(`大纲格式校验失败：所有幻灯片格式均不正确，请重试`);
+  }
+
+  if (validSlides.length < rawSlides.length) {
+    console.warn(
+      `过滤了 ${rawSlides.length - validSlides.length} 页格式异常的幻灯片`,
     );
   }
 
   // 附加 id
-  return result.data.map((slide) => ({
+  return validSlides.map((slide) => ({
     ...slide,
     id: nanoid(),
     bullets: slide.bullets ? addBulletIds(slide.bullets) : undefined,
