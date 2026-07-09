@@ -1,0 +1,85 @@
+export type LLMProviderId =
+  "openai" | "anthropic" | "qwen" | "zhipu" | "custom";
+
+export interface LLMProviderConfig {
+  id: LLMProviderId;
+  label: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  enabled: boolean;
+}
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface ChatRequest {
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  responseFormat?: "text" | "json";
+  signal?: AbortSignal;
+}
+
+export interface ChatResponse {
+  content: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+  };
+}
+
+export interface ImageGenRequest {
+  prompt: string;
+  size?: "1024x1024" | "1792x1024" | "1024x1792";
+}
+
+export interface ImageGenResponse {
+  url: string;
+  revisedPrompt?: string;
+}
+
+export interface AppSettings {
+  activeProvider: LLMProviderId;
+  providers: Record<LLMProviderId, LLMProviderConfig>;
+  imageProvider?: LLMProviderConfig;
+  imageEnabled: boolean;
+}
+
+export const PROVIDER_PRESETS: Record<
+  LLMProviderId,
+  Omit<LLMProviderConfig, "apiKey" | "enabled">
+> = {
+  openai: {
+    id: "openai",
+    label: "OpenAI",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o",
+  },
+  anthropic: {
+    id: "anthropic",
+    label: "Anthropic Claude",
+    baseUrl: "https://api.anthropic.com/v1",
+    model: "claude-sonnet-4-20250514",
+  },
+  qwen: {
+    id: "qwen",
+    label: "通义千问",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "qwen-max",
+  },
+  zhipu: {
+    id: "zhipu",
+    label: "智谱 GLM",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    model: "glm-4-plus",
+  },
+  custom: {
+    id: "custom",
+    label: "自定义",
+    baseUrl: "",
+    model: "",
+  },
+};

@@ -1,0 +1,51 @@
+{
+  "id": "tech-purple",
+  "name": "科技紫",
+  "colors": {
+    "primary": "#2D1B69",
+    "secondary": "#7C3AED",
+    "accent": "#06B6D4",
+    "background": "#0F0A1E",
+    "surface": "#1A1230",
+    "text": "#E9D5FF",
+    "textMuted": "#A78BFA"
+  },
+  "fonts": {
+    "title": "'PingFang SC', 'SF Pro Display', sans-serif",
+    "body": "'PingFang SC', 'SF Pro Text', sans-serif"
+  },
+  "fontSize": { "h1": 44, "h2": 32, "body": 18, "caption": 14 },
+  "spacing": "comfortable",
+  "layouts": {
+    "cover": {
+      "title": { "x": 0.08, "y": 0.3, "w": 0.84, "h": 0.24 },
+      "body": { "x": 0.08, "y": 0.6, "w": 0.7, "h": 0.14 }
+    },
+    "section": {
+      "title": { "x": 0.08, "y": 0.36, "w": 0.84, "h": 0.22 },
+      "body": { "x": 0.08, "y": 0.62, "w": 0.5, "h": 0.12 }
+    },
+    "content": {
+      "title": { "x": 0.08, "y": 0.08, "w": 0.84, "h": 0.12 },
+      "body": { "x": 0.08, "y": 0.22, "w": 0.84, "h": 0.7 }
+    },
+    "two-column": {
+      "title": { "x": 0.08, "y": 0.08, "w": 0.84, "h": 0.12 },
+      "body": { "x": 0.06, "y": 0.22, "w": 0.42, "h": 0.7 },
+      "visual": { "x": 0.52, "y": 0.22, "w": 0.42, "h": 0.7 }
+    },
+    "chart": {
+      "title": { "x": 0.08, "y": 0.08, "w": 0.84, "h": 0.12 },
+      "visual": { "x": 0.1, "y": 0.22, "w": 0.8, "h": 0.68 }
+    },
+    "image": {
+      "title": { "x": 0.08, "y": 0.08, "w": 0.84, "h": 0.12 },
+      "body": { "x": 0.06, "y": 0.22, "w": 0.42, "h": 0.7 },
+      "visual": { "x": 0.52, "y": 0.22, "w": 0.42, "h": 0.7 }
+    },
+    "closing": {
+      "title": { "x": 0.08, "y": 0.4, "w": 0.84, "h": 0.2 },
+      "body": { "x": 0.08, "y": 0.64, "w": 0.84, "h": 0.12 }
+    }
+  }
+}
