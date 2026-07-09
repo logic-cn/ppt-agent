@@ -213,26 +213,34 @@ export default function Editor() {
                   onClick={() => setThemeOpen(false)}
                 />
                 <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-bg-surface p-1 shadow-lg">
-                  {BUILTIN_THEMES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        setTheme(t.id);
-                        setThemeOpen(false);
-                      }}
-                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
-                        deck?.themeId === t.id
-                          ? "text-accent"
-                          : "text-text-secondary"
-                      }`}
-                    >
-                      <span
-                        className="h-4 w-4 rounded-full border border-border"
-                        style={{ background: t.colors.primary }}
-                      />
-                      {t.name}
-                    </button>
-                  ))}
+                  {BUILTIN_THEMES.map((t) => {
+                    const swatch =
+                      t.id === "minimal-white"
+                        ? "#e5e7eb"
+                        : t.id === "vibrant-orange"
+                          ? t.colors.secondary
+                          : t.colors.primary;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setTheme(t.id);
+                          setThemeOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
+                          deck?.themeId === t.id
+                            ? "text-accent"
+                            : "text-text-secondary"
+                        }`}
+                      >
+                        <span
+                          className="h-4 w-4 rounded-full border border-border"
+                          style={{ background: swatch }}
+                        />
+                        {t.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}

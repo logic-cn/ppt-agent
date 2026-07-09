@@ -11,10 +11,13 @@ export const BUILTIN_THEMES: Theme[] = [
   vibrantOrange as Theme,
 ];
 
-export const DEFAULT_THEME_ID = "business-blue";
+export const DEFAULT_THEME_ID = "vibrant-orange";
 
 export function getTheme(id: string): Theme {
-  return BUILTIN_THEMES.find((t) => t.id === id) ?? BUILTIN_THEMES[0];
+  return (
+    BUILTIN_THEMES.find((t) => t.id === id) ??
+    BUILTIN_THEMES.find((t) => t.id === DEFAULT_THEME_ID)!
+  );
 }
 
 export function resolveTheme(
