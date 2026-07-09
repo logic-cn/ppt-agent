@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Copy, Check } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { generateOutline } from "@/services/outline";
 import { applyUserIntent } from "@/services/intent-parser";
@@ -21,6 +21,13 @@ export function ChatPanel() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyMessage = async (id: string, content: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { deck, replaceSlides, addSlide } = useDeckStore();
 
@@ -114,12 +121,23 @@ export function ChatPanel() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`rounded-lg px-3 py-2.5 ${
+              className={`group relative rounded-lg px-3 py-2.5 ${
                 msg.role === "user"
                   ? "bg-accent-soft/30 text-text-primary"
                   : "bg-bg-elevated text-text-secondary"
               }`}
             >
+              <button
+                onClick={() => copyMessage(msg.id, msg.content)}
+                className="absolute right-1.5 top-1.5 rounded p-1 text-text-muted opacity-0 transition-opacity hover:bg-bg-hover group-hover:opacity-100"
+                title="复制消息"
+              >
+                {copiedId === msg.id ? (
+                  <Check className="h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
               <p className="whitespace-pre-wrap">{msg.content}</p>
             </div>
           ))}

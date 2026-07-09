@@ -110,6 +110,14 @@ export async function generateOutline(params: {
     }
   }
 
+  // 兼容 json_object 模式：将顶层对象中的首个数组提取出来
+  if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
+    const arrayCandidate = Object.values(parsed).find(Array.isArray);
+    if (arrayCandidate) {
+      parsed = arrayCandidate;
+    }
+  }
+
   // Zod 校验
   const result = outlineSchema.safeParse(parsed);
   if (!result.success) {

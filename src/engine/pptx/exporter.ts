@@ -14,7 +14,14 @@ export async function exportDeck(deck: Deck, path: string): Promise<void> {
     const s = pptx.addSlide();
     renderSlide(s, slide, theme);
   }
-  await pptx.writeFile({ fileName: path });
+  const data = (await pptx.write({
+    outputType: "uint8array",
+  })) as Uint8Array;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("write_binary_file", {
+    path,
+    data: Array.from(data),
+  });
 }
 
 export async function exportDeckToBlob(deck: Deck): Promise<Blob> {
@@ -55,22 +62,10 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
     });
   }
 
-  // cover 右色块
-  if (slide.layout === "cover") {
-    s.addShape("rect", {
-      x: SLIDE_W * 0.7,
-      y: 0,
-      w: SLIDE_W * 0.3,
-      h: SLIDE_H,
-      fill: { color: theme.colors.surface },
-      line: { width: 0 },
-    });
-  }
-
   // 标题
   if (layout.title && slide.title) {
     addText(s, slide.title, layout.title, {
-      fontSize: theme.fontSize.h1 * 0.45,
+      fontSize: theme.fontSize.h1,
       fontFace: theme.fonts.title,
       color: theme.colors.primary,
       bold: true,
@@ -90,7 +85,7 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
         h: layout.title.h * 0.4,
       },
       {
-        fontSize: theme.fontSize.body * 0.45,
+        fontSize: theme.fontSize.body,
         fontFace: theme.fonts.body,
         color: theme.colors.textMuted,
       },
@@ -100,19 +95,14 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
   // 正文 / bullets
   if (layout.body) {
     if (slide.bullets && slide.bullets.length > 0) {
-      const bulletText = flattenBullets(slide.bullets);
-      addText(s, bulletText, layout.body, {
-        fontSize: theme.fontSize.body * 0.45,
-        fontFace: theme.fonts.body,
-        color: theme.colors.text,
+      const segments = buildBulletSegments(slide.bullets, theme);
+      addTextSegments(s, segments, layout.body, {
         valign: "top",
-        align: "left",
         lineSpacingMultiple: 1.5,
-        bullet: { code: "25CF", color: theme.colors.accent },
       });
     } else if (slide.body) {
       addText(s, slide.body, layout.body, {
-        fontSize: theme.fontSize.body * 0.45,
+        fontSize: theme.fontSize.body,
         fontFace: theme.fonts.body,
         color: theme.colors.text,
         valign: "top",
@@ -166,14 +156,51 @@ function addText(
   });
 }
 
-function flattenBullets(nodes: BulletNode[]): string {
-  const lines: string[] = [];
+function buildBulletSegments(
+  nodes: BulletNode[],
+  theme: Theme,
+): PptxGenJS.TextProps[] {
+  const segments: PptxGenJS.TextProps[] = [];
+  const bulletCodes = ["25CF", "25CB", "25A0"];
   const walk = (items: BulletNode[], level: number) => {
     for (const item of items) {
-      lines.push(item.text);
+      const fontSize =
+        level === 0
+          ? theme.fontSize.body
+          : level === 1
+            ? theme.fontSize.body - 2
+            : theme.fontSize.caption;
+      segments.push({
+        text: item.text,
+        options: {
+          fontSize,
+          fontFace: theme.fonts.body,
+          color: level === 0 ? theme.colors.text : theme.colors.textMuted,
+          indentLevel: level,
+          bullet: { characterCode: bulletCodes[level] ?? "25CF" },
+          lineSpacingMultiple: 1.5,
+          paraSpaceAfter: 4,
+        },
+      });
       if (item.children) walk(item.children, level + 1);
     }
   };
   walk(nodes, 0);
-  return lines.join("\n");
+  return segments;
+}
+
+function addTextSegments(
+  s: PptxGenJS.Slide,
+  segments: PptxGenJS.TextProps[],
+  area: { x: number; y: number; w: number; h: number },
+  sharedOpts: Record<string, unknown>,
+) {
+  s.addText(segments, {
+    x: area.x * SLIDE_W,
+    y: area.y * SLIDE_H,
+    w: area.w * SLIDE_W,
+    h: area.h * SLIDE_H,
+    autoFit: true,
+    ...sharedOpts,
+  });
 }

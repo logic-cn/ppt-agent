@@ -6,10 +6,19 @@ import { SlideRenderer } from "./slide-renderer";
 interface Props {
   deck: Deck;
   className?: string;
+  currentIndex?: number;
+  onIndexChange?: (index: number) => void;
 }
 
-export function SlidePreview({ deck, className }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export function SlidePreview({
+  deck,
+  className,
+  currentIndex: controlledIndex,
+  onIndexChange,
+}: Props) {
+  const [internalIndex, setInternalIndex] = useState(0);
+  const currentIndex = controlledIndex ?? internalIndex;
+  const setCurrentIndex = onIndexChange ?? setInternalIndex;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(960);
 
@@ -37,19 +46,19 @@ export function SlidePreview({ deck, className }: Props) {
     );
   }
 
-  const slideWidth = Math.min(containerWidth - 64, 960);
+  const slideWidth = Math.min(containerWidth - 32, 960);
   const slideHeight = (slideWidth * 9) / 16;
 
-  const goPrev = () => setCurrentIndex((i) => Math.max(0, i - 1));
+  const goPrev = () => setCurrentIndex(Math.max(0, currentIndex - 1));
   const goNext = () =>
-    setCurrentIndex((i) => Math.min(slides.length - 1, i + 1));
+    setCurrentIndex(Math.min(slides.length - 1, currentIndex + 1));
 
   return (
     <div className={`flex h-full flex-col ${className ?? ""}`}>
       {/* 预览画布 */}
       <div
         ref={containerRef}
-        className="flex flex-1 items-center justify-center overflow-auto p-8"
+        className="flex flex-1 items-center justify-center overflow-auto p-4"
       >
         <div
           className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10"

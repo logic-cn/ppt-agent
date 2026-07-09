@@ -5,10 +5,10 @@
     "primary": "#1E3A5F",
     "secondary": "#3B6EA5",
     "accent": "#F4B860",
-    "background": "#FFFFFF",
-    "surface": "#F1F5F9",
-    "text": "#1A202C",
-    "textMuted": "#64748B"
+    "background": "#0D1B2A",
+    "surface": "#1B2D45",
+    "text": "#E2E8F0",
+    "textMuted": "#94A3B8"
   },
   "fonts": {
     "title": "'Source Han Sans CN', 'PingFang SC', 'Microsoft YaHei', sans-serif",

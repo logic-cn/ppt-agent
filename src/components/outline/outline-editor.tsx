@@ -19,7 +19,11 @@ import type { Slide } from "@/types/deck";
 import { Sparkles, Plus, Loader2, Send } from "lucide-react";
 import { SortableSlideItem } from "./sortable-slide-item";
 
-export function OutlineEditor() {
+interface OutlineEditorProps {
+  onSelectSlide?: (index: number) => void;
+}
+
+export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
   const deck = useDeckStore((s) => s.deck);
   const moveSlide = useDeckStore((s) => s.moveSlide);
   const replaceSlides = useDeckStore((s) => s.replaceSlides);
@@ -103,10 +107,10 @@ export function OutlineEditor() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-2 pb-2">
+      <div className="flex-1 overflow-auto px-2 pb-3">
         {/* AI 主题输入栏 */}
         {showInput && (
-          <div className="mb-3 rounded-md border border-accent bg-accent-soft/20 p-2">
+          <div className="mb-2 rounded-md border border-accent bg-accent-soft/20 p-2">
             <p className="mb-1.5 text-xs text-text-secondary">
               输入 PPT 主题，AI 自动生成大纲
             </p>
@@ -157,6 +161,7 @@ export function OutlineEditor() {
                     slide={slide}
                     index={i}
                     total={slides.length}
+                    onSelect={onSelectSlide}
                   />
                 ))}
               </div>

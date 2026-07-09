@@ -8,6 +8,17 @@ pub fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))
 }
 
+/// 写入二进制文件
+#[tauri::command]
+pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    if let Some(parent) = PathBuf::from(&path).parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
+        }
+    }
+    fs::write(&path, data).map_err(|e| format!("写入文件失败: {}", e))
+}
+
 /// 写入文本文件
 #[tauri::command]
 pub fn write_text_file(path: String, content: String) -> Result<(), String> {

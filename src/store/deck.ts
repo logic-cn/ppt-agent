@@ -175,6 +175,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
         canRedo: false,
       };
     });
+    get().persist();
   },
 
   undo: () => {

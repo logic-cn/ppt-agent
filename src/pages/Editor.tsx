@@ -5,6 +5,7 @@ import {
   Download,
   ChevronLeft,
   Upload,
+  Palette,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -15,6 +16,7 @@ import { ChatPanel } from "@/components/chat";
 import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
+import { BUILTIN_THEMES } from "@/themes";
 
 export default function Editor() {
   const { id } = useParams();
@@ -25,6 +27,9 @@ export default function Editor() {
   const [rightOpen, setRightOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const setTheme = useDeckStore((s) => s.setTheme);
 
   useEffect(() => {
     if (isNew && deck) return;
@@ -137,6 +142,47 @@ export default function Editor() {
 
           <div className="mx-2 h-5 w-px bg-border" />
 
+          <div className="relative">
+            <button
+              onClick={() => setThemeOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+              title="切换主题"
+            >
+              <Palette className="h-3.5 w-3.5" />
+              主题
+            </button>
+            {themeOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setThemeOpen(false)}
+                />
+                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-bg-surface p-1 shadow-lg">
+                  {BUILTIN_THEMES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setTheme(t.id);
+                        setThemeOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
+                        deck?.themeId === t.id
+                          ? "text-accent"
+                          : "text-text-secondary"
+                      }`}
+                    >
+                      <span
+                        className="h-4 w-4 rounded-full border border-border"
+                        style={{ background: t.colors.primary }}
+                      />
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={() => setImportOpen(true)}
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -159,15 +205,19 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
         {leftOpen && (
-          <aside className="flex w-72 flex-col border-r border-border bg-bg-surface">
-            <OutlineEditor />
+          <aside className="flex w-96 flex-col border-r border-border bg-bg-surface">
+            <OutlineEditor onSelectSlide={setSelectedIndex} />
           </aside>
         )}
 
         {/* 中栏：预览 */}
         <main className="flex flex-1 flex-col overflow-hidden">
           {deck && deck.slides.length > 0 ? (
-            <SlidePreview deck={deck} />
+            <SlidePreview
+              deck={deck}
+              currentIndex={selectedIndex}
+              onIndexChange={setSelectedIndex}
+            />
           ) : (
             <div className="flex flex-1 items-center justify-center text-text-muted">
               生成大纲后将在此预览

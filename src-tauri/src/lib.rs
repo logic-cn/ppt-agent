@@ -10,6 +10,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::fs::read_text_file,
             commands::fs::write_text_file,
+            commands::fs::write_binary_file,
             commands::fs::app_data_dir,
             commands::http::http_proxy,
         ])

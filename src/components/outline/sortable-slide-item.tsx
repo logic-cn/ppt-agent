@@ -5,16 +5,25 @@ import type { Slide } from "@/types/deck";
 import { useDeckStore } from "@/store/deck";
 import { getTheme } from "@/themes";
 import { SlideThumbnail } from "@/engine/preview";
-import { useState } from "react";
 
 interface Props {
   slide: Slide;
   index: number;
   total: number;
+  onSelect?: (index: number) => void;
 }
 
-export function SortableSlideItem({ slide, index, total }: Props) {
-  const [expanded, setExpanded] = useState(false);
+const layoutLabels: Record<string, string> = {
+  cover: "封面",
+  section: "章节",
+  content: "正文",
+  "two-column": "双栏",
+  chart: "图表",
+  image: "配图",
+  closing: "结尾",
+};
+
+export function SortableSlideItem({ slide, index, total, onSelect }: Props) {
   const theme = getTheme(
     useDeckStore.getState().deck?.themeId ?? "business-blue",
   );
@@ -37,59 +46,44 @@ export function SortableSlideItem({ slide, index, total }: Props) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const layoutLabels: Record<string, string> = {
-    cover: "封面",
-    section: "章节",
-    content: "正文",
-    "two-column": "双栏",
-    chart: "图表",
-    image: "配图",
-    closing: "结尾",
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-md border ${isDragging ? "border-accent" : "border-border"} bg-bg-surface`}
+      onClick={() => onSelect?.(index)}
+      className={`group relative cursor-pointer rounded-lg border ${
+        isDragging ? "border-accent" : "border-border"
+      } bg-bg-surface transition-shadow hover:shadow-md`}
     >
-      {/* 标题行 */}
-      <div className="flex items-center gap-1 px-2 py-1.5">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab touch-none text-text-muted hover:text-text-secondary"
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-        <span className="mr-1 text-xs font-medium text-text-muted">
-          {index + 1}
-        </span>
-        <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
-          {layoutLabels[slide.layout] ?? slide.layout}
-        </span>
-        <input
-          value={slide.title}
-          onChange={(e) => updateSlide(slide.id, { title: e.target.value })}
-          placeholder="页面标题"
-          className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-        />
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="rounded p-0.5 text-text-muted hover:bg-bg-hover"
-        >
-          <ChevronUp
-            className={`h-3 w-3 transition ${expanded ? "" : "rotate-180"}`}
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab touch-none rounded p-0.5 text-text-muted opacity-0 transition-opacity hover:text-text-secondary group-hover:opacity-100"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+
+      <div className="px-3 pb-3 pt-2">
+        {/* 缩略图 */}
+        <div className="mb-2 flex justify-center">
+          <SlideThumbnail slide={slide} theme={theme} width={260} />
+        </div>
+
+        {/* 底部信息行 */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-text-muted">
+            #{index + 1}
+          </span>
+          <input
+            value={slide.title}
+            onChange={(e) => updateSlide(slide.id, { title: e.target.value })}
+            placeholder="页面标题"
+            className="min-w-0 flex-1 truncate bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
           />
-        </button>
-      </div>
 
-      {/* 展开：缩略图 + 布局选择 + 操作 */}
-      {expanded && (
-        <div className="border-t border-border px-3 pb-2 pt-2">
-          <SlideThumbnail slide={slide} theme={theme} width={200} />
-
-          <div className="mt-2 flex items-center gap-2">
+          {/* 悬浮操作栏 */}
+          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <select
               value={slide.layout}
               onChange={(e) =>
@@ -97,7 +91,7 @@ export function SortableSlideItem({ slide, index, total }: Props) {
                   layout: e.target.value as Slide["layout"],
                 })
               }
-              className="flex-1 rounded border border-border bg-bg-base px-2 py-1 text-xs focus:border-accent focus:outline-none"
+              className="rounded border border-border bg-bg-base px-1.5 py-0.5 text-[11px] text-text-secondary focus:border-accent focus:outline-none"
             >
               {Object.entries(layoutLabels).map(([val, label]) => (
                 <option key={val} value={val}>
@@ -106,34 +100,37 @@ export function SortableSlideItem({ slide, index, total }: Props) {
               ))}
             </select>
 
-            <div className="flex gap-1">
-              {index > 0 && (
-                <button
-                  onClick={() => moveSlide(index, index - 1)}
-                  className="rounded p-1 text-text-muted hover:bg-bg-hover"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </button>
-              )}
-              {index < total - 1 && (
-                <button
-                  onClick={() => moveSlide(index, index + 1)}
-                  className="rounded p-1 text-text-muted hover:bg-bg-hover"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <span className="mx-0.5 h-3 w-px bg-border" />
+
+            <button
+              onClick={() => index > 0 && moveSlide(index, index - 1)}
+              disabled={index === 0}
+              className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
+              title="上移"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => index < total - 1 && moveSlide(index, index + 1)}
+              disabled={index === total - 1}
+              className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
+              title="下移"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+
+            <span className="mx-0.5 h-3 w-px bg-border" />
 
             <button
               onClick={() => removeSlide(slide.id)}
-              className="rounded p-1 text-danger hover:bg-danger/10"
+              className="rounded p-0.5 text-red-400 hover:bg-red-500/10 hover:text-red-500"
+              title="删除"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

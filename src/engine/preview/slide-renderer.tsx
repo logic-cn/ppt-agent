@@ -41,7 +41,9 @@ export function SlideRenderer({ slide, theme, width }: Props) {
               fontFamily: theme.fonts.body,
               color: theme.colors.textMuted,
               marginTop: `${8 * scale}px`,
-              margin: 0,
+              marginRight: 0,
+              marginBottom: 0,
+              marginLeft: 0,
             }}
           >
             {slide.subtitle}
@@ -55,9 +57,9 @@ export function SlideRenderer({ slide, theme, width }: Props) {
   const renderBody = () => {
     if (!layout.body) return null;
     return (
-      <div style={rectToStyle(layout.body)} className="overflow-hidden">
+      <div style={rectToStyle(layout.body)}>
         {slide.bullets && slide.bullets.length > 0 ? (
-          <BulletList bullets={slide.bullets} theme={theme} />
+          <BulletList bullets={slide.bullets} theme={theme} scale={scale} />
         ) : slide.body ? (
           <p
             style={{
@@ -141,20 +143,6 @@ export function SlideRenderer({ slide, theme, width }: Props) {
         />
       )}
 
-      {/* cover 布局：左色块装饰 */}
-      {slide.layout === "cover" && (
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: "30%",
-            background: theme.colors.surface,
-          }}
-        />
-      )}
-
       {renderTitle()}
       {renderBody()}
 
@@ -213,7 +201,10 @@ function ChartPlaceholder({
           {chart.title}
         </p>
       )}
-      <div className="flex flex-1 items-end justify-around gap-2">
+      <div
+        className="flex flex-1 items-end justify-around"
+        style={{ gap: `${8 * scale}px` }}
+      >
         {chart.data.map((d, i) => (
           <div
             key={i}
@@ -224,7 +215,7 @@ function ChartPlaceholder({
               style={{
                 fontSize: `${theme.fontSize.caption * scale}px`,
                 color: theme.colors.text,
-                marginBottom: "4px",
+                marginBottom: `${4 * scale}px`,
               }}
             >
               {d.value}
@@ -235,14 +226,14 @@ function ChartPlaceholder({
                 height: `${(d.value / maxVal) * 100}%`,
                 background: theme.colors.accent,
                 borderRadius: `${4 * scale}px ${4 * scale}px 0 0`,
-                minHeight: "4px",
+                minHeight: `${4 * scale}px`,
               }}
             />
             <span
               style={{
                 fontSize: `${theme.fontSize.caption * scale}px`,
                 color: theme.colors.textMuted,
-                marginTop: "4px",
+                marginTop: `${4 * scale}px`,
                 textAlign: "center",
                 wordBreak: "break-all",
               }}
