@@ -167,10 +167,11 @@ export async function deleteDeck(id: string): Promise<void> {
     return;
   }
   try {
+    const inv = await getInvoke();
+    if (!inv) return;
     const dir = await getDataDir();
     const path = await joinPath(dir, "decks", `${id}.json`);
-    const { remove } = await import("@tauri-apps/plugin-fs");
-    await remove(path);
+    await inv("delete_file", { path });
   } catch {
     // ignore
   }

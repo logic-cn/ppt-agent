@@ -31,6 +31,7 @@ export default function Editor() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const setTheme = useDeckStore((s) => s.setTheme);
   const setTitle = useDeckStore((s) => s.setTitle);
+  const persist = useDeckStore((s) => s.persist);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
@@ -42,9 +43,12 @@ export default function Editor() {
     }
   }, [editingTitle]);
 
-  const commitTitle = () => {
+  const commitTitle = async () => {
     const v = titleInput.trim();
-    if (v && deck) setTitle(v);
+    if (v && deck) {
+      setTitle(v);
+      await persist();
+    }
     setEditingTitle(false);
   };
 

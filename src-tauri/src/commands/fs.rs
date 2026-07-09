@@ -31,6 +31,12 @@ pub fn write_text_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))
 }
 
+/// 删除文件
+#[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    fs::remove_file(&path).map_err(|e| format!("删除文件失败: {}", e))
+}
+
 /// 列出目录中的文件名（过滤 .json）
 #[tauri::command]
 pub fn list_directory(path: String) -> Result<Vec<String>, String> {

@@ -12,6 +12,7 @@ pub fn run() {
             commands::fs::write_text_file,
             commands::fs::write_binary_file,
             commands::fs::list_directory,
+            commands::fs::delete_file,
             commands::fs::app_data_dir,
             commands::http::http_proxy,
         ])

@@ -1,13 +1,23 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { Presentation, Plus, FileText, Settings, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Presentation,
+  Plus,
+  FileText,
+  Settings,
+  Clock,
+  Trash2,
+} from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { useProjectStore } from "@/store/project";
+import { deleteDeck } from "@/services/storage";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export default function Home() {
   const navigate = useNavigate();
   const createDeck = useDeckStore((s) => s.createDeck);
   const { recent, loading, loadRecent } = useProjectStore();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     void loadRecent();
@@ -135,30 +145,59 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-3 gap-4">
               {recent.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => navigate(`/editor/${p.id}`)}
-                  className="group rounded-xl border border-border bg-bg-surface p-5 text-left transition hover:border-accent hover:shadow-md"
+                  className="group relative rounded-xl border border-border bg-bg-surface p-5 text-left transition hover:border-accent hover:shadow-md"
                 >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft/50">
-                      <FileText className="h-5 w-5 text-accent" />
+                  <button
+                    onClick={() => navigate(`/editor/${p.id}`)}
+                    className="w-full text-left"
+                  >
+                    <div className="mb-3 flex items-start justify-between">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft/50">
+                        <FileText className="h-5 w-5 text-accent" />
+                      </div>
+                      <span className="rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
+                        {getSlideSummary(p.slides)}
+                      </span>
                     </div>
-                    <span className="rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
-                      {getSlideSummary(p.slides)}
-                    </span>
-                  </div>
-                  <h3 className="mb-1 truncate font-medium text-text-primary group-hover:text-accent">
-                    {p.title}
-                  </h3>
-                  <p className="flex items-center gap-1 text-xs text-text-muted">
-                    <Clock className="h-3 w-3" />
-                    {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
-                  </p>
-                </button>
+                    <h3 className="mb-1 truncate font-medium text-text-primary group-hover:text-accent">
+                      {p.title}
+                    </h3>
+                    <p className="flex items-center gap-1 text-xs text-text-muted">
+                      <Clock className="h-3 w-3" />
+                      {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
+                    </p>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(p.id);
+                    }}
+                    className="absolute right-2 top-2 rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-red-100 hover:text-red-500 group-hover:opacity-100"
+                    title="删除项目"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
+
+          <ConfirmDialog
+            open={deleteTarget !== null}
+            title="删除项目"
+            message="确定要删除这个项目吗？此操作不可撤销。"
+            confirmText="删除"
+            onConfirm={async () => {
+              if (deleteTarget) {
+                await deleteDeck(deleteTarget);
+                setDeleteTarget(null);
+                void loadRecent();
+              }
+            }}
+            onCancel={() => setDeleteTarget(null)}
+          />
         </div>
       </main>
     </div>
