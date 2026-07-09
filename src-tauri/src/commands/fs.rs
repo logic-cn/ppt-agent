@@ -31,6 +31,23 @@ pub fn write_text_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))
 }
 
+/// 列出目录中的文件名（过滤 .json）
+#[tauri::command]
+pub fn list_directory(path: String) -> Result<Vec<String>, String> {
+    let entries =
+        fs::read_dir(&path).map_err(|e| format!("读取目录失败: {}", e))?;
+    let mut files = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;
+        if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            if let Some(name) = entry.file_name().to_str() {
+                files.push(name.to_string());
+            }
+        }
+    }
+    Ok(files)
+}
+
 /// 获取应用数据目录（用于持久化项目、配置等）
 #[tauri::command]
 pub fn app_data_dir(app: AppHandle) -> Result<String, String> {

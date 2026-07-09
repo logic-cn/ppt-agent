@@ -136,14 +136,15 @@ export async function listDecks(): Promise<Deck[]> {
     }
     return decks.sort((a, b) => b.updatedAt - a.updatedAt);
   }
-  // Tauri 环境：通过 fs 插件读取目录
+  // Tauri 环境：通过 Rust 命令读取目录
   try {
-    const { readDir } = await import("@tauri-apps/plugin-fs");
-    const entries = await readDir(decksDir);
+    const inv = await getInvoke();
+    if (!inv) return [];
+    const names = await inv<string[]>("list_directory", { path: decksDir });
     const decks: Deck[] = [];
-    for (const entry of entries) {
-      if (entry.isFile && entry.name.endsWith(".json")) {
-        const filePath = await joinPath(decksDir, entry.name);
+    for (const name of names) {
+      if (name.endsWith(".json")) {
+        const filePath = await joinPath(decksDir, name);
         const raw = await readText(filePath);
         if (raw) {
           try {

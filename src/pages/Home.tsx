@@ -11,6 +11,13 @@ export default function Home() {
 
   useEffect(() => {
     void loadRecent();
+    const onShow = () => void loadRecent();
+    window.addEventListener("pageshow", onShow);
+    window.addEventListener("focus", onShow);
+    return () => {
+      window.removeEventListener("pageshow", onShow);
+      window.removeEventListener("focus", onShow);
+    };
   }, [loadRecent]);
 
   const createProject = async () => {
