@@ -150,6 +150,29 @@ export function ChatPanel() {
         </div>
       </div>
 
+      {/* 预制指令 */}
+      {messages.length <= 1 && !loading && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-1">
+          {[
+            "生成一份关于AI行业的PPT",
+            "Q3业务汇报",
+            "产品发布会PPT",
+            "市场分析报告",
+          ].map((text) => (
+            <button
+              key={text}
+              onClick={() => {
+                setInput(text);
+                textareaRef.current?.focus();
+              }}
+              className="rounded-full border border-border bg-bg-elevated px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent"
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="border-t border-border p-3">
         <div className="flex items-end gap-2 rounded-lg border border-border bg-bg-base px-3 py-2">
           <textarea
