@@ -1,10 +1,9 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
+import { httpRequest } from "@/services/http-client";
 
-/**
- * Anthropic API 适配器。
- * 使用 /v1/messages 端点，与 OpenAI 协议不同。
- */
+const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
 export class AnthropicProvider {
   private config: LLMProviderConfig;
 
@@ -21,7 +20,7 @@ export class AnthropicProvider {
       system: req.messages.find((m) => m.role === "system")?.content,
     };
 
-    const res = await fetch(`${this.config.baseUrl}/messages`, {
+    const res = await httpRequest(`${this.config.baseUrl}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -34,7 +33,7 @@ export class AnthropicProvider {
 
     if (!res.ok) {
       const err = await res.text().catch(() => "未知错误");
-      throw new Error(`Anthropic API 调用失败: ${err}`);
+      throw new Error(`Anthropic API 调用失败 (${res.status}): ${err}`);
     }
 
     const data = await res.json();
@@ -53,10 +52,34 @@ export class AnthropicProvider {
       model: this.config.model,
       max_tokens: 4096,
       temperature: req.temperature ?? 0.7,
-      stream: true,
+      stream: !isTauri,
       messages: req.messages.filter((m) => m.role !== "system"),
       system: req.messages.find((m) => m.role === "system")?.content,
     };
+
+    if (isTauri) {
+      // Tauri proxy 不支持流式，退化为非流式
+      const res = await httpRequest(`${this.config.baseUrl}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": this.config.apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({ ...body, stream: false }),
+        signal: req.signal,
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => "未知错误");
+        throw new Error(`Anthropic 流式调用失败 (${res.status}): ${err}`);
+      }
+
+      const data = await res.json();
+      const content = data.content?.[0]?.text ?? "";
+      if (content) yield content;
+      return;
+    }
 
     const res = await fetch(`${this.config.baseUrl}/messages`, {
       method: "POST",
@@ -71,7 +94,7 @@ export class AnthropicProvider {
 
     if (!res.ok) {
       const err = await res.text().catch(() => "未知错误");
-      throw new Error(`Anthropic 流式调用失败: ${err}`);
+      throw new Error(`Anthropic 流式调用失败 (${res.status}): ${err}`);
     }
 
     const reader = res.body?.getReader();

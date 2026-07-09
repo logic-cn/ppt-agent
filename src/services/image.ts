@@ -1,5 +1,6 @@
 import { useSettingsStore } from "@/store/settings";
 import type { ImageGenRequest, ImageGenResponse } from "@/types/llm";
+import { httpRequest } from "@/services/http-client";
 
 /**
  * 调用 OpenAI DALL-E 兼容的文生图 API。
@@ -25,7 +26,7 @@ export async function generateImage(
     size: req.size ?? "1024x1024",
   };
 
-  const res = await fetch(`${cfg.baseUrl}/images/generations`, {
+  const res = await httpRequest(`${cfg.baseUrl}/images/generations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
