@@ -174,7 +174,7 @@ export function ChatPanel() {
       )}
 
       <div className="border-t border-border p-3">
-        <div className="flex items-end gap-2 rounded-lg border border-border bg-bg-base px-3 py-2">
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-base px-3 py-2">
           <textarea
             ref={textareaRef}
             value={input}
