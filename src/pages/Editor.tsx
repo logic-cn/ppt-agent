@@ -260,7 +260,7 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
         {leftOpen && (
-          <aside className="flex w-96 flex-col border-r border-border bg-bg-surface">
+          <aside className="flex w-80 flex-col border-r border-border bg-bg-surface">
             <OutlineEditor onSelectSlide={setSelectedIndex} />
           </aside>
         )}
