@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Upload,
   Palette,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -17,6 +18,8 @@ import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
 import { BUILTIN_THEMES } from "@/themes";
+import { deleteDeck } from "@/services/storage";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export default function Editor() {
   const { id } = useParams();
@@ -29,6 +32,7 @@ export default function Editor() {
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
   const [themeOpen, setThemeOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const setTheme = useDeckStore((s) => s.setTheme);
   const setTitle = useDeckStore((s) => s.setTitle);
   const persist = useDeckStore((s) => s.persist);
@@ -183,6 +187,16 @@ export default function Editor() {
 
           <div className="mx-2 h-5 w-px bg-border" />
 
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-red-100 hover:text-red-500"
+            title="删除项目"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+
+          <div className="mx-2 h-5 w-px bg-border" />
+
           <div className="relative">
             <button
               onClick={() => setThemeOpen((v) => !v)}
@@ -275,6 +289,19 @@ export default function Editor() {
       </div>
 
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="删除项目"
+        message={`确定要删除「${deck?.title ?? "未命名项目"}」吗？此操作不可撤销。`}
+        confirmText="删除"
+        onConfirm={async () => {
+          if (deck) {
+            await deleteDeck(deck.id);
+            window.history.back();
+          }
+        }}
+        onCancel={() => setDeleteConfirm(false)}
+      />
     </div>
   );
 }
