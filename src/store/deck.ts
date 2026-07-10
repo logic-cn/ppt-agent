@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Deck } from "@/types/deck";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
+import { clearRenderCache } from "@/engine/render-ir/build";
 
 interface HistoryEntry {
   deck: Deck;
@@ -37,6 +38,7 @@ interface DeckStore {
 
 function snapshot(deck: Deck | null): HistoryEntry | null {
   if (!deck) return null;
+  clearRenderCache();
   return { deck: structuredClone(deck) };
 }
 
@@ -64,6 +66,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     try {
       const deck = await loadDeck(id);
       if (deck) {
+        clearRenderCache();
         set({ deck, loading: false, dirty: false, past: [], future: [] });
       } else {
         set({ deck: null, loading: false });
@@ -77,6 +80,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   createDeck: async (title) => {
     const deck = createEmptyDeck(title);
     await saveDeck(deck);
+    clearRenderCache();
     set({ deck, dirty: false, past: [], future: [] });
     return deck;
   },
@@ -228,6 +232,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   undo: () => {
     const { past, deck } = get();
     if (past.length === 0 || !deck) return;
+    clearRenderCache();
     const entry = past[past.length - 1];
     const newPast = past.slice(0, -1);
     debouncedPersist(get);
@@ -247,6 +252,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   redo: () => {
     const { future, deck } = get();
     if (future.length === 0 || !deck) return;
+    clearRenderCache();
     const entry = future[future.length - 1];
     const newFuture = future.slice(0, -1);
     debouncedPersist(get);

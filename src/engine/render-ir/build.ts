@@ -14,6 +14,28 @@ export function buildRenderSlides(deck: Deck, theme: Theme): RenderSlide[] {
   return deck.slides.map((slide) => buildRenderSlide(slide, deck, theme));
 }
 
+// ── per-slide 渲染缓存 ──────────────────────────────────────────
+// 消除预览与缩略图对同一页重复构建 RenderIR 的开销
+const renderCache = new Map<string, RenderSlide>();
+
+export function clearRenderCache(): void {
+  renderCache.clear();
+}
+
+export function buildRenderSlideCached(
+  slide: Slide,
+  deck: Deck,
+  theme: Theme,
+): RenderSlide {
+  const key = `${slide.id}::${theme.id}`;
+  let rs = renderCache.get(key);
+  if (!rs) {
+    rs = buildRenderSlide(slide, deck, theme);
+    renderCache.set(key, rs);
+  }
+  return rs;
+}
+
 export function buildRenderSlide(
   slide: Slide,
   _deck: Deck,

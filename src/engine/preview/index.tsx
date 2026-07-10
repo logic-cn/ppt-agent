@@ -1,7 +1,7 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
-import { buildRenderSlide } from "@/engine/render-ir/build";
+import { buildRenderSlideCached } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
 
@@ -37,7 +37,8 @@ export const SlidePreview = memo(function SlidePreview({
   const rendererMode = getRendererMode();
   // 只构建当前页，避免任意一页变更都全量重建整本 deck 的 RenderIR
   const currentRenderSlide = useMemo(
-    () => (currentSlide ? buildRenderSlide(currentSlide, deck, theme) : null),
+    () =>
+      currentSlide ? buildRenderSlideCached(currentSlide, deck, theme) : null,
     [currentSlide, theme, rendererMode],
   );
 
@@ -137,7 +138,7 @@ export const SlideThumbnail = memo(function SlideThumbnail({
       createdAt: 0,
       updatedAt: 0,
     } as unknown as Deck;
-    return buildRenderSlide(slide, dummyDeck, theme);
+    return buildRenderSlideCached(slide, dummyDeck, theme);
   }, [slide, theme]);
 
   return (
