@@ -1,0 +1,40 @@
+{
+  "id": "fixture-long-bullets",
+  "version": 2,
+  "title": "要点过多的示例 Deck",
+  "themeId": "business-blue",
+  "createdAt": 1700000000000,
+  "updatedAt": 1700000000000,
+  "slides": [
+    {
+      "id": "s1",
+      "layout": "cover",
+      "title": "要点过多的示例",
+      "subtitle": "用于质量检查回归"
+    },
+    {
+      "id": "s2",
+      "layout": "content",
+      "title": "项目风险清单",
+      "bullets": [
+        { "id": "b1", "text": "需求频繁变更", "level": 0 },
+        { "id": "b2", "text": "测试覆盖不足", "level": 0 },
+        { "id": "b3", "text": "上线排期紧张", "level": 0 },
+        { "id": "b4", "text": "依赖第三方接口不稳定", "level": 0 },
+        { "id": "b5", "text": "人力不足", "level": 0 },
+        { "id": "b6", "text": "历史代码债较多", "level": 0 },
+        { "id": "b7", "text": "监控告警缺失", "level": 0 },
+        { "id": "b8", "text": "文档不完整", "level": 0 },
+        { "id": "b9", "text": "权限管理混乱", "level": 0 },
+        { "id": "b10", "text": "回滚方案未验证", "level": 0 },
+        { "id": "b11", "text": "灰度策略未定", "level": 0 },
+        { "id": "b12", "text": "安全评审未通过", "level": 0 }
+      ]
+    },
+    {
+      "id": "s3",
+      "layout": "closing",
+      "title": "谢谢观看"
+    }
+  ]
+}

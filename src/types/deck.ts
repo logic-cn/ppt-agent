@@ -63,6 +63,13 @@ export interface SlideContentItem {
   body?: string;
 }
 
+export interface SlideSourceRef {
+  sourceId: string;
+  sectionId?: string;
+  chunkId?: string;
+  quote?: string;
+}
+
 export interface Slide {
   id: string;
   layout: SlideLayout;
@@ -75,6 +82,7 @@ export interface Slide {
   chart?: ChartSpec;
   image?: ImageSpec;
   notes?: string;
+  sourceRefs?: SlideSourceRef[];
 }
 
 export type DeckSource = "topic" | "doc" | "url";

@@ -1,13 +1,35 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Sparkles, Loader2, Copy, Check, RefreshCw } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  RefreshCw,
+  AlertTriangle,
+  LayoutTemplate,
+} from "lucide-react";
 import { useDeckStore } from "@/store/deck";
+import { useJobStore } from "@/store/job";
+import { useQualityStore } from "@/store/quality";
 import { generateOutline } from "@/services/outline";
+import { generateDeckPatches } from "@/services/deck-patch/ai";
+import { applyDeckPatches } from "@/services/deck-patch/apply";
+import { summarizePatches } from "@/services/deck-patch/summarize";
+import type { DeckPatch } from "@/services/deck-patch/types";
+import { DESTRUCTIVE_OPS } from "@/services/deck-patch/types";
+import { checkDeckQuality, applyAutoFixes } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
+import type { TemplatePack } from "@/types/template";
+import { getTemplatePacks, buildContextualPrompt } from "@/templates";
+import { QualityReport } from "@/components/quality-report";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  patches?: DeckPatch[];
+  summary?: string;
+  destructive?: boolean;
 }
 
 export function ChatPanel() {
@@ -16,12 +38,18 @@ export function ChatPanel() {
       id: "welcome",
       role: "assistant",
       content:
-        "你好！我可以帮你生成 PPT 大纲、填充内容。告诉我你想做什么主题的 PPT？",
+        "你好！我可以帮你生成 PPT 大纲、修改内容。告诉我你想做什么主题的 PPT？",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templatePack, setTemplatePack] = useState<TemplatePack | null>(null);
+  const [templateTopic, setTemplateTopic] = useState("");
+  const [templateGenerating, setTemplateGenerating] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const qualityReport = useQualityStore((s) => s.report);
 
   const copyMessage = async (id: string, content: string) => {
     try {
@@ -42,14 +70,77 @@ export function ChatPanel() {
   }, [messages, loading]);
 
   const addMessage = useCallback(
-    (role: "user" | "assistant", content: string) => {
+    (
+      role: "user" | "assistant",
+      content: string,
+      patches?: DeckPatch[],
+      summary?: string,
+      destructive?: boolean,
+    ) => {
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role, content },
+        {
+          id: crypto.randomUUID(),
+          role,
+          content,
+          patches,
+          summary,
+          destructive,
+        },
       ]);
     },
     [],
   );
+
+  const applyPatches = useCallback(
+    (msg: Message) => {
+      if (!msg.patches || !deck) return;
+      try {
+        const result = applyDeckPatches(deck, msg.patches);
+        replaceSlides(result.deck.slides);
+        if (result.deck.title !== deck.title) {
+          setTitle(result.deck.title);
+        }
+        addMessage(
+          "assistant",
+          `✅ 已应用修改：${result.applied.map((a) => a.description).join("；")}`,
+          undefined,
+          undefined,
+          false,
+        );
+      } catch (e) {
+        addMessage("assistant", `应用修改失败：${(e as Error).message}`);
+      }
+    },
+    [deck, replaceSlides, setTitle, addMessage],
+  );
+
+  // 生成完成后跑一次质量检查，并把报告写入全局 store
+  // 若 pendingRules 存在（来自模板），则作为模板质量规则一并检查
+  const runQualityCheck = useCallback(() => {
+    const current = useDeckStore.getState().deck;
+    const qualityStore = useQualityStore.getState();
+    const rules = qualityStore.pendingRules ?? undefined;
+    qualityStore.clearPendingRules();
+    qualityStore.setReport(
+      current ? checkDeckQuality(current, { rules }) : null,
+    );
+  }, []);
+
+  const handleAutoFix = useCallback(async () => {
+    const current = useDeckStore.getState().deck;
+    if (!current) return;
+    setFixing(true);
+    try {
+      const fixed = applyAutoFixes(current);
+      await replaceSlides(fixed.slides);
+      useQualityStore
+        .getState()
+        .setReport(checkDeckQuality(useDeckStore.getState().deck!));
+    } finally {
+      setFixing(false);
+    }
+  }, [replaceSlides]);
 
   const handleSubmit = async () => {
     const text = input.trim();
@@ -64,15 +155,33 @@ export function ChatPanel() {
         /生成|创建|做一个|写一个|关于.*(PPT|幻灯片|汇报|报告)|主题/.test(text);
 
       if (isTopicRequest) {
+        // 通过 jobStore 生成大纲
+        const jobStore = useJobStore.getState();
+        const job = jobStore.startJob({
+          type: "outline.generate",
+          title: "生成大纲",
+          canCancel: true,
+        });
+
         addMessage("assistant", "正在生成大纲，请稍候…");
 
-        const slides = await generateOutline({
-          topic: text,
-          pageCount: deck?.slides.length ? undefined : 8,
-        });
+        let slides;
+        try {
+          slides = await generateOutline({
+            topic: text,
+            pageCount: deck?.slides.length ? undefined : 8,
+            signal: job.signal,
+          });
+          job.succeed("大纲生成完成");
+        } catch (e) {
+          if (job.signal.aborted) job.cancel();
+          else job.fail(e);
+          throw e;
+        }
 
         if (deck) {
           await replaceSlides(slides);
+          runQualityCheck();
           if (deck.title === "未命名项目") {
             const name = text
               .replace(/^(生成|创建|做一个|写一个|关于)\s*/, "")
@@ -83,7 +192,6 @@ export function ChatPanel() {
             if (name) setTitle(name);
           }
         } else {
-          // 如果没有 deck，依次添加
           slides.forEach((s) => addSlide(s));
         }
 
@@ -94,23 +202,78 @@ export function ChatPanel() {
 2. 点击每页展开修改标题和布局
 3. 告诉我想进一步调整哪里`,
         );
-      } else {
-        // 尝试解析本地意图（修改页面、新增、删除等）
-        const { action, reply } = applyUserIntent(text);
-        if (action === "modify") {
-          addMessage("assistant", reply);
-        } else {
-          // 通用对话
-          addMessage(
-            "assistant",
-            `好的，我收到了。你可以试试：
+      } else if (deck && deck.slides.length > 0) {
+        // 已有 deck，优先 AI DeckPatch 编辑；失败/无 Key 时回退本地 intent-parser
+        const jobStore = useJobStore.getState();
+        const job = jobStore.startJob({
+          type: "deck.patch",
+          title: "应用修改",
+          canCancel: true,
+        });
+        addMessage("assistant", "正在分析修改需求…");
 
-- **生成 PPT**：说"生成一份关于 AI 行业的PPT"
-- **修改页面**：说"把第3页改成双栏"或"删掉第2页"
-- **新增页面**：说"加一页市场分析"
-- **导入文档**：点击工具栏的「导入」按钮`,
-          );
+        try {
+          const patches = await generateDeckPatches({
+            deck,
+            userRequest: text,
+            signal: job.signal,
+          });
+          job.succeed("修改方案已生成");
+
+          if (!patches || patches.length === 0) {
+            addMessage("assistant", "根据你的需求，当前没有需要修改的内容。");
+          } else {
+            const summary = summarizePatches(patches);
+            const hasDestructive = patches.some((p) =>
+              DESTRUCTIVE_OPS.has(p.op),
+            );
+
+            const summaryLines = [
+              `📋 检测到 **${patches.length} 个操作**：${summary.title}`,
+              "",
+              ...summary.details.map((d) => `- ${d}`),
+            ];
+
+            if (hasDestructive) {
+              summaryLines.push(
+                "",
+                "⚠️ **包含高风险操作**（删除/替换/合并页面），请确认后应用。",
+              );
+            }
+
+            addMessage(
+              "assistant",
+              summaryLines.join("\n"),
+              patches,
+              summary.title,
+              hasDestructive,
+            );
+          }
+        } catch (e) {
+          if (job.signal.aborted) {
+            job.cancel();
+            return;
+          }
+          // 本地兜底：用简单规则解析并执行（无 key / AI 失败场景）
+          const fallback = applyUserIntent(text);
+          if (fallback.action === "modify") {
+            job.succeed("已使用本地规则处理");
+            runQualityCheck();
+            addMessage(
+              "assistant",
+              `${fallback.reply}\n\n（已使用本地规则处理，未调用 AI）`,
+            );
+          } else {
+            job.fail(e);
+            addMessage("assistant", `应用修改失败：${(e as Error).message}`);
+          }
         }
+      } else {
+        // 没有 deck，提示先生成
+        addMessage(
+          "assistant",
+          "当前还没有 PPT 大纲。请先告诉我你想做什么主题的 PPT，我来为你生成。",
+        );
       }
     } catch (e) {
       addMessage(
@@ -129,14 +292,141 @@ export function ChatPanel() {
     }
   };
 
+  const handleTemplateSelect = (pack: TemplatePack) => {
+    setTemplatePack(pack);
+    setTemplateTopic(deck && deck.title !== "未命名项目" ? deck.title : "");
+  };
+
+  const handleTemplateGenerate = async () => {
+    if (!templatePack || !templateTopic.trim() || templateGenerating) return;
+    setTemplateGenerating(true);
+    const jobStore = useJobStore.getState();
+    const job = jobStore.startJob({
+      type: "outline.generate",
+      title: `按模板生成：${templatePack.name}`,
+      canCancel: true,
+    });
+    try {
+      const slides = await generateOutline({
+        topic: templateTopic.trim(),
+        pageCount: templatePack.slides.length,
+        contextualPrompt: buildContextualPrompt(
+          templatePack,
+          templateTopic.trim(),
+        ),
+        signal: job.signal,
+      });
+      job.succeed("大纲生成完成");
+      await replaceSlides(slides);
+      useQualityStore
+        .getState()
+        .setPendingRules(templatePack.qualityRules ?? []);
+      runQualityCheck();
+      if (deck && deck.title === "未命名项目") setTitle(templateTopic.trim());
+      addMessage(
+        "assistant",
+        `已按模板「${templatePack.name}」重新生成 **${slides.length} 页大纲**！`,
+      );
+      setTemplateOpen(false);
+      setTemplatePack(null);
+    } catch (e) {
+      if (job.signal.aborted) job.cancel();
+      else job.fail(e);
+      addMessage("assistant", `模板生成失败：${(e as Error).message}`);
+    } finally {
+      setTemplateGenerating(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-text-muted">
-        AI 助手
+        <span>AI 助手</span>
+        <button
+          onClick={() => {
+            setTemplateOpen((v) => !v);
+            setTemplatePack(null);
+          }}
+          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-bg-hover hover:text-accent ${
+            templateOpen ? "text-accent" : "text-text-muted"
+          }`}
+          title="用模板生成"
+        >
+          <LayoutTemplate className="h-3.5 w-3.5" />
+          模板
+        </button>
       </div>
+
+      {/* 模板选择面板 */}
+      {templateOpen && (
+        <div className="border-b border-border bg-bg-elevated px-3 py-3">
+          {!templatePack ? (
+            <div className="grid grid-cols-2 gap-2">
+              {getTemplatePacks().map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleTemplateSelect(p)}
+                  className="flex flex-col items-start rounded-lg border border-border bg-bg-surface px-2.5 py-2 text-left transition hover:border-accent"
+                >
+                  <span className="text-xs font-medium text-text-primary">
+                    {p.name}
+                  </span>
+                  <span className="mt-0.5 line-clamp-1 text-[11px] text-text-muted">
+                    {p.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-primary">
+                  {templatePack.name}
+                </span>
+                <button
+                  onClick={() => setTemplatePack(null)}
+                  className="text-[11px] text-text-muted hover:text-accent"
+                >
+                  返回
+                </button>
+              </div>
+              <input
+                type="text"
+                value={templateTopic}
+                onChange={(e) => setTemplateTopic(e.target.value)}
+                placeholder="输入主题，如：Q3 业务复盘"
+                className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+              />
+              <button
+                onClick={handleTemplateGenerate}
+                disabled={!templateTopic.trim() || templateGenerating}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+              >
+                {templateGenerating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 生成中…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" /> 按模板生成
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto px-4 py-2 text-sm">
         <div className="space-y-3">
+          {qualityReport && (
+            <QualityReport
+              report={qualityReport}
+              fixing={fixing}
+              onAutoFix={() => void handleAutoFix()}
+              onDismiss={() => useQualityStore.getState().clear()}
+            />
+          )}
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -160,6 +450,29 @@ export function ChatPanel() {
               <div className="prose prose-sm max-w-none whitespace-pre-wrap text-inherit">
                 {msg.content}
               </div>
+
+              {/* Patch 确认按钮 */}
+              {msg.patches && msg.patches.length > 0 && (
+                <div className="mt-3 flex items-center gap-2 border-t border-border pt-2">
+                  {msg.destructive && (
+                    <div className="flex items-center gap-1 text-xs text-amber-500">
+                      <AlertTriangle className="h-3 w-3" />
+                      高风险操作
+                    </div>
+                  )}
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => applyPatches(msg)}
+                    className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-white hover:bg-accent-hover"
+                  >
+                    应用修改
+                  </button>
+                  <button className="rounded-md border border-border px-3 py-1 text-xs text-text-muted hover:bg-bg-hover">
+                    取消
+                  </button>
+                </div>
+              )}
+
               {/* 错误消息附带重试 */}
               {msg.role === "assistant" &&
                 msg.content.startsWith("出错了：") && (

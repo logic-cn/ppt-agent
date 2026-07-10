@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, MessageSquareText } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import type { Theme } from "@/types/theme";
-import { SlideRenderer } from "@/engine/preview/slide-renderer";
+import { buildRenderSlides } from "@/engine/render-ir/build";
+import { RenderSlideViewer } from "@/engine/preview/render-slide-viewer";
 
 interface Props {
   deck: Deck;
@@ -30,6 +31,9 @@ export function PresentationMode({
   const slides = deck.slides;
   const currentSlide: Slide | undefined = slides[index];
   const slideCount = slides.length;
+
+  const renderSlides = useMemo(() => buildRenderSlides(deck, theme), [deck, theme]);
+  const currentRenderSlide = renderSlides[index];
 
   // 计算最佳缩放尺寸
   const padding = 48;
@@ -116,7 +120,12 @@ export function PresentationMode({
           className="relative overflow-hidden rounded-xl shadow-2xl"
           style={{ width: slideW, height: slideH }}
         >
-          <SlideRenderer slide={currentSlide} theme={theme} width={slideW} />
+          <RenderSlideViewer
+            renderSlide={currentRenderSlide}
+            slide={currentSlide}
+            theme={theme}
+            width={slideW}
+          />
         </div>
       ) : (
         <div className="text-white/60">暂无幻灯片</div>

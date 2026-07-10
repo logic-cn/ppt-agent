@@ -1,28 +1,45 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Upload, Link, FileText, Loader2, X } from "lucide-react";
+import { Upload, Link, FileText, Loader2, X, Check } from "lucide-react";
 import { importDocx, importMarkdown, importUrl } from "@/services/importer";
+import {
+  parseDocument,
+  getDocumentStrategy,
+  generateOutlineFromDocument,
+  prepareDocumentForOutline,
+} from "@/services/importer";
+import type { ParsedDocument } from "@/services/importer/types";
 import { useDeckStore } from "@/store/deck";
+import { useJobStore } from "@/store/job";
+import { useQualityStore } from "@/store/quality";
 import { useToastStore } from "@/store/toast";
-import { generateOutline } from "@/services/outline";
+import { checkDeckQuality } from "@/services/quality";
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
+type ImportStep = "input" | "parsed" | "generating";
+
 export function ImportDialog({ open, onClose }: Props) {
   const [tab, setTab] = useState<"file" | "url">("file");
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [step, setStep] = useState<ImportStep>("input");
+  const [parsed, setParsed] = useState<ParsedDocument | null>(null);
+  const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
+  const [docStrategy, setDocStrategy] = useState<
+    "direct" | "chunk_summary" | "select_sections"
+  >("direct");
   const fileRef = useRef<HTMLInputElement>(null);
   const { deck, replaceSlides } = useDeckStore();
   const addToast = useToastStore((s) => s.add);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && step === "input") onClose();
     },
-    [onClose],
+    [onClose, step],
   );
 
   useEffect(() => {
@@ -31,7 +48,98 @@ export function ImportDialog({ open, onClose }: Props) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, handleKeyDown]);
 
+  useEffect(() => {
+    if (!open) {
+      setStep("input");
+      setParsed(null);
+      setSelectedSectionIds([]);
+      setImporting(false);
+    }
+  }, [open]);
+
   if (!open) return null;
+
+  const handleParseSuccess = async (input: {
+    type: "docx" | "markdown" | "url" | "text";
+    title: string;
+    ref: string;
+    rawText: string;
+    sections: { heading: string; content: string; level?: number }[];
+  }) => {
+    const doc = parseDocument(input);
+    const strategy = getDocumentStrategy(doc);
+    setParsed(doc);
+    setDocStrategy(strategy);
+    setSelectedSectionIds(doc.sections.map((s) => s.id));
+
+    if (strategy === "direct") {
+      await handleGenerate(
+        doc,
+        doc.sections.map((s) => s.id),
+      );
+    } else {
+      setStep("parsed");
+    }
+  };
+
+  const handleGenerate = async (doc: ParsedDocument, selectedIds: string[]) => {
+    setStep("generating");
+    setImporting(true);
+
+    const jobStore = useJobStore.getState();
+    const job = jobStore.startJob({
+      type: "document.import",
+      title: `导入「${doc.source.title}」`,
+      canCancel: true,
+    });
+
+    try {
+      const context = await prepareDocumentForOutline(doc, {
+        selectedSectionIds: selectedIds,
+      });
+      context.selectedSectionIds = selectedIds;
+
+      job.update({ progress: 0.5, message: "正在生成大纲…" });
+
+      const slides = await generateOutlineFromDocument(context, {
+        signal: job.signal,
+      });
+
+      job.succeed(`已生成 ${slides.length} 页大纲`);
+
+      if (deck) {
+        await replaceSlides(slides);
+        const current = useDeckStore.getState().deck;
+        useQualityStore
+          .getState()
+          .setReport(current ? checkDeckQuality(current) : null);
+      }
+
+      addToast({
+        type: "success",
+        title: "导入完成",
+        message: `已生成 ${slides.length} 页大纲`,
+      });
+      onClose();
+    } catch (e) {
+      if (job.signal.aborted) {
+        job.cancel();
+      } else {
+        job.fail(e);
+      }
+      addToast({
+        type: "error",
+        title: "导入失败",
+        message: (e as Error).message,
+      });
+      if (doc) {
+        setStep("parsed");
+        setImporting(false);
+      }
+    } finally {
+      if (step === "generating") setImporting(false);
+    }
+  };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,17 +147,32 @@ export function ImportDialog({ open, onClose }: Props) {
 
     setImporting(true);
     try {
-      let text: string;
-      let title: string;
-
       if (file.name.endsWith(".docx")) {
         const result = await importDocx(file);
-        text = result.text;
-        title = result.title;
+        await handleParseSuccess({
+          type: "docx",
+          title: result.title,
+          ref: file.name,
+          rawText: result.text,
+          sections: result.structured.sections.map((s) => ({
+            heading: s.heading,
+            content: s.content,
+            level: 1,
+          })),
+        });
       } else if (file.name.endsWith(".md")) {
         const result = await importMarkdown(file);
-        text = result.text;
-        title = result.title;
+        await handleParseSuccess({
+          type: "markdown",
+          title: result.title,
+          ref: file.name,
+          rawText: result.text,
+          sections: result.structured.sections.map((s) => ({
+            heading: s.heading,
+            content: s.content,
+            level: 1,
+          })),
+        });
       } else {
         addToast({
           type: "error",
@@ -57,32 +180,13 @@ export function ImportDialog({ open, onClose }: Props) {
           message: "仅支持 .docx 和 .md 文件",
         });
         setImporting(false);
-        return;
       }
-
-      addToast({
-        type: "info",
-        title: "文档解析完成",
-        message: "正在生成大纲…",
-      });
-
-      const slides = await generateOutline({
-        topic: title,
-        docContent: text,
-      });
-
-      if (deck) {
-        replaceSlides(slides);
-      }
-      addToast({ type: "success", title: `已生成 ${slides.length} 页大纲` });
-      onClose();
     } catch (e) {
       addToast({
         type: "error",
-        title: "导入失败",
+        title: "解析失败",
         message: (e as Error).message,
       });
-    } finally {
       setImporting(false);
     }
   };
@@ -94,23 +198,17 @@ export function ImportDialog({ open, onClose }: Props) {
     setImporting(true);
     try {
       const result = await importUrl(u);
-
-      addToast({
-        type: "info",
-        title: "网页解析完成",
-        message: "正在生成大纲…",
+      await handleParseSuccess({
+        type: "url",
+        title: result.title,
+        ref: u,
+        rawText: result.text,
+        sections: result.structured.sections.map((s) => ({
+          heading: s.heading,
+          content: s.content,
+          level: 1,
+        })),
       });
-
-      const slides = await generateOutline({
-        topic: result.title,
-        docContent: result.text,
-      });
-
-      if (deck) {
-        replaceSlides(slides);
-      }
-      addToast({ type: "success", title: `已生成 ${slides.length} 页大纲` });
-      onClose();
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
@@ -123,9 +221,107 @@ export function ImportDialog({ open, onClose }: Props) {
       } else {
         addToast({ type: "error", title: "导入失败", message: msg });
       }
-    } finally {
       setImporting(false);
     }
+  };
+
+  const toggleSection = (id: string) => {
+    setSelectedSectionIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  };
+
+  const renderParsedPreview = () => {
+    if (!parsed) return null;
+    const totalChars = parsed.rawText.length;
+    const strategyLabel =
+      docStrategy === "direct"
+        ? "直接生成"
+        : docStrategy === "chunk_summary"
+          ? "分块摘要后生成"
+          : "选择章节后生成";
+
+    return (
+      <div className="space-y-3">
+        <div className="rounded-lg bg-bg-elevated p-3 text-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="font-medium text-text-primary">
+              {parsed.source.title}
+            </span>
+            <span className="text-xs text-text-muted">
+              {totalChars} 字 · 估算 {Math.ceil(totalChars / 4)} tokens
+            </span>
+          </div>
+          <div className="text-xs text-text-muted">
+            策略：{strategyLabel} · 推荐页数：
+            {Math.max(5, Math.ceil(totalChars / 800))} 页
+          </div>
+          {parsed.warnings.length > 0 && (
+            <div className="mt-2 text-xs text-amber-500">
+              {parsed.warnings.map((w, i) => (
+                <div key={i}>⚠ {w}</div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {(docStrategy === "select_sections" ||
+          docStrategy === "chunk_summary") &&
+          parsed.sections.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs text-text-secondary">
+                选择要生成的章节（{selectedSectionIds.length}/
+                {parsed.sections.length}）
+              </label>
+              <div className="max-h-48 space-y-1 overflow-auto">
+                {parsed.sections.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-bg-hover"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSectionIds.includes(s.id)}
+                      onChange={() => toggleSection(s.id)}
+                      className="accent-accent"
+                    />
+                    <span className="flex-1 truncate text-text-primary">
+                      {s.heading}
+                    </span>
+                    <span className="text-xs text-text-muted">
+                      {s.content.length}字
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            onClick={() => {
+              setStep("input");
+              setParsed(null);
+            }}
+            className="rounded-lg px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover"
+          >
+            重新选择
+          </button>
+          <button
+            onClick={() => parsed && handleGenerate(parsed, selectedSectionIds)}
+            disabled={importing || selectedSectionIds.length === 0}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+          >
+            {importing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4" />
+            )}
+            生成 PPT
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -145,7 +341,14 @@ export function ImportDialog({ open, onClose }: Props) {
             导入文档
           </h2>
           <button
-            onClick={onClose}
+            onClick={
+              step === "input"
+                ? onClose
+                : () => {
+                    setStep("input");
+                    setParsed(null);
+                  }
+            }
             className="rounded p-1 text-text-muted hover:bg-bg-hover"
           >
             <X className="h-4 w-4" />
@@ -153,34 +356,36 @@ export function ImportDialog({ open, onClose }: Props) {
         </div>
 
         {/* Tab 切换 */}
-        <div className="flex border-b border-border">
-          <button
-            onClick={() => setTab("file")}
-            className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
-              tab === "file"
-                ? "border-b-2 border-accent text-accent"
-                : "text-text-muted hover:text-text-secondary"
-            }`}
-          >
-            <Upload className="h-4 w-4" />
-            上传文件
-          </button>
-          <button
-            onClick={() => setTab("url")}
-            className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
-              tab === "url"
-                ? "border-b-2 border-accent text-accent"
-                : "text-text-muted hover:text-text-secondary"
-            }`}
-          >
-            <Link className="h-4 w-4" />
-            网页链接
-          </button>
-        </div>
+        {step === "input" && (
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setTab("file")}
+              className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
+                tab === "file"
+                  ? "border-b-2 border-accent text-accent"
+                  : "text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              <Upload className="h-4 w-4" />
+              上传文件
+            </button>
+            <button
+              onClick={() => setTab("url")}
+              className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
+                tab === "url"
+                  ? "border-b-2 border-accent text-accent"
+                  : "text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              <Link className="h-4 w-4" />
+              网页链接
+            </button>
+          </div>
+        )}
 
         {/* 内容 */}
         <div className="p-5">
-          {tab === "file" ? (
+          {step === "input" && tab === "file" ? (
             <div
               onClick={() => fileRef.current?.click()}
               className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border px-6 py-12 text-center transition hover:border-accent hover:bg-accent-soft/10"
@@ -200,7 +405,7 @@ export function ImportDialog({ open, onClose }: Props) {
                 className="hidden"
               />
             </div>
-          ) : (
+          ) : step === "input" && tab === "url" ? (
             <div className="space-y-3">
               <div>
                 <label className="mb-1.5 block text-sm text-text-secondary">
@@ -217,29 +422,31 @@ export function ImportDialog({ open, onClose }: Props) {
                 注意：部分网站可能会阻止访问（CORS
                 限制），建议优先使用文件导入。
               </p>
+              <button
+                onClick={handleUrl}
+                disabled={importing || !url.trim()}
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+              >
+                {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+                解析并导入
+              </button>
             </div>
-          )}
+          ) : step === "parsed" || step === "generating" ? (
+            renderParsedPreview()
+          ) : null}
         </div>
 
-        {/* 底部按钮 */}
-        <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-bg-hover"
-          >
-            取消
-          </button>
-          {tab === "url" && (
+        {/* 底部（input 模式显示） */}
+        {step === "input" && (
+          <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
             <button
-              onClick={handleUrl}
-              disabled={importing || !url.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-bg-hover"
             >
-              {importing && <Loader2 className="h-4 w-4 animate-spin" />}
-              导入并生成
+              取消
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

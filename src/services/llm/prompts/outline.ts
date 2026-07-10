@@ -4,8 +4,8 @@
  * 输出遵循 Slide[] 类型的 JSON schema。
  */
 
-export function buildOutlineSystemPrompt(): string {
-  return `你是一位资深的咨询顾问和PPT汇报设计师。你的任务是根据用户提供的主题或文档，生成专业的PPT大纲。
+export function buildOutlineSystemPrompt(contextualPrompt?: string): string {
+  let prompt = `你是一位资深的咨询顾问和PPT汇报设计师。你的任务是根据用户提供的主题或文档，生成专业的PPT大纲。
 
 ## 要求
 1. 输出必须是 **合法的 JSON 数组**，数组中的每个元素对应一页幻灯片。
@@ -54,6 +54,15 @@ export function buildOutlineSystemPrompt(): string {
   "items"?: { title?: string, bullets?: string[], body?: string }[],
   "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] }
 }`;
+
+  if (contextualPrompt) {
+    prompt += `\n\n## 模板结构指引（请严格遵守）
+以下是你本次生成必须遵循的模板编排。输出幻灯片**页数必须与模板精确匹配**，每页的布局必须与模板指定的布局一致。
+
+${contextualPrompt}`;
+  }
+
+  return prompt;
 }
 
 export function buildOutlineUserPrompt(params: {

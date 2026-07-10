@@ -9,22 +9,28 @@ import {
   Trash2,
   Check,
   Monitor,
+  X,
+  Copy,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDeckStore } from "@/store/deck";
+import { useJobStore } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
-import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
-import { ChatPanel } from "@/components/chat";
+import { InspectorPanel } from "@/components/inspector/inspector-panel";
 import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
 import { BUILTIN_THEMES } from "@/themes";
 import { useCustomThemeStore } from "@/store/custom-themes";
 import { deleteDeck } from "@/services/storage";
+import { useQualityStore } from "@/store/quality";
+import { checkDeckQuality } from "@/services/quality";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
+import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import { generateImage } from "@/services/image";
 
 export default function Editor() {
@@ -41,6 +47,7 @@ export default function Editor() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  const [jobPanelOpen, setJobPanelOpen] = useState(false);
   const setTheme = useDeckStore((s) => s.setTheme);
   const setTitle = useDeckStore((s) => s.setTitle);
   const persist = useDeckStore((s) => s.persist);
@@ -49,6 +56,13 @@ export default function Editor() {
   const titleRef = useRef<HTMLInputElement>(null);
   const customThemes = useCustomThemeStore((s) => s.themes);
   const loadCustomThemes = useCustomThemeStore((s) => s.load);
+
+  const jobs = useJobStore((s) => s.jobs);
+  const activeJobIds = useJobStore((s) => s.activeJobIds);
+  const clearFinishedJobs = useJobStore((s) => s.clearFinishedJobs);
+  const activeJobs = jobs.filter((j) => activeJobIds.includes(j.id));
+  const failedJobs = jobs.filter((j) => j.status === "failed");
+  const hasActiveJobs = activeJobs.length > 0;
 
   useEffect(() => {
     if (editingTitle) {
@@ -84,6 +98,8 @@ export default function Editor() {
   useEffect(() => {
     if (isNew && deck) return;
     if (!id) return;
+    const from = params.get("from");
+    const shouldCheckQuality = from === "template" || from === "template-ai";
     load(id).then(() => {
       const current = useDeckStore.getState().deck;
       if (!current && !isNew) {
@@ -96,11 +112,23 @@ export default function Editor() {
         void deckStore.createDeck().then((d) => {
           window.history.replaceState(null, "", `/editor/${d.id}?new=1`);
         });
+      } else if (shouldCheckQuality) {
+        const qualityStore = useQualityStore.getState();
+        const rules = qualityStore.pendingRules ?? undefined;
+        qualityStore.clearPendingRules();
+        qualityStore.setReport(
+          current ? checkDeckQuality(current, { rules }) : null,
+        );
       }
     });
-  }, [id, isNew, load]);
+  }, [id, isNew, load, params]);
 
   useKeyboardShortcuts();
+
+  // 自动展开任务面板
+  useEffect(() => {
+    if (hasActiveJobs) setJobPanelOpen(true);
+  }, [hasActiveJobs]);
 
   const addToast = useToastStore((s) => s.add);
 
@@ -109,8 +137,20 @@ export default function Editor() {
     const slide = deck.slides.find((s) => s.id === slideId);
     if (!slide) return;
     const prompt = `为演示文稿幻灯片生成配图。标题：${slide.title}${slide.bullets ? "。要点：" + slide.bullets.map((b) => b.text).join("、") : ""}${slide.body ? "。正文：" + slide.body.slice(0, 100) : ""}`;
+
+    const jobStore = useJobStore.getState();
+    const job = jobStore.startJob({
+      type: "image.generate",
+      title: `生成配图「${slide.title}」`,
+      canCancel: true,
+    });
+
     try {
-      const result = await generateImage({ prompt, size: "1024x1024" });
+      const result = await generateImage(
+        { prompt, size: "1024x1024" },
+        job.signal,
+      );
+      job.succeed("配图生成完成");
       useDeckStore.getState().updateSlide(slideId, {
         image: {
           type: "ai" as const,
@@ -118,12 +158,9 @@ export default function Editor() {
           alt: result.revisedPrompt ?? slide.title,
         },
       });
-      addToast({
-        type: "success",
-        title: "配图生成成功",
-        duration: 2000,
-      });
     } catch (e) {
+      if (job.signal.aborted) job.cancel();
+      else job.fail(e);
       addToast({
         type: "error",
         title: "配图生成失败",
@@ -131,9 +168,17 @@ export default function Editor() {
       });
     }
   };
+
   const handleExport = async () => {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
+
+    const jobStore = useJobStore.getState();
+    const job = jobStore.startJob({
+      type: "pptx.export",
+      title: `导出「${deck.title}」`,
+    });
+
     try {
       let savePath: string | null = null;
       try {
@@ -151,6 +196,7 @@ export default function Editor() {
         a.download = `${deck.title}.pptx`;
         a.click();
         URL.revokeObjectURL(url);
+        job.succeed("导出完成");
         addToast({
           type: "success",
           title: "导出成功",
@@ -160,6 +206,7 @@ export default function Editor() {
       }
       if (savePath) {
         await exportDeck(deck, savePath);
+        job.succeed("导出完成");
         addToast({
           type: "success",
           title: "导出成功",
@@ -167,6 +214,8 @@ export default function Editor() {
         });
       }
     } catch (e) {
+      if (job.signal.aborted) job.cancel();
+      else job.fail(e);
       addToast({
         type: "error",
         title: "导出失败",
@@ -174,6 +223,21 @@ export default function Editor() {
       });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case "running":
+        return "text-blue-500";
+      case "succeeded":
+        return "text-green-500";
+      case "failed":
+        return "text-red-500";
+      case "cancelled":
+        return "text-text-muted";
+      default:
+        return "text-text-muted";
     }
   };
 
@@ -219,6 +283,25 @@ export default function Editor() {
         </div>
 
         <div className="flex items-center gap-1">
+          {/* 任务状态指示器 */}
+          {hasActiveJobs && (
+            <button
+              onClick={() => setJobPanelOpen(!jobPanelOpen)}
+              className="flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2.5 py-1 text-xs text-blue-600 hover:bg-blue-500/20"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {activeJobs.length} 个任务
+            </button>
+          )}
+          {failedJobs.length > 0 && !hasActiveJobs && (
+            <button
+              onClick={() => setJobPanelOpen(!jobPanelOpen)}
+              className="flex items-center gap-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-xs text-red-600 hover:bg-red-500/20"
+            >
+              {failedJobs.length} 个失败任务
+            </button>
+          )}
+
           <button
             onClick={() => setLeftOpen((v) => !v)}
             className={`rounded-md p-1.5 hover:bg-bg-hover ${
@@ -370,6 +453,81 @@ export default function Editor() {
         </div>
       </header>
 
+      {/* 任务面板 */}
+      {jobPanelOpen && (hasActiveJobs || failedJobs.length > 0) && (
+        <div className="border-b border-border bg-bg-surface px-4 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-secondary">
+              任务列表
+            </span>
+            <div className="flex items-center gap-2">
+              {!hasActiveJobs && failedJobs.length > 0 && (
+                <button
+                  onClick={clearFinishedJobs}
+                  className="text-xs text-text-muted hover:text-text-primary"
+                >
+                  清除已完成
+                </button>
+              )}
+              <button
+                onClick={() => setJobPanelOpen(false)}
+                className="rounded p-0.5 text-text-muted hover:text-text-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="mt-1 space-y-1">
+            {jobs
+              .filter(
+                (j) => activeJobIds.includes(j.id) || j.status === "failed",
+              )
+              .map((job) => (
+                <div key={job.id} className="flex items-center gap-2 text-xs">
+                  {job.status === "running" && (
+                    <Loader2
+                      className={`h-3 w-3 animate-spin ${statusColor(job.status)}`}
+                    />
+                  )}
+                  {job.status === "failed" && (
+                    <X className="h-3 w-3 text-red-500" />
+                  )}
+                  {job.status === "succeeded" && (
+                    <Check className="h-3 w-3 text-green-500" />
+                  )}
+                  <span className="text-text-primary">{job.title}</span>
+                  {job.message && (
+                    <span className="text-text-muted">— {job.message}</span>
+                  )}
+                  {job.progress !== undefined && job.progress < 1 && (
+                    <span className="text-text-muted">
+                      {Math.round(job.progress * 100)}%
+                    </span>
+                  )}
+                  <span className={`ml-auto ${statusColor(job.status)}`}>
+                    {job.status === "running"
+                      ? "进行中"
+                      : job.status === "failed"
+                        ? "失败"
+                        : job.status === "succeeded"
+                          ? "完成"
+                          : ""}
+                  </span>
+                  {job.status === "failed" && job.error && (
+                    <button
+                      onClick={() => navigator.clipboard.writeText(job.error!)}
+                      className="rounded p-0.5 text-text-muted hover:text-text-primary"
+                      title="复制错误"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* 三栏工作区 */}
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
@@ -395,10 +553,14 @@ export default function Editor() {
           )}
         </main>
 
-        {/* 右栏：AI 对话 */}
-        {rightOpen && (
+        {/* 右栏：属性检查器（AI / 页面 / 图表 / 配图 / 备注） */}
+        {rightOpen && deck && (
           <aside className="flex w-80 flex-col border-l border-border bg-bg-surface">
-            <ChatPanel />
+            <InspectorPanel
+              deck={deck}
+              selectedIndex={selectedIndex}
+              onGenerateImage={handleGenerateImage}
+            />
           </aside>
         )}
       </div>

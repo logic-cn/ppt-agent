@@ -1,7 +1,9 @@
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, useMemo } from "react";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
-import { SlideRenderer } from "./slide-renderer";
+import { buildRenderSlides } from "@/engine/render-ir/build";
+import { getRendererMode } from "@/engine/renderer-config";
+import { RenderSlideViewer } from "./render-slide-viewer";
 
 interface Props {
   deck: Deck;
@@ -24,9 +26,20 @@ export function SlidePreview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(960);
 
-  const theme = resolveTheme(deck.themeId, deck.themeOverrides);
+  const theme = useMemo(
+    () => resolveTheme(deck.themeId, deck.themeOverrides),
+    [deck.themeId, deck.themeOverrides],
+  );
   const slides = deck.slides;
   const currentSlide: Slide | undefined = slides[currentIndex];
+
+  // feature flag：当前仅 render-ir 一种模式（旧渲染器已迁移移除）
+  const rendererMode = getRendererMode();
+  const renderSlides = useMemo(
+    () => buildRenderSlides(deck, theme),
+    [deck, theme, rendererMode],
+  );
+  const currentRenderSlide = renderSlides[currentIndex];
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -66,12 +79,15 @@ export function SlidePreview({
           className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10"
           style={{ width: slideWidth, height: slideHeight }}
         >
-          <SlideRenderer
-            slide={currentSlide}
-            theme={theme}
-            width={slideWidth}
-            onGenerateImage={onGenerateImage}
-          />
+          {currentRenderSlide && (
+            <RenderSlideViewer
+              renderSlide={currentRenderSlide}
+              slide={currentSlide}
+              theme={theme}
+              width={slideWidth}
+              onGenerateImage={onGenerateImage}
+            />
+          )}
         </div>
       </div>
 
@@ -110,12 +126,31 @@ export const SlideThumbnail = memo(function SlideThumbnail({
   width?: number;
 }) {
   const height = (width * 9) / 16;
+
+  const renderSlide = useMemo(() => {
+    const dummyDeck = {
+      id: "thumb",
+      title: slide.title,
+      themeId: theme.id,
+      slides: [slide],
+      version: 2,
+      createdAt: 0,
+      updatedAt: 0,
+    } as unknown as Deck;
+    return buildRenderSlides(dummyDeck, theme)[0];
+  }, [slide, theme]);
+
   return (
     <div
       className="relative overflow-hidden rounded-md ring-1 ring-black/10"
       style={{ width, height }}
     >
-      <SlideRenderer slide={slide} theme={theme} width={width} />
+      <RenderSlideViewer
+        renderSlide={renderSlide}
+        slide={slide}
+        theme={theme}
+        width={width}
+      />
     </div>
   );
 });

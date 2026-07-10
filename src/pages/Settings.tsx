@@ -8,8 +8,10 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Layers,
 } from "lucide-react";
 import { useSettingsStore } from "@/store/settings";
+import { getRendererMode } from "@/engine/renderer-config";
 import {
   useCustomThemeStore,
   generateCustomThemeId,
@@ -322,6 +324,31 @@ export default function Settings() {
                 </div>
               </div>
             )}
+          </section>
+
+          {/* 渲染管线（feature flag） */}
+          <section>
+            <div className="mb-4 flex items-center gap-2">
+              <Layers className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold">渲染管线</h2>
+            </div>
+            <div className="space-y-2 rounded-lg border border-border bg-bg-surface p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-secondary">当前渲染模式</span>
+                <span className="rounded bg-bg-elevated px-2 py-0.5 font-mono text-xs text-text-primary">
+                  {getRendererMode()}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-text-muted">
+                Preview 与 PPTX 导出共享统一的 RenderIR
+                渲染中间层。旧渲染器已在迁移完成后移除，
+                如要临时切换，可设置环境变量
+                <code className="mx-1 rounded bg-bg-elevated px-1">
+                  VITE_RENDERER_MODE
+                </code>
+                并重新构建。
+              </p>
+            </div>
           </section>
         </div>
       </main>

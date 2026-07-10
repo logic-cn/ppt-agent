@@ -1,0 +1,25 @@
+{
+  "patches": [
+    {
+      "op": "update_slide",
+      "slideId": "s-revenue",
+      "patch": { "title": "季度营收（修正）" }
+    },
+    {
+      "op": "set_deck_title",
+      "title": "2025 Q3 业务复盘报告"
+    },
+    {
+      "op": "insert_slide",
+      "index": 2,
+      "slide": {
+        "layout": "content",
+        "title": "风险与应对",
+        "bullets": [
+          { "id": "b1", "text": "供应链风险", "level": 0 },
+          { "id": "b2", "text": "汇率波动", "level": 0 }
+        ]
+      }
+    }
+  ]
+}

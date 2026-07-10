@@ -4,6 +4,7 @@ export const productLaunch: Template = {
   id: "product-launch",
   name: "产品发布会",
   description: "适合新品发布、版本更新、产品介绍",
+  scenario: "pitch",
   suggestedTheme: "tech-purple",
   suggestedPageCount: 9,
   slides: [

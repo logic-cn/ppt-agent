@@ -6,6 +6,11 @@ import type {
 } from "@/types/llm";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "@/services/storage";
+import {
+  getSecretStore,
+  makeProviderKey,
+  makeImageKey,
+} from "@/services/secret-store";
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSettings: AppSettings | null = null;
@@ -56,6 +61,7 @@ function defaultSettings(): AppSettings {
 interface SettingsStore {
   settings: AppSettings;
   loaded: boolean;
+  secretMigrated: boolean;
   load: () => Promise<void>;
   setActiveProvider: (id: LLMProviderId) => void;
   updateProvider: (
@@ -66,16 +72,53 @@ interface SettingsStore {
   setImageProvider: (cfg: LLMProviderConfig) => void;
 }
 
+async function migrateSecrets(
+  settings: AppSettings,
+): Promise<AppSettings> {
+  const secretStore = getSecretStore();
+  let modified = false;
+
+  for (const [id, provider] of Object.entries(settings.providers)) {
+    const key = makeProviderKey(id);
+    const existing = await secretStore.getSecret(key);
+    if (!existing && provider.apiKey) {
+      await secretStore.setSecret(key, provider.apiKey);
+      provider.apiKey = "";
+      modified = true;
+    }
+  }
+
+  if (settings.imageProvider?.apiKey) {
+    const imgKey = makeImageKey();
+    const existing = await secretStore.getSecret(imgKey);
+    if (!existing) {
+      await secretStore.setSecret(imgKey, settings.imageProvider.apiKey);
+      settings.imageProvider.apiKey = "";
+      modified = true;
+    }
+  }
+
+  return modified ? { ...settings, providers: { ...settings.providers } } : settings;
+}
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: defaultSettings(),
   loaded: false,
+  secretMigrated: false,
 
   load: async () => {
     const saved = await loadSettings();
-    set({
-      settings: saved ?? get().settings,
-      loaded: true,
-    });
+    let settings = saved ?? get().settings;
+
+    // 迁移 API Key 到安全存储
+    const migrated = await migrateSecrets(settings);
+    if (migrated !== settings) {
+      settings = migrated;
+      await saveSettings(settings);
+      set({ secretMigrated: true });
+    }
+
+    set({ settings, loaded: true });
   },
 
   setActiveProvider: (id) => {
@@ -88,10 +131,19 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   updateProvider: (id, patch) => {
     set((s) => {
+      const oldProvider = s.settings.providers[id];
       const providers = {
         ...s.settings.providers,
-        [id]: { ...s.settings.providers[id], ...patch },
+        [id]: { ...oldProvider, ...patch },
       };
+
+      // 如果 apiKey 有变化，写入安全存储并清空 settings
+      if (patch.apiKey && patch.apiKey !== oldProvider?.apiKey) {
+        const secretStore = getSecretStore();
+        secretStore.setSecret(makeProviderKey(id), patch.apiKey).catch(console.error);
+        providers[id] = { ...providers[id], apiKey: "" };
+      }
+
       const settings = { ...s.settings, providers };
       void debouncedSave(settings);
       return { settings };
@@ -108,9 +160,32 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setImageProvider: (cfg) => {
     set((s) => {
-      const settings = { ...s.settings, imageProvider: cfg };
+      let newCfg = { ...cfg };
+      if (cfg.apiKey) {
+        const secretStore = getSecretStore();
+        secretStore.setSecret(makeImageKey(), cfg.apiKey).catch(console.error);
+        newCfg = { ...cfg, apiKey: "" };
+      }
+      const settings = { ...s.settings, imageProvider: newCfg };
       void debouncedSave(settings);
       return { settings };
     });
   },
 }));
+
+// 工具函数：从安全存储中获取 API Key（供 services 使用）
+export async function getDecryptedApiKey(
+  providerId: LLMProviderId,
+): Promise<string | null> {
+  const { settings } = useSettingsStore.getState();
+  const provider = settings.providers[providerId];
+  if (!provider) return null;
+
+  // 先从安全存储读取
+  const secretStore = getSecretStore();
+  const fromSecret = await secretStore.getSecret(makeProviderKey(providerId));
+  if (fromSecret) return fromSecret;
+
+  // 降级到 settings
+  return provider.apiKey || null;
+}

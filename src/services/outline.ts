@@ -80,8 +80,9 @@ export async function generateOutline(params: {
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
+  contextualPrompt?: string;
 }): Promise<Slide[]> {
-  const systemPrompt = buildOutlineSystemPrompt();
+  const systemPrompt = buildOutlineSystemPrompt(params.contextualPrompt);
   const userPrompt = buildOutlineUserPrompt(params);
 
   const res = await chat({

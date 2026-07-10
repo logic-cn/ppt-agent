@@ -1,0 +1,55 @@
+{
+  "id": "golden-simple-review",
+  "version": 2,
+  "title": "Q2 业务复盘",
+  "themeId": "business-blue",
+  "createdAt": 1700000000000,
+  "updatedAt": 1700000000000,
+  "slides": [
+    {
+      "id": "s1",
+      "layout": "cover",
+      "title": "Q2 业务复盘",
+      "subtitle": "2024年4月-6月"
+    },
+    {
+      "id": "s2",
+      "layout": "content",
+      "title": "核心指标",
+      "bullets": [
+        { "id": "b1", "text": "营收 ¥1,280 万，同比增长 23%", "level": 0 },
+        { "id": "b2", "text": "MAU 突破 50 万，环比增长 15%", "level": 0 },
+        { "id": "b3", "text": "客户留存率 92%，高于行业平均", "level": 0, "children": [{ "text": "行业平均留存率约 85%", "level": 1 }] }
+      ]
+    },
+    {
+      "id": "s3",
+      "layout": "chart",
+      "title": "营收趋势",
+      "chart": {
+        "type": "bar",
+        "title": "Q1-Q2 月度营收",
+        "data": [
+          { "label": "4月", "value": 380 },
+          { "label": "5月", "value": 420 },
+          { "label": "6月", "value": 480 }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "layout": "two-column",
+      "title": "亮点与不足",
+      "items": [
+        { "id": "i1", "title": "亮点", "bullets": ["新产品线增长强劲", "大客户签约数翻倍", "运营成本降低 8%"] },
+        { "id": "i2", "title": "不足", "bullets": ["新客获取成本上升", "部分功能延期交付"] }
+      ]
+    },
+    {
+      "id": "s5",
+      "layout": "closing",
+      "title": "Q3 展望",
+      "subtitle": "目标营收 ¥1,600 万"
+    }
+  ]
+}

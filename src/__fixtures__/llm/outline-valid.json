@@ -1,0 +1,29 @@
+[
+  {
+    "title": "季度业务复盘",
+    "layout": "cover",
+    "subtitle": "2025 Q3 总结与展望"
+  },
+  {
+    "title": "目录",
+    "layout": "content",
+    "bullets": [{ "text": "业绩概览", "level": 0 }, { "text": "问题分析", "level": 0 }]
+  },
+  {
+    "title": "业绩概览",
+    "layout": "chart",
+    "chart": {
+      "type": "bar",
+      "title": "季度营收",
+      "data": [
+        { "label": "Q1", "value": 120 },
+        { "label": "Q2", "value": 150 },
+        { "label": "Q3", "value": 180 }
+      ]
+    }
+  },
+  {
+    "title": "谢谢观看",
+    "layout": "closing"
+  }
+]

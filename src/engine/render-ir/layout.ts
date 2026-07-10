@@ -1,0 +1,59 @@
+import type { Rect } from "./types";
+import type { Theme, LayoutSpec } from "@/types/theme";
+
+export function resolveLayoutRect(
+  theme: Theme,
+  layoutName: string,
+  area: "title" | "body" | "visual",
+): Rect | null {
+  const layout = (theme.layouts as Record<string, LayoutSpec | undefined>)[layoutName];
+  if (!layout) return null;
+  const rect = layout[area];
+  if (!rect) return null;
+  return { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+}
+
+export function getColumnRects(
+  bodyRect: Rect,
+  colCount: number,
+): Rect[] {
+  const gap = 0.02;
+  const totalGap = gap * (colCount - 1);
+  const colW = (bodyRect.w - totalGap) / colCount;
+  return Array.from({ length: colCount }, (_, i) => ({
+    x: bodyRect.x + (colW + gap) * i,
+    y: bodyRect.y,
+    w: colW,
+    h: bodyRect.h,
+  }));
+}
+
+export function isColsLayout(layout: string): boolean {
+  return /^cols-(\d+)$/.test(layout);
+}
+
+export function getColCount(layout: string): number {
+  const match = layout.match(/^cols-(\d+)$/);
+  return match ? parseInt(match[1]) : 0;
+}
+
+export const PPTX_W = 13.333;
+export const PPTX_H = 7.5;
+
+export function rectToPptx(rect: Rect) {
+  return {
+    x: rect.x * PPTX_W,
+    y: rect.y * PPTX_H,
+    w: rect.w * PPTX_W,
+    h: rect.h * PPTX_H,
+  };
+}
+
+export function rectToCss(rect: Rect) {
+  return {
+    left: `${rect.x * 100}%`,
+    top: `${rect.y * 100}%`,
+    width: `${rect.w * 100}%`,
+    height: `${rect.h * 100}%`,
+  };
+}

@@ -3,8 +3,9 @@ import type { Theme } from "@/types/theme";
 import type { Template } from "@/types/template";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { DEFAULT_THEME_ID } from "@/themes";
+import { parseStoredDeck } from "./storage/deck-parse";
+import { CURRENT_DECK_VERSION } from "./storage/deck-schema";
 
-const CURRENT_DECK_VERSION = 1;
 const CURRENT_SETTINGS_VERSION = 1;
 
 // 动态检测是否在 Tauri 环境中
@@ -108,13 +109,12 @@ export async function loadDeck(id: string): Promise<Deck | null> {
   const path = await joinPath(dir, "decks", `${id}.json`);
   const raw = await readText(path);
   if (!raw) return null;
-  try {
-    const deck = JSON.parse(raw) as Deck;
-    if (!deck.version) deck.version = CURRENT_DECK_VERSION;
-    return deck;
-  } catch {
+  const result = parseStoredDeck(raw);
+  if (!result.success || !result.data) {
+    console.error("loadDeck failed:", result.error);
     return null;
   }
+  return result.data as unknown as Deck;
 }
 
 export async function saveDeck(deck: Deck): Promise<void> {

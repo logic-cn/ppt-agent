@@ -10,13 +10,17 @@ import {
   LayoutTemplate,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
+import { useQualityStore } from "@/store/quality";
 import { useProjectStore } from "@/store/project";
 import {
   deleteDeck,
   createDeckFromTemplate,
   saveDeck,
+  createEmptyDeck,
 } from "@/services/storage";
-import { type Template } from "@/types/template";
+import { generateOutline } from "@/services/outline";
+import type { TemplateSelectResult } from "@/components/template-dialog";
+import { buildContextualPrompt } from "@/templates";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { TemplateDialog } from "@/components/template-dialog";
 
@@ -43,12 +47,56 @@ export default function Home() {
     navigate(`/editor/${deck.id}?new=1`);
   };
 
-  const handleTemplateSelect = async (template: Template) => {
+  const handleTemplateSelect = async (result: TemplateSelectResult) => {
     setTemplateDialogOpen(false);
-    const deck = createDeckFromTemplate(template);
-    await saveDeck(deck);
-    useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
-    navigate(`/editor/${deck.id}?from=template`);
+
+    if (result.mode === "static") {
+      const deck = createDeckFromTemplate(
+        {
+          id: result.pack.id,
+          name: result.pack.name,
+          description: result.pack.description,
+          scenario: result.pack.scenario,
+          suggestedTheme: result.pack.suggestedTheme,
+          suggestedPageCount: result.pack.slides.length,
+          slides: result.pack.slides,
+        },
+        result.topic,
+      );
+      await saveDeck(deck);
+      useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
+      useQualityStore
+        .getState()
+        .setPendingRules(result.pack.qualityRules ?? []);
+      navigate(`/editor/${deck.id}?from=template`);
+      return;
+    }
+
+    try {
+      const slides = await generateOutline({
+        topic: result.topic,
+        pageCount: result.pack.slides.length,
+        contextualPrompt: buildContextualPrompt(result.pack, result.topic),
+      });
+      const now = Date.now();
+      const deck = {
+        ...createEmptyDeck(result.topic),
+        title: result.topic,
+        slides,
+        themeId: result.pack.suggestedTheme,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveDeck(deck);
+      useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
+      useQualityStore
+        .getState()
+        .setPendingRules(result.pack.qualityRules ?? []);
+      navigate(`/editor/${deck.id}?from=template-ai`);
+    } catch (e) {
+      console.error("模板 AI 生成失败:", e);
+      alert("AI 生成失败，请重试或选择直接创建");
+    }
   };
 
   const getSlideSummary = (slidesCount: number) => `${slidesCount} 页`;

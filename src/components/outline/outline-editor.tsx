@@ -12,6 +12,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useDeckStore } from "@/store/deck";
+import { useQualityStore } from "@/store/quality";
 import type { Slide } from "@/types/deck";
 import { Plus } from "lucide-react";
 import { SortableSlideItem } from "./sortable-slide-item";
@@ -20,10 +21,13 @@ interface OutlineEditorProps {
   onSelectSlide?: (index: number) => void;
 }
 
+const severityRank = { info: 1, warning: 2, error: 3 } as const;
+
 export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
   const deck = useDeckStore((s) => s.deck);
   const moveSlide = useDeckStore((s) => s.moveSlide);
   const replaceSlides = useDeckStore((s) => s.replaceSlides);
+  const qualityReport = useQualityStore((s) => s.report);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -34,6 +38,17 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
 
   const slides = deck.slides;
   const slideIds = slides.map((s) => s.id);
+
+  const severityBySlide = new Map<string, "error" | "warning" | "info">();
+  if (qualityReport) {
+    for (const issue of qualityReport.issues) {
+      if (!issue.slideId) continue;
+      const prev = severityBySlide.get(issue.slideId);
+      if (!prev || severityRank[issue.severity] > severityRank[prev]) {
+        severityBySlide.set(issue.slideId, issue.severity);
+      }
+    }
+  }
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -93,6 +108,7 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
                     index={i}
                     total={slides.length}
                     onSelect={onSelectSlide}
+                    qualitySeverity={severityBySlide.get(slide.id)}
                   />
                 ))}
               </div>

@@ -11,6 +11,7 @@ interface Props {
   index: number;
   total: number;
   onSelect?: (index: number) => void;
+  qualitySeverity?: "error" | "warning" | "info";
 }
 
 const layoutLabels: Record<string, string> = {
@@ -28,7 +29,13 @@ const layoutLabels: Record<string, string> = {
   "cols-6": "6列",
 };
 
-export function SortableSlideItem({ slide, index, total, onSelect }: Props) {
+export function SortableSlideItem({
+  slide,
+  index,
+  total,
+  onSelect,
+  qualitySeverity,
+}: Props) {
   const themeId = useDeckStore((s) => s.deck?.themeId);
   const theme = getTheme(themeId ?? "business-blue");
   const updateSlide = useDeckStore((s) => s.updateSlide);
@@ -79,6 +86,24 @@ export function SortableSlideItem({ slide, index, total, onSelect }: Props) {
           <span className="text-xs font-medium text-text-muted">
             #{index + 1}
           </span>
+          {qualitySeverity && (
+            <span
+              title={
+                qualitySeverity === "error"
+                  ? "存在质量问题"
+                  : qualitySeverity === "warning"
+                    ? "存在警告"
+                    : "提示"
+              }
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                qualitySeverity === "error"
+                  ? "bg-red-500"
+                  : qualitySeverity === "warning"
+                    ? "bg-amber-500"
+                    : "bg-sky-500"
+              }`}
+            />
+          )}
           <input
             value={slide.title}
             onChange={(e) => updateSlide(slide.id, { title: e.target.value })}

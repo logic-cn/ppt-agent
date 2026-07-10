@@ -4,8 +4,17 @@ import {
   buildContentSystemPrompt,
   buildContentUserPrompt,
 } from "./llm/prompts/content";
-import type { BulletNode, ChartSpec } from "@/types/deck";
+import type { BulletNode, ChartSpec, Deck, Slide } from "@/types/deck";
 import { nanoid } from "nanoid";
+
+/** 根据 Deck 与当前页构建传给 LLM 的上下文（其他页面标题 + 主题） */
+export function buildContentContext(deck: Deck, slide: Slide): string {
+  const otherTitles = deck.slides
+    .filter((s) => s.id !== slide.id)
+    .map((s, i) => `${i + 1}. ${s.title}`)
+    .join("；");
+  return `演示主题：${deck.title}。其他页面：${otherTitles || "（无）"}`;
+}
 
 const contentSchema = z.object({
   body: z.string().optional(),

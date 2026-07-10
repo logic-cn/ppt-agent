@@ -1,0 +1,68 @@
+{
+  "id": "golden-chart-heavy",
+  "version": 2,
+  "title": "数据分析报告",
+  "themeId": "tech-purple",
+  "createdAt": 1700000000000,
+  "updatedAt": 1700000000000,
+  "slides": [
+    {
+      "id": "s1",
+      "layout": "cover",
+      "title": "数据分析报告",
+      "subtitle": "2024上半年度"
+    },
+    {
+      "id": "s2",
+      "layout": "chart",
+      "title": "市场份额",
+      "chart": {
+        "type": "pie",
+        "title": "各产品线占比",
+        "data": [
+          { "label": "产品A", "value": 45 },
+          { "label": "产品B", "value": 30 },
+          { "label": "产品C", "value": 15 },
+          { "label": "其他", "value": 10 }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "layout": "chart",
+      "title": "增长趋势",
+      "chart": {
+        "type": "line",
+        "title": "月活用户增长",
+        "data": [
+          { "label": "1月", "value": 120 },
+          { "label": "2月", "value": 135 },
+          { "label": "3月", "value": 150 },
+          { "label": "4月", "value": 180 },
+          { "label": "5月", "value": 210 },
+          { "label": "6月", "value": 250 }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "layout": "chart",
+      "title": "营收分布",
+      "chart": {
+        "type": "doughnut",
+        "title": "区域营收占比",
+        "data": [
+          { "label": "华东", "value": 40 },
+          { "label": "华南", "value": 25 },
+          { "label": "华北", "value": 20 },
+          { "label": "西部", "value": 15 }
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "layout": "closing",
+      "title": "总结"
+    }
+  ]
+}
