@@ -207,7 +207,7 @@ export function ChatPanel() {
           } catch (e) {
             if (job.signal.aborted) job.cancel();
             else job.fail(e);
-            throw e;
+            return;
           }
 
           if (deck) {

@@ -62,6 +62,8 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
         signal: new AbortController().signal,
       });
       onSelect({ pack: selected, topic: topic.trim(), mode: "ai" });
+    } catch (e) {
+      console.error("AI 生成大纲失败:", e);
     } finally {
       setGenerating(false);
     }
