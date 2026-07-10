@@ -17,7 +17,11 @@ import { applyDeckPatches } from "@/services/deck-patch/apply";
 import { summarizePatches } from "@/services/deck-patch/summarize";
 import type { DeckPatch } from "@/services/deck-patch/types";
 import { DESTRUCTIVE_OPS } from "@/services/deck-patch/types";
-import { checkDeckQuality, applyAutoFixes } from "@/services/quality";
+import {
+  checkDeckQuality,
+  generateAutoFixes,
+  applyAutoFixes,
+} from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { TemplatePack } from "@/types/template";
 import { getTemplatePacks, buildContextualPrompt } from "@/templates";
@@ -140,15 +144,24 @@ export function ChatPanel() {
     if (!current) return;
     setFixing(true);
     try {
-      const fixed = applyAutoFixes(current);
+      const fixes = generateAutoFixes(current);
+      if (fixes.length === 0) {
+        addMessage("assistant", "没有发现可自动修复的问题");
+        return;
+      }
+      const fixed = applyAutoFixes(current, fixes);
       await replaceSlides(fixed.slides);
       useQualityStore
         .getState()
         .setReport(checkDeckQuality(useDeckStore.getState().deck!));
+      addMessage(
+        "assistant",
+        `✅ 已自动修复 ${fixes.length} 个问题：${fixes.map((f) => f.description).join("；")}`,
+      );
     } finally {
       setFixing(false);
     }
-  }, [replaceSlides]);
+  }, [replaceSlides, addMessage]);
 
   const submittingRef = useRef(false);
   const lastUserText = useRef("");

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, X, Sparkles, Loader2 } from "lucide-react";
 import type { TemplatePack } from "@/types/template";
 import { getTemplatePacks, buildContextualPrompt } from "@/templates";
@@ -25,12 +25,18 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (selected) { setSelected(null); return; }
+        if (selected) {
+          setSelected(null);
+          return;
+        }
         onClose();
       }
     },
     [onClose, selected],
   );
+
+  const handleKeyDownRef = useRef(handleKeyDown);
+  handleKeyDownRef.current = handleKeyDown;
 
   useEffect(() => {
     if (!open) return;
@@ -38,9 +44,10 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
     setTopic("");
     setPageCount(10);
     setGenerating(false);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, handleKeyDown]);
+    const handler = (e: KeyboardEvent) => handleKeyDownRef.current(e);
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open]);
 
   const packs = getTemplatePacks();
 
@@ -78,16 +85,22 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
       aria-labelledby="template-dialog-title"
     >
       <div
-        className="w-full max-w-2xl rounded-xl border border-border bg-bg-surface shadow-2xl"
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-bg-surface px-5 py-3">
           <h2 id="template-dialog-title" className="text-base font-semibold">
             {selected ? "配置主题" : "选择模板"}
           </h2>
           <button
-            onClick={() => { if (selected) { setSelected(null); return; } onClose(); }}
+            onClick={() => {
+              if (selected) {
+                setSelected(null);
+                return;
+              }
+              onClose();
+            }}
             className="rounded p-1 text-text-muted hover:bg-bg-hover"
           >
             <X className="h-4 w-4" />
@@ -96,12 +109,14 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
 
         {selected ? (
           /* 二级：主题输入 + 操作按钮 */
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-3">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-4 w-4 text-accent" />
                 <span className="font-medium text-sm">{selected.name}</span>
-                <span className="rounded bg-accent-soft/50 px-1.5 py-0.5 text-xs text-accent">{scenarioLabel[selected.scenario] ?? selected.scenario}</span>
+                <span className="rounded bg-accent-soft/50 px-1.5 py-0.5 text-xs text-accent">
+                  {scenarioLabel[selected.scenario] ?? selected.scenario}
+                </span>
               </div>
 
               <label className="block text-sm font-medium text-text-primary mb-1">
@@ -136,7 +151,13 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
 
             <div className="flex gap-2 pt-2">
               <button
-                onClick={() => onSelect({ pack: selected, topic: topic.trim() || selected.name, mode: "static" })}
+                onClick={() =>
+                  onSelect({
+                    pack: selected,
+                    topic: topic.trim() || selected.name,
+                    mode: "static",
+                  })
+                }
                 className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-text-secondary transition hover:bg-bg-hover"
               >
                 直接创建（静态）
@@ -147,43 +168,48 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> 生成中…</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> 生成中…
+                  </>
                 ) : (
-                  <><Sparkles className="h-4 w-4" /> AI 生成</>
+                  <>
+                    <Sparkles className="h-4 w-4" /> AI 生成
+                  </>
                 )}
               </button>
             </div>
 
             <p className="text-xs text-text-muted pt-1">
-              AI 生成将遵循模板的结构编排，并使用 AI 填充具体内容。静态创建直接使用模板预定义的示例内容。
+              AI 生成将遵循模板的结构编排，并使用 AI
+              填充具体内容。静态创建直接使用模板预定义的示例内容。
             </p>
           </div>
         ) : (
           /* 一级：模板选择列表 */
-          <div className="grid grid-cols-2 gap-3 p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4">
             {packs.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setSelected(p)}
-                className="group flex flex-col items-start gap-2 rounded-lg border border-border p-4 text-left transition hover:border-accent hover:bg-bg-elevated"
+                className="group flex flex-col items-start gap-1.5 rounded-lg border border-border p-3 text-left transition hover:border-accent hover:bg-bg-elevated"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft/50 group-hover:bg-accent-soft">
-                  <FileText className="h-5 w-5 text-accent" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft/50 group-hover:bg-accent-soft">
+                  <FileText className="h-4 w-4 text-accent" />
                 </div>
-                <div className="w-full">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-text-primary group-hover:text-accent">
+                <div className="w-full min-w-0">
+                  <div className="flex items-center gap-1">
+                    <div className="truncate text-sm font-medium text-text-primary group-hover:text-accent">
                       {p.name}
                     </div>
-                    <span className="rounded bg-accent-soft/30 px-1.5 py-0.5 text-xs text-accent">
+                    <span className="shrink-0 rounded bg-accent-soft/30 px-1 py-0.5 text-[10px] text-accent">
                       {scenarioLabel[p.scenario] ?? p.scenario}
                     </span>
                   </div>
-                  <div className="mt-0.5 text-sm text-text-muted">
+                  <div className="mt-0.5 line-clamp-2 text-xs text-text-muted">
                     {p.description}
                   </div>
-                  <div className="mt-1 text-xs text-text-muted">
-                    {p.slides.length} 页 · {p.promptHints?.length ?? 0} 个提示
+                  <div className="mt-1 text-[11px] text-text-muted">
+                    {p.slides.length} 页
                   </div>
                 </div>
               </button>
@@ -191,7 +217,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
           </div>
         )}
 
-        <div className="border-t border-border px-5 py-3 text-xs text-text-muted">
+        <div className="border-t border-border px-4 py-2.5 text-xs text-text-muted">
           选择模板后可以指定具体主题，AI 将根据模板结构自动生成内容
         </div>
       </div>

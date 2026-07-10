@@ -154,22 +154,29 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   updateProvider: (id, patch) => {
     set((s) => {
       const oldProvider = s.settings.providers[id];
+      const updatedProvider = { ...oldProvider, ...patch };
       const providers = {
         ...s.settings.providers,
-        [id]: { ...oldProvider, ...patch },
+        [id]: updatedProvider,
       };
 
-      // 如果 apiKey 有变化，写入安全存储并清空 settings
       if (patch.apiKey && patch.apiKey !== oldProvider?.apiKey) {
         const apiKey = patch.apiKey;
         void resolveStore().then((secretStore) =>
           secretStore.setSecret(makeProviderKey(id), apiKey),
         );
-        providers[id] = { ...providers[id], apiKey: "" };
       }
 
       const settings = { ...s.settings, providers };
-      void debouncedSave(settings);
+      // 安全存储已有 apiKey，持久化时剥离以免明文落盘
+      const forStorage = {
+        ...settings,
+        providers: {
+          ...providers,
+          [id]: { ...updatedProvider, apiKey: "" },
+        },
+      };
+      void debouncedSave(forStorage);
       return { settings };
     });
   },
@@ -184,16 +191,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setImageProvider: (cfg) => {
     set((s) => {
-      let newCfg = { ...cfg };
       if (cfg.apiKey) {
-        const apiKey = cfg.apiKey;
         void resolveStore().then((secretStore) =>
-          secretStore.setSecret(makeImageKey(), apiKey),
+          secretStore.setSecret(makeImageKey(), cfg.apiKey),
         );
-        newCfg = { ...cfg, apiKey: "" };
       }
-      const settings = { ...s.settings, imageProvider: newCfg };
-      void debouncedSave(settings);
+      const settings = { ...s.settings, imageProvider: cfg };
+      // 安全存储已有 apiKey，持久化时剥离
+      const forStorage = {
+        ...settings,
+        imageProvider: cfg.apiKey ? { ...cfg, apiKey: "" } : cfg,
+      };
+      void debouncedSave(forStorage);
       return { settings };
     });
   },
