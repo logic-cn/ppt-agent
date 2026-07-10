@@ -96,4 +96,13 @@ describe("generateSlideContent", () => {
     expect(result.body).toBe("本页分析市场格局。");
     expect(result.chart).toBeDefined();
   });
+
+  it("结构化 JSON 但字段非法时抛错而非写入原始输出", async () => {
+    (chat as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      content: JSON.stringify({ chart: { type: "bar", data: "not-array" } }),
+    });
+    await expect(
+      generateSlideContent({ slideTitle: "x", context: "c" }),
+    ).rejects.toThrow();
+  });
 });

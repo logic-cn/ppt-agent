@@ -37,7 +37,7 @@ interface DeckStore {
 
 function snapshot(deck: Deck | null): HistoryEntry | null {
   if (!deck) return null;
-  return { deck: JSON.parse(JSON.stringify(deck)) };
+  return { deck: structuredClone(deck) };
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;

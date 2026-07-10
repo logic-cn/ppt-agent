@@ -14,7 +14,7 @@ export function buildRenderSlides(deck: Deck, theme: Theme): RenderSlide[] {
   return deck.slides.map((slide) => buildRenderSlide(slide, deck, theme));
 }
 
-function buildRenderSlide(
+export function buildRenderSlide(
   slide: Slide,
   _deck: Deck,
   theme: Theme,
@@ -22,14 +22,23 @@ function buildRenderSlide(
   const nodes: RenderNode[] = [];
   const layout = theme.layouts[slide.layout];
   if (!layout) {
-    return { id: slide.id, background: theme.colors.background, nodes, notes: slide.notes };
+    return {
+      id: slide.id,
+      background: theme.colors.background,
+      nodes,
+      notes: slide.notes,
+    };
   }
 
   // 背景
   const background = theme.colors.background;
 
   // 装饰色带
-  if (slide.layout === "cover" || slide.layout === "section" || slide.layout === "closing") {
+  if (
+    slide.layout === "cover" ||
+    slide.layout === "section" ||
+    slide.layout === "closing"
+  ) {
     nodes.push(buildTopBar(theme));
   } else {
     nodes.push(buildSideBar(theme));
@@ -84,7 +93,8 @@ function buildRenderSlide(
     slide.items &&
     slide.items.length > 0
   ) {
-    const colCount = slide.layout === "two-column" ? 2 : getColCount(slide.layout);
+    const colCount =
+      slide.layout === "two-column" ? 2 : getColCount(slide.layout);
     const hasVisual = !!(slide.chart || slide.image);
     // two-column 对比两组内容且无图表时，items 铺满整行正文区；
     // 若同时有图表/图片，items 限制在 body 区域，避免与 visual 重叠。
@@ -96,12 +106,7 @@ function buildRenderSlide(
   } else if (layout.body) {
     if (slide.bullets && slide.bullets.length > 0) {
       nodes.push(
-        buildBulletTextNode(
-          "slide-body",
-          slide.bullets,
-          layout.body,
-          theme,
-        ),
+        buildBulletTextNode("slide-body", slide.bullets, layout.body, theme),
       );
     } else if (slide.body) {
       nodes.push(
@@ -130,7 +135,11 @@ function buildRenderSlide(
       style: {
         showLegend: true,
         showTitle: !!slide.chart.title,
-        colors: [theme.colors.accent, theme.colors.secondary, theme.colors.primary],
+        colors: [
+          theme.colors.accent,
+          theme.colors.secondary,
+          theme.colors.primary,
+        ],
       },
       zIndex: 1,
     });

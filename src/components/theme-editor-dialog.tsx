@@ -153,12 +153,13 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                     <input
                       type="text"
                       value={colors[key]}
-                      onChange={(e) =>
-                        setColors((prev) => ({
-                          ...prev,
-                          [key]: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        // 仅接受合法 hex（#rgb / #rrggbb），避免污染主题色
+                        if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+                          setColors((prev) => ({ ...prev, [key]: v }));
+                        }
+                      }}
                       className="ml-auto w-20 rounded border border-border bg-bg-base px-1.5 py-0.5 text-xs focus:border-accent focus:outline-none font-mono"
                     />
                   </div>

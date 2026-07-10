@@ -1,7 +1,7 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
-import { buildRenderSlides } from "@/engine/render-ir/build";
+import { buildRenderSlide } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
 
@@ -13,7 +13,7 @@ interface Props {
   onGenerateImage?: (slideId: string) => void;
 }
 
-export function SlidePreview({
+export const SlidePreview = memo(function SlidePreview({
   deck,
   className,
   currentIndex: controlledIndex,
@@ -35,11 +35,11 @@ export function SlidePreview({
 
   // feature flag：当前仅 render-ir 一种模式（旧渲染器已迁移移除）
   const rendererMode = getRendererMode();
-  const renderSlides = useMemo(
-    () => buildRenderSlides(deck, theme),
-    [deck, theme, rendererMode],
+  // 只构建当前页，避免任意一页变更都全量重建整本 deck 的 RenderIR
+  const currentRenderSlide = useMemo(
+    () => (currentSlide ? buildRenderSlide(currentSlide, deck, theme) : null),
+    [currentSlide, theme, rendererMode],
   );
-  const currentRenderSlide = renderSlides[currentIndex];
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -113,7 +113,7 @@ export function SlidePreview({
       </div>
     </div>
   );
-}
+});
 
 /** 缩略图模式，用于大纲面板 */
 export const SlideThumbnail = memo(function SlideThumbnail({
@@ -137,7 +137,7 @@ export const SlideThumbnail = memo(function SlideThumbnail({
       createdAt: 0,
       updatedAt: 0,
     } as unknown as Deck;
-    return buildRenderSlides(dummyDeck, theme)[0];
+    return buildRenderSlide(slide, dummyDeck, theme);
   }, [slide, theme]);
 
   return (

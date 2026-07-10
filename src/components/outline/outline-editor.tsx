@@ -19,11 +19,15 @@ import { SortableSlideItem } from "./sortable-slide-item";
 
 interface OutlineEditorProps {
   onSelectSlide?: (index: number) => void;
+  selectedIndex?: number;
 }
 
 const severityRank = { info: 1, warning: 2, error: 3 } as const;
 
-export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
+export function OutlineEditor({
+  onSelectSlide,
+  selectedIndex,
+}: OutlineEditorProps) {
   const deck = useDeckStore((s) => s.deck);
   const moveSlide = useDeckStore((s) => s.moveSlide);
   const replaceSlides = useDeckStore((s) => s.replaceSlides);
@@ -61,8 +65,8 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
   };
 
   const addSlide = async () => {
-    const lastLayout =
-      slides.length > 1 ? slides[slides.length - 2].layout : "content";
+    const lastSlide = slides[slides.length - 1];
+    const lastLayout = lastSlide?.layout ?? "content";
     const newSlide: Slide = {
       id: crypto.randomUUID(),
       layout: lastLayout,
@@ -107,6 +111,7 @@ export function OutlineEditor({ onSelectSlide }: OutlineEditorProps) {
                     slide={slide}
                     index={i}
                     total={slides.length}
+                    isSelected={i === selectedIndex}
                     onSelect={onSelectSlide}
                     qualitySeverity={severityBySlide.get(slide.id)}
                   />

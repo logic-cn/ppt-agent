@@ -33,9 +33,18 @@ export function SlideTab({ slide, onUpdate }: Props) {
     setTitleDraft(slide.title);
     setSubtitleDraft(slide.subtitle ?? "");
     setBodyDraft(slide.body ?? "");
+    // 切换页面时清掉上一页未触发的防抖定时器，避免把旧草稿写到新页
+    return () => {
+      if (titleTimer.current) clearTimeout(titleTimer.current);
+      if (subtitleTimer.current) clearTimeout(subtitleTimer.current);
+      if (bodyTimer.current) clearTimeout(bodyTimer.current);
+    };
   }, [slide.id, slide.title, slide.subtitle, slide.body]);
 
-  const debouncedUpdate = (timer: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>, patch: Partial<Slide>) => {
+  const debouncedUpdate = (
+    timer: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>,
+    patch: Partial<Slide>,
+  ) => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => onUpdate(patch), 300);
   };
@@ -60,7 +69,9 @@ export function SlideTab({ slide, onUpdate }: Props) {
           value={subtitleDraft}
           onChange={(e) => {
             setSubtitleDraft(e.target.value);
-            debouncedUpdate(subtitleTimer, { subtitle: e.target.value || undefined });
+            debouncedUpdate(subtitleTimer, {
+              subtitle: e.target.value || undefined,
+            });
           }}
           className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
         />

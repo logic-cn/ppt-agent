@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
@@ -10,6 +11,7 @@ interface Props {
   slide: Slide;
   index: number;
   total: number;
+  isSelected?: boolean;
   onSelect?: (index: number) => void;
   qualitySeverity?: "error" | "warning" | "info";
 }
@@ -29,10 +31,11 @@ const layoutLabels: Record<string, string> = {
   "cols-6": "6列",
 };
 
-export function SortableSlideItem({
+export const SortableSlideItem = memo(function SortableSlideItem({
   slide,
   index,
   total,
+  isSelected,
   onSelect,
   qualitySeverity,
 }: Props) {
@@ -63,7 +66,11 @@ export function SortableSlideItem({
       style={style}
       onClick={() => onSelect?.(index)}
       className={`group relative cursor-pointer rounded-lg border ${
-        isDragging ? "border-accent" : "border-border"
+        isSelected
+          ? "border-accent bg-accent-soft/40"
+          : isDragging
+            ? "border-accent"
+            : "border-border"
       } bg-bg-surface transition-shadow hover:shadow-md`}
     >
       {/* Drag handle */}
@@ -162,4 +169,4 @@ export function SortableSlideItem({
       </div>
     </div>
   );
-}
+});

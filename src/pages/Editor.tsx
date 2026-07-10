@@ -38,7 +38,8 @@ export default function Editor() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const isNew = params.get("new") === "1";
-  const { deck, load } = useDeckStore();
+  const deck = useDeckStore((s) => s.deck);
+  const load = useDeckStore((s) => s.load);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -71,6 +72,13 @@ export default function Editor() {
     }
   }, [editingTitle]);
 
+  // 幻灯片数量变化时收敛 selectedIndex，避免删除末页后越界导致画布/检查器空白
+  useEffect(() => {
+    if (!deck) return;
+    const max = deck.slides.length - 1;
+    setSelectedIndex((i) => (deck.slides.length === 0 ? 0 : Math.min(i, max)));
+  }, [deck?.slides.length]);
+
   const commitTitle = async () => {
     const v = titleInput.trim();
     if (v && deck) {
@@ -86,14 +94,15 @@ export default function Editor() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "F5" && deck && deck.slides.length > 0) {
+      const d = useDeckStore.getState().deck;
+      if (e.key === "F5" && d && d.slides.length > 0) {
         e.preventDefault();
         setPresenting(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deck]);
+  }, []);
 
   useEffect(() => {
     if (isNew && deck) return;
@@ -177,6 +186,7 @@ export default function Editor() {
     const job = jobStore.startJob({
       type: "pptx.export",
       title: `导出「${deck.title}」`,
+      canCancel: true,
     });
 
     try {
@@ -189,13 +199,17 @@ export default function Editor() {
         });
       } catch {
         // 非 Tauri 环境：下载到浏览器
-        const blob = await exportDeckToBlob(deck);
+        const blob = await exportDeckToBlob(deck, job.signal);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `${deck.title}.pptx`;
         a.click();
         URL.revokeObjectURL(url);
+        if (job.signal.aborted) {
+          job.cancel();
+          return;
+        }
         job.succeed("导出完成");
         addToast({
           type: "success",
@@ -205,7 +219,11 @@ export default function Editor() {
         return;
       }
       if (savePath) {
-        await exportDeck(deck, savePath);
+        await exportDeck(deck, savePath, job.signal);
+        if (job.signal.aborted) {
+          job.cancel();
+          return;
+        }
         job.succeed("导出完成");
         addToast({
           type: "success",
@@ -533,7 +551,10 @@ export default function Editor() {
         {/* 左栏：大纲编辑器 */}
         {leftOpen && (
           <aside className="flex w-80 flex-col border-r border-border bg-bg-surface">
-            <OutlineEditor onSelectSlide={setSelectedIndex} />
+            <OutlineEditor
+              onSelectSlide={setSelectedIndex}
+              selectedIndex={selectedIndex}
+            />
           </aside>
         )}
 

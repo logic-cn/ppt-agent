@@ -32,12 +32,24 @@ export function ImportDialog({ open, onClose }: Props) {
     "direct" | "chunk_summary" | "select_sections"
   >("direct");
   const fileRef = useRef<HTMLInputElement>(null);
-  const { deck, replaceSlides } = useDeckStore();
+  const replaceSlides = useDeckStore((s) => s.replaceSlides);
   const addToast = useToastStore((s) => s.add);
+  // 记录正在进行的导入任务，便于在关闭/取消时终止后台生成
+  const activeJobRef = useRef<string | null>(null);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && step === "input") onClose();
+      if (e.key !== "Escape") return;
+      if (step === "generating") {
+        cancelActiveJob();
+        setStep("input");
+        setParsed(null);
+      } else if (step === "input") {
+        onClose();
+      } else {
+        setStep("input");
+        setParsed(null);
+      }
     },
     [onClose, step],
   );
@@ -82,6 +94,14 @@ export function ImportDialog({ open, onClose }: Props) {
     }
   };
 
+  const cancelActiveJob = useCallback(() => {
+    const id = activeJobRef.current;
+    if (id) {
+      useJobStore.getState().cancelJob(id);
+      activeJobRef.current = null;
+    }
+  }, []);
+
   const handleGenerate = async (doc: ParsedDocument, selectedIds: string[]) => {
     setStep("generating");
     setImporting(true);
@@ -92,6 +112,7 @@ export function ImportDialog({ open, onClose }: Props) {
       title: `导入「${doc.source.title}」`,
       canCancel: true,
     });
+    activeJobRef.current = job.id;
 
     try {
       const context = await prepareDocumentForOutline(doc, {
@@ -106,7 +127,9 @@ export function ImportDialog({ open, onClose }: Props) {
       });
 
       job.succeed(`已生成 ${slides.length} 页大纲`);
+      activeJobRef.current = null;
 
+      const deck = useDeckStore.getState().deck;
       if (deck) {
         await replaceSlides(slides);
         const current = useDeckStore.getState().deck;
@@ -122,6 +145,7 @@ export function ImportDialog({ open, onClose }: Props) {
       });
       onClose();
     } catch (e) {
+      activeJobRef.current = null;
       if (job.signal.aborted) {
         job.cancel();
       } else {
@@ -330,6 +354,18 @@ export function ImportDialog({ open, onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-dialog-title"
+      onClick={() => {
+        if (step === "generating") {
+          cancelActiveJob();
+          setStep("input");
+          setParsed(null);
+        } else if (step === "input") {
+          onClose();
+        } else {
+          setStep("input");
+          setParsed(null);
+        }
+      }}
     >
       <div
         className="w-full max-w-lg rounded-xl border border-border bg-bg-surface shadow-2xl"
@@ -345,6 +381,7 @@ export function ImportDialog({ open, onClose }: Props) {
               step === "input"
                 ? onClose
                 : () => {
+                    if (step === "generating") cancelActiveJob();
                     setStep("input");
                     setParsed(null);
                   }

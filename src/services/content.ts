@@ -62,24 +62,33 @@ export async function generateSlideContent(params: {
   });
 
   let parsed: unknown;
+  let isStructured = false;
   try {
     parsed = JSON.parse(res.content);
+    isStructured = true;
   } catch {
     const match = res.content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) {
       try {
         parsed = JSON.parse(match[1]);
+        isStructured = true;
       } catch {
-        return { body: res.content };
+        // 代码块内仍不是合法 JSON：原始输出不可作为正文，直接报错
+        throw new Error("模型返回内容无法解析，请重试");
       }
-    } else {
-      return { body: res.content };
     }
+    // 无 JSON、无代码块：视为模型直接返回的纯文本正文（下方兜底）
+  }
+
+  // 纯文本兜底：模型未按 JSON 返回，但内容本身是可用正文
+  if (!isStructured) {
+    return { body: res.content };
   }
 
   const result = contentSchema.safeParse(parsed);
   if (!result.success) {
-    return { body: res.content };
+    // 结构不符合预期（如字段缺失/类型错误）：不可把原始输出写进正文
+    throw new Error("模型返回内容不符合预期结构，无法生成，请重试");
   }
 
   const addIds = (

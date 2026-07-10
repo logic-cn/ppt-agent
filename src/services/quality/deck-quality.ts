@@ -202,14 +202,6 @@ export function checkDeckQuality(
   const rules = options?.rules ?? [];
   const has = (code: string) => issues.some((i) => i.code === code);
 
-  if (rules.includes("require_cover") && !has("missing_cover")) {
-    const cover = checkMissingCover(deck);
-    if (cover) issues.push(cover);
-  }
-  if (rules.includes("require_closing") && !has("missing_closing")) {
-    const closing = checkMissingClosing(deck);
-    if (closing) issues.push(closing);
-  }
   if (rules.includes("require_charts") && !has("chart_required")) {
     const hasChart = deck.slides.some((s) => s.layout === "chart" || s.chart);
     if (!hasChart) {

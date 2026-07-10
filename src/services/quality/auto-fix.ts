@@ -13,6 +13,21 @@ function createId(): string {
 }
 
 /**
+ * 递归清理 bullet：仅当“无文本且无可保留的子项”时才删除，
+ * 带 children 的父 bullet 即使文本为空也保留，避免误删内容。
+ */
+function cleanBullets<T extends { text: string; children?: T[] }>(
+  bullets: T[],
+): T[] {
+  return bullets
+    .map((b) => {
+      const children = b.children ? cleanBullets(b.children) : undefined;
+      return children ? { ...b, children } : b;
+    })
+    .filter((b) => b.text.trim() || (b.children && b.children.length > 0));
+}
+
+/**
  * 确定性地应用自动修复动作，返回一份新的 Deck（不修改原数据）。
  * 若不传入 actions，则基于当前 deck 重新推导修复项。
  */
@@ -36,12 +51,7 @@ export function applyAutoFixes(deck: Deck, actions?: AutoFixAction[]): Deck {
       case "remove_empty_bullet":
         slides = slides.map((s) =>
           s.id === action.slideId && s.bullets
-            ? {
-                ...s,
-                bullets: s.bullets.filter(
-                  (b) => b.text.trim() && !b.children?.length,
-                ),
-              }
+            ? { ...s, bullets: cleanBullets(s.bullets) }
             : s,
         );
         break;

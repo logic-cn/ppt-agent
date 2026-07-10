@@ -42,9 +42,7 @@ export function ConfirmDialog({
       <div
         className="fixed inset-0 z-40 bg-black/40"
         onClick={onCancel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
+        aria-hidden="true"
       />
       <div
         className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg-surface p-5 shadow-xl"
