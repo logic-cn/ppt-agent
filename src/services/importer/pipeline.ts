@@ -11,10 +11,15 @@ import type {
 } from "./types";
 import type { Slide, SlideSourceRef } from "@/types/deck";
 import { generateOutline } from "@/services/outline";
+import { chat } from "@/services/llm";
 
 const CHUNK_MAX_CHARS = 3000;
 const LONG_DOC_THRESHOLD = 8000;
 const VERY_LONG_DOC_THRESHOLD = 30000;
+/** 分块摘要触发阈值：超过该字数的文档先做逐块摘要，避免把全文塞给 LLM */
+const SUMMARY_TRIGGER_CHARS = 8000;
+/** 每次摘要请求最多拼接的片段字数 */
+const SUMMARY_BATCH_CHARS = 6000;
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -122,6 +127,89 @@ export function getDocumentStrategy(
   return "select_sections";
 }
 
+const SUMMARY_SYSTEM_PROMPT =
+  "你是文档摘要助手。用户会给出若干文档片段，按顺序编号。" +
+  "请为每个片段生成一句简洁的中文摘要（不超过 60 字），保留关键数字、结论和专有名词。" +
+  "严格按如下格式输出，每行一个，不要输出额外说明：\n" +
+  "1. 摘要\n2. 摘要\n3. 摘要";
+
+function batchChunks(
+  chunks: DocumentChunk[],
+  maxChars: number,
+): DocumentChunk[][] {
+  const batches: DocumentChunk[][] = [];
+  let current: DocumentChunk[] = [];
+  let currentChars = 0;
+  for (const chunk of chunks) {
+    if (currentChars + chunk.text.length > maxChars && current.length > 0) {
+      batches.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(chunk);
+    currentChars += chunk.text.length;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+function parseNumberedSummaries(text: string, count: number): string[] {
+  const summaries: string[] = new Array(count).fill("");
+  for (const line of text.split("\n")) {
+    const m = /^\s*(\d+)\s*[.、)]\s*(.+)$/.exec(line);
+    if (!m) continue;
+    const idx = Number(m[1]) - 1;
+    if (idx >= 0 && idx < count) summaries[idx] = m[2].trim();
+  }
+  return summaries;
+}
+
+async function summarizeBatch(
+  batch: DocumentChunk[],
+  signal?: AbortSignal,
+): Promise<DocumentChunk[]> {
+  const userContent = batch
+    .map((c, i) => `片段${i + 1}:\n${c.text.slice(0, 3000)}`)
+    .join("\n\n");
+
+  try {
+    const res = await chat({
+      messages: [
+        { role: "system", content: SUMMARY_SYSTEM_PROMPT },
+        { role: "user", content: userContent },
+      ],
+      signal,
+    });
+    const summaries = parseNumberedSummaries(res.content, batch.length);
+    return batch.map((c, i) => ({
+      ...c,
+      summary: summaries[i] || undefined,
+    }));
+  } catch {
+    // 摘要失败不阻断导入，退化为使用原文
+    return batch;
+  }
+}
+
+/**
+ * 为文档片段生成逐块摘要（chunk_summary 策略的核心）。
+ * 已含摘要的片段直接返回；其余按字数分批调用 LLM 摘要。
+ * 任意片段摘要失败都退化为原文，不抛错。
+ */
+export async function summarizeChunks(
+  chunks: DocumentChunk[],
+  opts?: { signal?: AbortSignal },
+): Promise<DocumentChunk[]> {
+  if (chunks.length === 0) return chunks;
+  if (chunks.every((c) => c.summary)) return chunks;
+
+  const batches = batchChunks(chunks, SUMMARY_BATCH_CHARS);
+  const summarized = await Promise.all(
+    batches.map((b) => summarizeBatch(b, opts?.signal)),
+  );
+  return summarized.flat();
+}
+
 export async function prepareDocumentForOutline(
   doc: ParsedDocument,
   _options?: DocumentPrepareOptions,
@@ -146,7 +234,8 @@ export async function prepareDocumentForOutline(
 
 function extractKeyFacts(text: string, chunkId: string): KeyFact[] {
   const facts: KeyFact[] = [];
-  const numberPattern = /([\d,]+(?:\.\d+)?)\s*(%|亿|万|千|元|美元|欧元|年|月|日|人|个|家|例)?/g;
+  const numberPattern =
+    /([\d,]+(?:\.\d+)?)\s*(%|亿|万|千|元|美元|欧元|年|月|日|人|个|家|例)?/g;
   let match: RegExpExecArray | null;
   const seen = new Set<string>();
 
@@ -156,8 +245,14 @@ function extractKeyFacts(text: string, chunkId: string): KeyFact[] {
     if (isNaN(value) || value === 0) continue;
 
     const contextStart = Math.max(0, match.index - 20);
-    const contextEnd = Math.min(text.length, match.index + match[0].length + 30);
-    const context = text.slice(contextStart, contextEnd).replace(/\s+/g, " ").trim();
+    const contextEnd = Math.min(
+      text.length,
+      match.index + match[0].length + 30,
+    );
+    const context = text
+      .slice(contextStart, contextEnd)
+      .replace(/\s+/g, " ")
+      .trim();
     if (seen.has(context)) continue;
     seen.add(context);
 
@@ -177,9 +272,17 @@ export async function generateOutlineFromDocument(
   context: DocumentOutlineContext,
   options?: { pageCount?: number; signal?: AbortSignal },
 ): Promise<Slide[]> {
-  const docContent = context.chunks
-    .map((c) => c.summary || c.text)
-    .join("\n\n");
+  // 仅使用用户勾选的章节对应的片段（select_sections 策略生效点）
+  const selectedIds = new Set(context.selectedSectionIds);
+  let chunks = context.chunks.filter((c) => selectedIds.has(c.sectionId));
+
+  // 长文档走分块摘要，避免把全文一次性塞给 LLM（chunk_summary 策略生效点）
+  const totalChars = chunks.reduce((n, c) => n + c.text.length, 0);
+  if (totalChars > SUMMARY_TRIGGER_CHARS) {
+    chunks = await summarizeChunks(chunks, { signal: options?.signal });
+  }
+
+  const docContent = chunks.map((c) => c.summary || c.text).join("\n\n");
 
   const slides = await generateOutline({
     topic: context.source.title,

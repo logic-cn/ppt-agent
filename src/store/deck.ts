@@ -3,7 +3,7 @@ import type { Deck } from "@/types/deck";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
 
 interface HistoryEntry {
-  slides: Deck["slides"];
+  deck: Deck;
 }
 
 interface DeckStore {
@@ -37,7 +37,7 @@ interface DeckStore {
 
 function snapshot(deck: Deck | null): HistoryEntry | null {
   if (!deck) return null;
-  return { slides: JSON.parse(JSON.stringify(deck.slides)) };
+  return { deck: JSON.parse(JSON.stringify(deck)) };
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -83,30 +83,45 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
 
   setTitle: (title) => {
     set((s) => {
+      const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
         deck: s.deck ? { ...s.deck, title, updatedAt: Date.now() } : null,
         dirty: true,
+        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        future: [],
+        canUndo: true,
+        canRedo: false,
       };
     });
   },
 
   setTheme: (themeId) => {
     set((s) => {
+      const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
         deck: s.deck ? { ...s.deck, themeId, updatedAt: Date.now() } : null,
         dirty: true,
+        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        future: [],
+        canUndo: true,
+        canRedo: false,
       };
     });
   },
 
   setSource: (source) => {
     set((s) => {
+      const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
         deck: s.deck ? { ...s.deck, source, updatedAt: Date.now() } : null,
         dirty: true,
+        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        future: [],
+        canUndo: true,
+        canRedo: false,
       };
     });
   },
@@ -218,15 +233,11 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     debouncedPersist(get);
     set({
       deck: {
-        ...deck,
-        slides: JSON.parse(JSON.stringify(entry.slides)),
+        ...JSON.parse(JSON.stringify(entry.deck)),
         updatedAt: Date.now(),
       },
       past: newPast,
-      future: [
-        ...get().future,
-        { slides: JSON.parse(JSON.stringify(deck.slides)) },
-      ],
+      future: [...get().future, { deck: JSON.parse(JSON.stringify(deck)) }],
       canUndo: newPast.length > 0,
       canRedo: true,
       dirty: true,
@@ -241,14 +252,10 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     debouncedPersist(get);
     set({
       deck: {
-        ...deck,
-        slides: JSON.parse(JSON.stringify(entry.slides)),
+        ...JSON.parse(JSON.stringify(entry.deck)),
         updatedAt: Date.now(),
       },
-      past: [
-        ...get().past,
-        { slides: JSON.parse(JSON.stringify(deck.slides)) },
-      ],
+      past: [...get().past, { deck: JSON.parse(JSON.stringify(deck)) }],
       future: newFuture,
       canUndo: true,
       canRedo: newFuture.length > 0,

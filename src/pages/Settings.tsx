@@ -27,6 +27,7 @@ export default function Settings() {
   const {
     settings,
     loaded,
+    secureSecretStorage,
     load,
     setActiveProvider,
     updateProvider,
@@ -65,6 +66,14 @@ export default function Settings() {
               <Key className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-semibold">LLM 模型配置</h2>
             </div>
+
+            {!secureSecretStorage && (
+              <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-600">
+                未检测到系统密钥库（Keychain），API Key 将以本地明文形式保存。
+                建议在受信任的本机环境使用，或接入 Tauri keychain
+                插件以启用系统级加密存储。
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="mb-2 block text-sm text-text-secondary">

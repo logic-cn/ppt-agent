@@ -97,6 +97,11 @@ export function ChatPanel() {
       if (!msg.patches || !deck) return;
       try {
         const result = applyDeckPatches(deck, msg.patches);
+        const fatal = result.warnings.find((w) => w.fatal);
+        if (fatal) {
+          addMessage("assistant", `应用修改失败：${fatal.message}`);
+          return;
+        }
         replaceSlides(result.deck.slides);
         if (result.deck.title !== deck.title) {
           setTitle(result.deck.title);

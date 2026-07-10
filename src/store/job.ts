@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   Job,
   JobStatus,
+  JobErrorCategory,
   StartJobInput,
   RunningJob,
 } from "@/services/jobs/types";
@@ -21,10 +22,55 @@ interface JobStoreState {
 
 const controllers = new Map<string, AbortController>();
 
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  return "未知错误";
+/** 将异常归类为「用户取消 / 网络 / 模型 / 解析 / 未知」，便于 UI 区分展示 */
+export function classifyError(error: unknown): {
+  category: JobErrorCategory;
+  message: string;
+} {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "未知错误";
+
+  // 用户取消：AbortError 或显式取消信号
+  if (
+    error instanceof DOMException ||
+    (error as { name?: string })?.name === "AbortError" ||
+    /已取消|已停止|aborted|user cancel/i.test(raw)
+  ) {
+    return { category: "user_cancelled", message: "任务已取消" };
+  }
+
+  // 网络错误
+  if (
+    /failed to fetch|networkerror|timeout|etimedout|enotfound|econnrefused|网络|连接/i.test(
+      raw,
+    )
+  ) {
+    return { category: "network", message: `网络错误：${raw}` };
+  }
+
+  // 解析错误：AI 返回结构非法
+  if (
+    /(invalid|expected|zod|json\.parse|jsonparse|schema|结构|解析失败|无法解析)/i.test(
+      raw,
+    )
+  ) {
+    return { category: "parse", message: `结果解析失败：${raw}` };
+  }
+
+  // 模型错误：鉴权、限流、配额
+  if (
+    /(401|403|429|unauthorized|forbidden|rate.?limit|quota|api key|模型|model|token limit|上下文)/i.test(
+      raw,
+    )
+  ) {
+    return { category: "model", message: `模型调用失败：${raw}` };
+  }
+
+  return { category: "unknown", message: raw };
 }
 
 export const useJobStore = create<JobStoreState>((set, get) => ({
@@ -99,14 +145,15 @@ export const useJobStore = create<JobStoreState>((set, get) => ({
   },
 
   failJob: (id, error) => {
-    const errMsg = formatError(error);
+    const { category, message } = classifyError(error);
     set((s) => ({
       jobs: s.jobs.map((j) =>
         j.id === id
           ? {
               ...j,
               status: "failed" as JobStatus,
-              error: errMsg,
+              error: message,
+              errorCategory: category,
               updatedAt: Date.now(),
             }
           : j,

@@ -60,6 +60,8 @@ export interface PatchWarning {
   code: PatchWarningCode;
   message: string;
   patchIndex: number;
+  /** 致命错误：出现后整批 patch 不会应用，原 deck 保持不变（原子性保证） */
+  fatal?: boolean;
 }
 
 export interface ApplyDeckPatchesResult {

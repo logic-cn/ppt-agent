@@ -50,7 +50,21 @@ export function applyDeckPatches(
 ): ApplyDeckPatchesResult {
   const applied: AppliedPatchSummary[] = [];
   const warnings: PatchWarning[] = [];
+
+  // 原子性：任意 patch 校验失败时，默认不修改原 deck。
+  // 这里先收集所有 warning（含致命错误），若出现过致命错误则整体回滚。
   let working = structuredClone(deck);
+  let hadFatal = false;
+
+  const failSlideNotFound = (i: number, slideId: string) => {
+    hadFatal = true;
+    warnings.push({
+      code: "slide_not_found",
+      message: `Patch #${i + 1}: 未找到 slideId「${slideId}」，整批修改已取消`,
+      patchIndex: i,
+      fatal: true,
+    });
+  };
 
   for (let i = 0; i < patches.length; i++) {
     const patch = patches[i];
@@ -101,12 +115,8 @@ export function applyDeckPatches(
       case "delete_slide": {
         const idx = findSlideIndex(working.slides, patch.slideId);
         if (idx === -1) {
-          warnings.push({
-            code: "slide_not_found",
-            message: `Patch #${i + 1}: 未找到 slideId「${patch.slideId}」`,
-            patchIndex: i,
-          });
-          continue;
+          failSlideNotFound(i, patch.slideId);
+          break;
         }
         const title = working.slides[idx].title;
         working = {
@@ -125,12 +135,8 @@ export function applyDeckPatches(
       case "move_slide": {
         const fromIdx = findSlideIndex(working.slides, patch.slideId);
         if (fromIdx === -1) {
-          warnings.push({
-            code: "slide_not_found",
-            message: `Patch #${i + 1}: 未找到 slideId「${patch.slideId}」`,
-            patchIndex: i,
-          });
-          continue;
+          failSlideNotFound(i, patch.slideId);
+          break;
         }
         const slides = [...working.slides];
         const [moved] = slides.splice(fromIdx, 1);
@@ -151,12 +157,8 @@ export function applyDeckPatches(
       case "update_slide": {
         const idx = findSlideIndex(working.slides, patch.slideId);
         if (idx === -1) {
-          warnings.push({
-            code: "slide_not_found",
-            message: `Patch #${i + 1}: 未找到 slideId「${patch.slideId}」`,
-            patchIndex: i,
-          });
-          continue;
+          failSlideNotFound(i, patch.slideId);
+          break;
         }
         const slides = [...working.slides];
         const p = patch.patch;
@@ -183,12 +185,8 @@ export function applyDeckPatches(
       case "replace_slide": {
         const idx = findSlideIndex(working.slides, patch.slideId);
         if (idx === -1) {
-          warnings.push({
-            code: "slide_not_found",
-            message: `Patch #${i + 1}: 未找到 slideId「${patch.slideId}」`,
-            patchIndex: i,
-          });
-          continue;
+          failSlideNotFound(i, patch.slideId);
+          break;
         }
         const slides = [...working.slides];
         slides[idx] = draftToSlide(patch.slide);
@@ -205,12 +203,8 @@ export function applyDeckPatches(
       case "split_slide": {
         const idx = findSlideIndex(working.slides, patch.slideId);
         if (idx === -1) {
-          warnings.push({
-            code: "slide_not_found",
-            message: `Patch #${i + 1}: 未找到 slideId「${patch.slideId}」`,
-            patchIndex: i,
-          });
-          continue;
+          failSlideNotFound(i, patch.slideId);
+          break;
         }
         const newSlides = patch.slides.map(draftToSlide);
         const slides = [...working.slides];
@@ -231,12 +225,14 @@ export function applyDeckPatches(
           .filter((i) => i !== -1)
           .sort((a, b) => b - a);
         if (indices.length < 2) {
+          hadFatal = true;
           warnings.push({
             code: "slide_not_found",
-            message: `Patch #${i + 1}: 合并操作需要至少 2 个有效 slideId`,
+            message: `Patch #${i + 1}: 合并操作需要至少 2 个有效 slideId，整批修改已取消`,
             patchIndex: i,
+            fatal: true,
           });
-          continue;
+          break;
         }
         const slides = [...working.slides];
         for (const idx of indices) {
@@ -256,6 +252,11 @@ export function applyDeckPatches(
         break;
       }
     }
+  }
+
+  // 原子回滚：出现过致命错误则不应用任何修改，原 deck 原样返回
+  if (hadFatal) {
+    return { deck, applied: [], warnings };
   }
 
   working.updatedAt = Date.now();

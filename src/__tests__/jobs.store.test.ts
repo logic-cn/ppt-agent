@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useJobStore, runJob } from "@/store/job";
+import { useJobStore, runJob, classifyError } from "@/store/job";
 
 describe("useJobStore", () => {
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe("useJobStore", () => {
     expect(state.activeJobIds).toHaveLength(0);
   });
 
-  it("failJob 标记失败并保留错误", () => {
+  it("failJob 标记失败并保留错误与分类", () => {
     const job = useJobStore.getState().startJob({
       type: "outline.generate",
       title: "生成大纲",
@@ -51,7 +51,8 @@ describe("useJobStore", () => {
     job.fail(new Error("网络错误"));
     const state = useJobStore.getState();
     expect(state.jobs[0].status).toBe("failed");
-    expect(state.jobs[0].error).toBe("网络错误");
+    expect(state.jobs[0].errorCategory).toBe("network");
+    expect(state.jobs[0].error).toContain("网络错误");
     expect(state.activeJobIds).toHaveLength(0);
   });
 
@@ -137,5 +138,32 @@ describe("runJob", () => {
         });
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("classifyError", () => {
+  it("用户取消归为 user_cancelled", () => {
+    const r = classifyError(new DOMException("Aborted", "AbortError"));
+    expect(r.category).toBe("user_cancelled");
+  });
+
+  it("网络错误归为 network", () => {
+    const r = classifyError(new Error("Failed to fetch"));
+    expect(r.category).toBe("network");
+  });
+
+  it("解析错误归为 parse", () => {
+    const r = classifyError(new Error("ZodError: 结构非法"));
+    expect(r.category).toBe("parse");
+  });
+
+  it("鉴权/限流归为 model", () => {
+    const r = classifyError(new Error("401 Unauthorized"));
+    expect(r.category).toBe("model");
+  });
+
+  it("未知错误归为 unknown", () => {
+    const r = classifyError(new Error("something weird"));
+    expect(r.category).toBe("unknown");
   });
 });

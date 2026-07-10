@@ -98,18 +98,19 @@ describe("applyDeckPatches", () => {
     ).toBeUndefined();
   });
 
-  it("delete_slide 引用不存在 slideId 时给出 warning", () => {
+  it("delete_slide 引用不存在 slideId 时给出致命 warning", () => {
     const deck = createMockDeck();
     const patches: DeckPatch[] = [
       { op: "delete_slide", slideId: "nonexistent" },
     ];
     const result = applyDeckPatches(deck, patches);
     expect(result.deck.slides).toHaveLength(4);
-    // delete_slide 是 destructive 操作，同时 slide_not_found 产生两条 warning
+    // delete_slide 是 destructive 操作，同时 slide_not_found 产生致命 warning
     expect(result.warnings.length).toBeGreaterThanOrEqual(1);
     expect(result.warnings.some((w) => w.code === "slide_not_found")).toBe(
       true,
     );
+    expect(result.warnings.some((w) => w.fatal)).toBe(true);
   });
 
   it("move_slide 移动页面", () => {
@@ -189,17 +190,43 @@ describe("applyDeckPatches", () => {
     expect(result.deck.slides[1].title).toBe("合并页");
   });
 
-  it("失败不修改原 deck（原子性）", () => {
+  it("失败不修改原 deck（原子性回滚）", () => {
     const deck = createMockDeck();
     const patches: DeckPatch[] = [
       { op: "delete_slide", slideId: "nonexistent" },
       { op: "delete_slide", slideId: "s2" },
     ];
-    // nonexistent 会跳过（warning），但 s2 正常删除
+    // 存在引用不存在的 slideId，整批 patch 不应应用，原 deck 保持 4 页
     const result = applyDeckPatches(deck, patches);
-    expect(result.deck.slides).toHaveLength(3);
+    expect(result.deck.slides).toHaveLength(4);
+    expect(result.applied).toHaveLength(0);
+    expect(result.warnings.some((w) => w.fatal)).toBe(true);
     // 原 deck 不受影响
     expect(deck.slides).toHaveLength(4);
+  });
+
+  it("单个 patch 失败不影响其它合法 patch（非原子模式不适用）：整批回滚", () => {
+    const deck = createMockDeck();
+    const patches: DeckPatch[] = [
+      { op: "set_deck_title", title: "新标题" },
+      { op: "delete_slide", slideId: "nonexistent" },
+    ];
+    const result = applyDeckPatches(deck, patches);
+    // 标题修改也随整批一起回滚
+    expect(result.deck.title).toBe("测试 Deck");
+    expect(result.applied).toHaveLength(0);
+  });
+
+  it("全部合法 patch 正常应用", () => {
+    const deck = createMockDeck();
+    const patches: DeckPatch[] = [
+      { op: "set_deck_title", title: "新标题" },
+      { op: "delete_slide", slideId: "s2" },
+    ];
+    const result = applyDeckPatches(deck, patches);
+    expect(result.deck.title).toBe("新标题");
+    expect(result.deck.slides).toHaveLength(3);
+    expect(result.warnings.some((w) => w.fatal)).toBe(false);
   });
 
   it("destructive 操作给出 warning", () => {
