@@ -8,7 +8,7 @@ export function buildContentSystemPrompt(): string {
 - **每页内容要丰满**：至少 4 条 bullet，合理使用子层级（level 1/2）展开细节
 - **优先使用图表**：只要涉及数据对比、趋势、占比、增长、分布等内容，必须返回 chart 字段，提供 4-6 个数据点
 - 适合图表的数据场景举例：销售额趋势、市场份额、增长率对比、用户分布、预算分配、KPI 完成度
-- 返回格式：{"body": "markdown正文", "bullets": [...], "chart": {...}} 或仅填充已有字段`;
+- 返回格式：返回 JSON 对象，格式为 {"body": "markdown正文", "bullets": [...], "chart": {...}} 或仅填充已有字段`;
 }
 
 export function buildContentUserPrompt(
