@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 interface Props {
   open: boolean;
@@ -21,16 +21,37 @@ export function ConfirmDialog({
 }: Props) {
   const btnRef = useRef<HTMLButtonElement>(null);
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    },
+    [onCancel],
+  );
+
   useEffect(() => {
-    if (open) btnRef.current?.focus();
-  }, [open]);
+    if (!open) return;
+    btnRef.current?.focus();
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, handleKeyDown]);
 
   if (!open) return null;
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onCancel} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg-surface p-5 shadow-xl">
+      <div
+        className="fixed inset-0 z-40 bg-black/40"
+        onClick={onCancel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      />
+      <div
+        className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg-surface p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      >
         <h3 className="mb-2 text-sm font-semibold text-text-primary">
           {title}
         </h3>

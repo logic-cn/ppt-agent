@@ -7,17 +7,25 @@ import {
   Settings,
   Clock,
   Trash2,
+  LayoutTemplate,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { useProjectStore } from "@/store/project";
-import { deleteDeck } from "@/services/storage";
+import {
+  deleteDeck,
+  createDeckFromTemplate,
+  saveDeck,
+} from "@/services/storage";
+import { type Template } from "@/types/template";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TemplateDialog } from "@/components/template-dialog";
 
 export default function Home() {
   const navigate = useNavigate();
   const createDeck = useDeckStore((s) => s.createDeck);
   const { recent, loading, loadRecent } = useProjectStore();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   useEffect(() => {
     void loadRecent();
@@ -33,6 +41,14 @@ export default function Home() {
   const createProject = async () => {
     const deck = await createDeck();
     navigate(`/editor/${deck.id}?new=1`);
+  };
+
+  const handleTemplateSelect = async (template: Template) => {
+    setTemplateDialogOpen(false);
+    const deck = createDeckFromTemplate(template);
+    await saveDeck(deck);
+    useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
+    navigate(`/editor/${deck.id}?from=template`);
   };
 
   const getSlideSummary = (slidesCount: number) => `${slidesCount} 页`;
@@ -92,11 +108,20 @@ export default function Home() {
               </div>
             </button>
 
-            <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-text-muted">
-              更多能力
-              <br />
-              即将上线
-            </div>
+            <button
+              onClick={() => setTemplateDialogOpen(true)}
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-surface p-8 transition hover:border-accent hover:bg-bg-elevated"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
+                <LayoutTemplate className="h-7 w-7" />
+              </div>
+              <div className="text-center">
+                <div className="font-medium">从模板创建</div>
+                <div className="mt-1 text-sm text-text-muted">
+                  精选模板快速开始
+                </div>
+              </div>
+            </button>
           </div>
 
           {/* 最近项目 */}
@@ -183,6 +208,12 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          <TemplateDialog
+            open={templateDialogOpen}
+            onClose={() => setTemplateDialogOpen(false)}
+            onSelect={handleTemplateSelect}
+          />
 
           <ConfirmDialog
             open={deleteTarget !== null}

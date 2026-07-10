@@ -21,12 +21,16 @@ const layoutLabels: Record<string, string> = {
   chart: "图表",
   image: "配图",
   closing: "结尾",
+  "cols-2": "2列",
+  "cols-3": "3列",
+  "cols-4": "4列",
+  "cols-5": "5列",
+  "cols-6": "6列",
 };
 
 export function SortableSlideItem({ slide, index, total, onSelect }: Props) {
-  const theme = getTheme(
-    useDeckStore.getState().deck?.themeId ?? "business-blue",
-  );
+  const themeId = useDeckStore((s) => s.deck?.themeId);
+  const theme = getTheme(themeId ?? "business-blue");
   const updateSlide = useDeckStore((s) => s.updateSlide);
   const removeSlide = useDeckStore((s) => s.removeSlide);
   const moveSlide = useDeckStore((s) => s.moveSlide);

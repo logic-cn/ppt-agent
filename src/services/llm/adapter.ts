@@ -20,34 +20,62 @@ export class OpenAICompatProvider {
       temperature: req.temperature ?? 0.7,
     };
 
+    if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;
+    if (req.topP !== undefined) body.top_p = req.topP;
+
     if (req.responseFormat === "json") {
       body.response_format = { type: "json_object" };
     }
 
-    const res = await httpRequest(`${this.config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: req.signal,
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      if (attempt > 0) {
+        const delay = Math.min(1000 * 2 ** attempt, 8000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      try {
+        const res = await httpRequest(
+          `${this.config.baseUrl}/chat/completions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.config.apiKey}`,
+            },
+            body: JSON.stringify(body),
+            signal: req.signal,
+          },
+        );
 
-    if (!res.ok) {
-      const err = await res.text().catch(() => "未知错误");
-      throw new Error(`LLM API 调用失败 (${res.status}): ${err}`);
+        if (!res.ok) {
+          const err = await res.text().catch(() => "未知错误");
+          // 429/502/503 可重试，其余直接抛
+          if ([429, 502, 503].includes(res.status) && attempt < 2) {
+            lastError = new Error(`LLM API 调用失败 (${res.status}): ${err}`);
+            continue;
+          }
+          throw new Error(`LLM API 调用失败 (${res.status}): ${err}`);
+        }
+
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content ?? "";
+        return {
+          content,
+          usage: {
+            promptTokens: data.usage?.prompt_tokens,
+            completionTokens: data.usage?.completion_tokens,
+          },
+        };
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") throw e;
+        if (attempt < 2 && req.signal && !req.signal.aborted) {
+          lastError = e instanceof Error ? e : new Error(String(e));
+          continue;
+        }
+        throw e;
+      }
     }
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
-    return {
-      content,
-      usage: {
-        promptTokens: data.usage?.prompt_tokens,
-        completionTokens: data.usage?.completion_tokens,
-      },
-    };
+    throw lastError ?? new Error("LLM 调用重试失败");
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<string> {
@@ -85,7 +113,12 @@ export class OpenAICompatProvider {
       return;
     }
 
-    // 浏览器环境：用原生 EventSource/fetch 流式
+    // 浏览器环境：用原生 fetch 流式，带 120s 超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+    if (req.signal) {
+      req.signal.addEventListener("abort", () => controller.abort());
+    }
     const res = await fetch(`${this.config.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -93,8 +126,10 @@ export class OpenAICompatProvider {
         Authorization: `Bearer ${this.config.apiKey}`,
       },
       body: JSON.stringify(body),
-      signal: req.signal,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const err = await res.text().catch(() => "未知错误");
@@ -116,11 +151,12 @@ export class OpenAICompatProvider {
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") return;
+        if (!line.startsWith("data")) continue;
+        const raw = line.startsWith("data: ") ? line.slice(6) : line.slice(5);
+        const payload = raw.trim();
+        if (payload === "[DONE]") return;
         try {
-          const parsed = JSON.parse(data);
+          const parsed = JSON.parse(payload);
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) yield delta;
         } catch {

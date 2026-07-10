@@ -40,6 +40,16 @@ function snapshot(deck: Deck | null): HistoryEntry | null {
   return { slides: JSON.parse(JSON.stringify(deck.slides)) };
 }
 
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function debouncedPersist(get: () => DeckStore) {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    get().persist();
+  }, 2000);
+}
+
 export const useDeckStore = create<DeckStore>((set, get) => ({
   deck: null,
   loading: false,
@@ -51,11 +61,16 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
 
   load: async (id) => {
     set({ loading: true });
-    const deck = await loadDeck(id);
-    if (deck) {
-      set({ deck, loading: false, dirty: false, past: [], future: [] });
-    } else {
-      set({ deck: null, loading: false });
+    try {
+      const deck = await loadDeck(id);
+      if (deck) {
+        set({ deck, loading: false, dirty: false, past: [], future: [] });
+      } else {
+        set({ deck: null, loading: false });
+      }
+    } catch (err) {
+      set({ loading: false });
+      throw err;
     }
   },
 
@@ -67,29 +82,39 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   },
 
   setTitle: (title) => {
-    set((s) => ({
-      deck: s.deck ? { ...s.deck, title, updatedAt: Date.now() } : null,
-      dirty: true,
-    }));
+    set((s) => {
+      debouncedPersist(get);
+      return {
+        deck: s.deck ? { ...s.deck, title, updatedAt: Date.now() } : null,
+        dirty: true,
+      };
+    });
   },
 
   setTheme: (themeId) => {
-    set((s) => ({
-      deck: s.deck ? { ...s.deck, themeId, updatedAt: Date.now() } : null,
-      dirty: true,
-    }));
+    set((s) => {
+      debouncedPersist(get);
+      return {
+        deck: s.deck ? { ...s.deck, themeId, updatedAt: Date.now() } : null,
+        dirty: true,
+      };
+    });
   },
 
   setSource: (source) => {
-    set((s) => ({
-      deck: s.deck ? { ...s.deck, source, updatedAt: Date.now() } : null,
-      dirty: true,
-    }));
+    set((s) => {
+      debouncedPersist(get);
+      return {
+        deck: s.deck ? { ...s.deck, source, updatedAt: Date.now() } : null,
+        dirty: true,
+      };
+    });
   },
 
   addSlide: (slide) => {
     set((s) => {
       const snap = snapshot(s.deck);
+      debouncedPersist(get);
       return {
         deck: s.deck
           ? {
@@ -110,6 +135,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   updateSlide: (id, patch) => {
     set((s) => {
       const snap = snapshot(s.deck);
+      debouncedPersist(get);
       return {
         deck: s.deck
           ? {
@@ -132,6 +158,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   removeSlide: (id) => {
     set((s) => {
       const snap = snapshot(s.deck);
+      debouncedPersist(get);
       return {
         deck: s.deck
           ? {
@@ -153,6 +180,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     set((s) => {
       if (!s.deck) return s;
       const snap = snapshot(s.deck);
+      debouncedPersist(get);
       const slides = [...s.deck.slides];
       const [moved] = slides.splice(from, 1);
       slides.splice(to, 0, moved);
@@ -187,6 +215,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     if (past.length === 0 || !deck) return;
     const entry = past[past.length - 1];
     const newPast = past.slice(0, -1);
+    debouncedPersist(get);
     set({
       deck: {
         ...deck,
@@ -209,6 +238,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     if (future.length === 0 || !deck) return;
     const entry = future[future.length - 1];
     const newFuture = future.slice(0, -1);
+    debouncedPersist(get);
     set({
       deck: {
         ...deck,

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { BulletNode } from "@/types/deck";
 import type { Theme } from "@/types/theme";
 
@@ -8,7 +9,12 @@ interface Props {
   maxLevel?: number;
 }
 
-export function BulletList({ bullets, theme, scale = 1, maxLevel = 2 }: Props) {
+export const BulletList = memo(function BulletList({
+  bullets,
+  theme,
+  scale = 1,
+  maxLevel = 2,
+}: Props) {
   const renderNodes = (nodes: BulletNode[], level: number) => {
     if (level > maxLevel) return null;
     const baseSize =
@@ -55,4 +61,4 @@ export function BulletList({ bullets, theme, scale = 1, maxLevel = 2 }: Props) {
   };
 
   return <>{renderNodes(bullets, 0)}</>;
-}
+});

@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { Sparkles, Loader2, Copy, Check } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Sparkles, Loader2, Copy, Check, RefreshCw } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { generateOutline } from "@/services/outline";
 import { applyUserIntent } from "@/services/intent-parser";
@@ -24,12 +24,22 @@ export function ChatPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyMessage = async (id: string, content: string) => {
-    await navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 1500);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      // clipboard 不可用时静默失败
+    }
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { deck, replaceSlides, addSlide, setTitle } = useDeckStore();
+
+  // 新消息自动滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const addMessage = useCallback(
     (role: "user" | "assistant", content: string) => {
@@ -147,7 +157,20 @@ export function ChatPanel() {
                   <Copy className="h-3.5 w-3.5" />
                 )}
               </button>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-inherit">
+                {msg.content}
+              </div>
+              {/* 错误消息附带重试 */}
+              {msg.role === "assistant" &&
+                msg.content.startsWith("出错了：") && (
+                  <button
+                    onClick={handleSubmit}
+                    className="mt-2 flex items-center gap-1 rounded-md bg-accent/10 px-2.5 py-1 text-xs text-accent hover:bg-accent/20"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    重试
+                  </button>
+                )}
             </div>
           ))}
           {loading && (
@@ -156,6 +179,7 @@ export function ChatPanel() {
               思考中…
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 

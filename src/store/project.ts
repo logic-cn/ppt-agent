@@ -14,7 +14,12 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   loadRecent: async () => {
     set({ loading: true });
-    const recent = await listDecks();
-    set({ recent, loading: false });
+    try {
+      const recent = await listDecks();
+      set({ recent, loading: false });
+    } catch (err) {
+      set({ loading: false });
+      throw err;
+    }
   },
 }));

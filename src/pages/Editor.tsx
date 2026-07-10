@@ -1,4 +1,4 @@
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import {
   PanelLeft,
   PanelRight,
@@ -8,6 +8,7 @@ import {
   Palette,
   Trash2,
   Check,
+  Monitor,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -19,12 +20,17 @@ import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
 import { BUILTIN_THEMES } from "@/themes";
+import { useCustomThemeStore } from "@/store/custom-themes";
 import { deleteDeck } from "@/services/storage";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PresentationMode } from "@/components/presentation-mode";
+import { resolveTheme } from "@/themes";
+import { generateImage } from "@/services/image";
 
 export default function Editor() {
   const { id } = useParams();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const isNew = params.get("new") === "1";
   const { deck, load } = useDeckStore();
   const [leftOpen, setLeftOpen] = useState(true);
@@ -34,12 +40,15 @@ export default function Editor() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [presenting, setPresenting] = useState(false);
   const setTheme = useDeckStore((s) => s.setTheme);
   const setTitle = useDeckStore((s) => s.setTitle);
   const persist = useDeckStore((s) => s.persist);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
+  const customThemes = useCustomThemeStore((s) => s.themes);
+  const loadCustomThemes = useCustomThemeStore((s) => s.load);
 
   useEffect(() => {
     if (editingTitle) {
@@ -56,6 +65,21 @@ export default function Editor() {
     }
     setEditingTitle(false);
   };
+
+  useEffect(() => {
+    void loadCustomThemes();
+  }, [loadCustomThemes]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F5" && deck && deck.slides.length > 0) {
+        e.preventDefault();
+        setPresenting(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deck]);
 
   useEffect(() => {
     if (isNew && deck) return;
@@ -79,6 +103,34 @@ export default function Editor() {
   useKeyboardShortcuts();
 
   const addToast = useToastStore((s) => s.add);
+
+  const handleGenerateImage = async (slideId: string) => {
+    if (!deck) return;
+    const slide = deck.slides.find((s) => s.id === slideId);
+    if (!slide) return;
+    const prompt = `为演示文稿幻灯片生成配图。标题：${slide.title}${slide.bullets ? "。要点：" + slide.bullets.map((b) => b.text).join("、") : ""}${slide.body ? "。正文：" + slide.body.slice(0, 100) : ""}`;
+    try {
+      const result = await generateImage({ prompt, size: "1024x1024" });
+      useDeckStore.getState().updateSlide(slideId, {
+        image: {
+          type: "ai" as const,
+          url: result.url,
+          alt: result.revisedPrompt ?? slide.title,
+        },
+      });
+      addToast({
+        type: "success",
+        title: "配图生成成功",
+        duration: 2000,
+      });
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: "配图生成失败",
+        message: (e as Error).message,
+      });
+    }
+  };
   const handleExport = async () => {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
@@ -131,7 +183,7 @@ export default function Editor() {
       <header className="flex items-center justify-between border-b border-border bg-bg-surface px-4 py-2">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => navigate("/")}
             className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -213,7 +265,7 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setThemeOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-bg-surface p-1 shadow-lg">
+                <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-bg-surface p-1 shadow-lg">
                   {BUILTIN_THEMES.map((t) => {
                     const swatch =
                       t.id === "minimal-white"
@@ -235,16 +287,57 @@ export default function Editor() {
                         }`}
                       >
                         <span
-                          className="h-4 w-4 rounded-full border border-border"
+                          className="h-4 w-4 shrink-0 rounded-full border border-border"
                           style={{ background: swatch }}
                         />
                         <span className="flex-1 text-left">{t.name}</span>
                         {deck?.themeId === t.id && (
-                          <Check className="h-3.5 w-3.5 text-accent" />
+                          <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
                         )}
                       </button>
                     );
                   })}
+
+                  {customThemes.length > 0 && (
+                    <>
+                      <div className="mx-2 my-1 border-t border-border" />
+                      {customThemes.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setTheme(t.id);
+                            setThemeOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
+                            deck?.themeId === t.id
+                              ? "text-accent"
+                              : "text-text-secondary"
+                          }`}
+                        >
+                          <span
+                            className="h-4 w-4 shrink-0 rounded-full border border-border"
+                            style={{ background: t.colors.primary }}
+                          />
+                          <span className="flex-1 text-left">{t.name}</span>
+                          {deck?.themeId === t.id && (
+                            <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  <div className="mx-2 my-1 border-t border-border" />
+                  <button
+                    onClick={() => {
+                      setThemeOpen(false);
+                      navigate("/settings");
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-hover"
+                  >
+                    <Palette className="h-3 w-3" />
+                    管理自定义主题
+                  </button>
                 </div>
               </>
             )}
@@ -256,6 +349,15 @@ export default function Editor() {
           >
             <Upload className="h-3.5 w-3.5" />
             导入
+          </button>
+          <button
+            onClick={() => setPresenting(true)}
+            disabled={!deck || deck.slides.length === 0}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+            title="演示 (F5)"
+          >
+            <Monitor className="h-3.5 w-3.5" />
+            演示
           </button>
           <button
             onClick={handleExport}
@@ -284,6 +386,7 @@ export default function Editor() {
               deck={deck}
               currentIndex={selectedIndex}
               onIndexChange={setSelectedIndex}
+              onGenerateImage={handleGenerateImage}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-text-muted">
@@ -300,6 +403,15 @@ export default function Editor() {
         )}
       </div>
 
+      {presenting && deck && (
+        <PresentationMode
+          deck={deck}
+          theme={resolveTheme(deck.themeId, deck.themeOverrides)}
+          initialIndex={selectedIndex}
+          onExit={() => setPresenting(false)}
+        />
+      )}
+
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       <ConfirmDialog
         open={deleteConfirm}
@@ -309,7 +421,7 @@ export default function Editor() {
         onConfirm={async () => {
           if (deck) {
             await deleteDeck(deck.id);
-            window.history.back();
+            navigate("/");
           }
         }}
         onCancel={() => setDeleteConfirm(false)}

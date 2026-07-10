@@ -58,7 +58,11 @@ export async function generateSlideContent(params: {
   } catch {
     const match = res.content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) {
-      parsed = JSON.parse(match[1]);
+      try {
+        parsed = JSON.parse(match[1]);
+      } catch {
+        return { body: res.content };
+      }
     } else {
       return { body: res.content };
     }

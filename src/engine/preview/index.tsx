@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
 import { SlideRenderer } from "./slide-renderer";
@@ -8,6 +8,7 @@ interface Props {
   className?: string;
   currentIndex?: number;
   onIndexChange?: (index: number) => void;
+  onGenerateImage?: (slideId: string) => void;
 }
 
 export function SlidePreview({
@@ -15,6 +16,7 @@ export function SlidePreview({
   className,
   currentIndex: controlledIndex,
   onIndexChange,
+  onGenerateImage,
 }: Props) {
   const [internalIndex, setInternalIndex] = useState(0);
   const currentIndex = controlledIndex ?? internalIndex;
@@ -68,6 +70,7 @@ export function SlidePreview({
             slide={currentSlide}
             theme={theme}
             width={slideWidth}
+            onGenerateImage={onGenerateImage}
           />
         </div>
       </div>
@@ -97,7 +100,7 @@ export function SlidePreview({
 }
 
 /** 缩略图模式，用于大纲面板 */
-export function SlideThumbnail({
+export const SlideThumbnail = memo(function SlideThumbnail({
   slide,
   theme,
   width = 160,
@@ -115,4 +118,4 @@ export function SlideThumbnail({
       <SlideRenderer slide={slide} theme={theme} width={width} />
     </div>
   );
-}
+});

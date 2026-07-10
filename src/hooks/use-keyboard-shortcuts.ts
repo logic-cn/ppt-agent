@@ -27,6 +27,12 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
       const meta = e.metaKey || e.ctrlKey;
 
       if (meta && e.key === "s") {
@@ -40,6 +46,9 @@ export function useKeyboardShortcuts() {
         });
         return;
       }
+
+      // 在输入框中不触发撤销/重做，避免与原生文本编辑冲突
+      if (isInput) return;
 
       if (meta && e.shiftKey && e.key === "Z") {
         e.preventDefault();

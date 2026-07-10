@@ -8,12 +8,35 @@ import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "@/services/storage";
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSettings: AppSettings | null = null;
+let saveInFlight: Promise<void> | null = null;
+
+async function flushSave() {
+  if (!pendingSettings) return;
+  const toSave = pendingSettings;
+  pendingSettings = null;
+  saveInFlight = saveSettings(toSave).catch(console.error);
+  await saveInFlight;
+  saveInFlight = null;
+}
+
 function debouncedSave(settings: AppSettings) {
+  pendingSettings = settings;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    saveSettings(settings).catch(console.error);
+    void flushSave();
   }, 300);
+}
+
+// 页面关闭前落盘
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    if (pendingSettings) {
+      saveSettings(pendingSettings).catch(console.error);
+    }
+  });
 }
 
 function defaultSettings(): AppSettings {

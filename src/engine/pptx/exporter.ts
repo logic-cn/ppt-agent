@@ -1,34 +1,15 @@
 import PptxGenJS from "pptxgenjs";
-import type { Deck, Slide, BulletNode } from "@/types/deck";
+import type { Deck, Slide, BulletNode, ImageSpec } from "@/types/deck";
 import type { Theme, Rect } from "@/types/theme";
 import { resolveTheme } from "@/themes";
+import {
+  isColsLayout,
+  getColCount,
+  getColumnRects,
+} from "@/engine/shared/layout";
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
-
-function isColsLayout(layout: string): boolean {
-  return layout.startsWith("cols-");
-}
-
-function getColCount(layout: string): number {
-  const m = layout.match(/cols-(\d+)/);
-  return m ? parseInt(m[1], 10) : 1;
-}
-
-function getColumnRects(body: Rect, numCols: number): Rect[] {
-  const gap = 0.025;
-  const colW = (body.w - gap * (numCols - 1)) / numCols;
-  const rects: Rect[] = [];
-  for (let i = 0; i < numCols; i++) {
-    rects.push({
-      x: body.x + i * (colW + gap),
-      y: body.y,
-      w: colW,
-      h: body.h,
-    });
-  }
-  return rects;
-}
 
 export async function exportDeck(deck: Deck, path: string): Promise<void> {
   const pptx = new PptxGenJS();
@@ -36,7 +17,7 @@ export async function exportDeck(deck: Deck, path: string): Promise<void> {
   const theme = resolveTheme(deck.themeId, deck.themeOverrides);
   for (const slide of deck.slides) {
     const s = pptx.addSlide();
-    renderSlide(s, slide, theme);
+    await renderSlide(s, slide, theme);
   }
   const data = (await pptx.write({
     outputType: "uint8array",
@@ -54,7 +35,7 @@ export async function exportDeckToBlob(deck: Deck): Promise<Blob> {
   const theme = resolveTheme(deck.themeId, deck.themeOverrides);
   for (const slide of deck.slides) {
     const s = pptx.addSlide();
-    renderSlide(s, slide, theme);
+    await renderSlide(s, slide, theme);
   }
   return (await pptx.write({ outputType: "blob" })) as Blob;
 }
@@ -64,7 +45,7 @@ function initPptx(pptx: PptxGenJS) {
   pptx.layout = "CUSTOM";
 }
 
-function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
+async function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
   const layout = theme.layouts[slide.layout];
   if (!layout) return;
 
@@ -232,11 +213,113 @@ function renderSlide(s: PptxGenJS.Slide, slide: Slide, theme: Theme) {
         theme.colors.primary,
       ],
     };
+    // 图表标题
+    if (slide.chart.title) {
+      addText(
+        s,
+        slide.chart.title,
+        {
+          x: layout.visual.x,
+          y: layout.visual.y - 0.08,
+          w: layout.visual.w,
+          h: 0.06,
+        },
+        {
+          fontSize: theme.fontSize.h2 - 2,
+          fontFace: theme.fonts.title,
+          color: theme.colors.primary,
+          bold: true,
+          align: "left",
+        },
+      );
+    }
     s.addChart(
       slide.chart.type as "bar" | "pie" | "line" | "doughnut",
       chartData,
       chartOpts,
     );
+  }
+
+  // 演讲者备注
+  if (slide.notes) {
+    s.addNotes(slide.notes);
+  }
+
+  // 图片
+  if (slide.image && layout.visual) {
+    await renderImage(s, slide.image, layout.visual);
+  }
+}
+
+async function renderImage(s: PptxGenJS.Slide, image: ImageSpec, area: Rect) {
+  const x = area.x * SLIDE_W;
+  const y = area.y * SLIDE_H;
+  const w = area.w * SLIDE_W;
+  const h = area.h * SLIDE_H;
+
+  if (image.type === "icon" || !image.url) {
+    // 无实际图片：画一个占位矩形
+    s.addShape("rect", {
+      x,
+      y,
+      w,
+      h,
+      fill: { color: "F0F0F0" },
+      line: { color: "CCCCCC", width: 0.5 },
+      rectRadius: 0.05,
+    });
+    s.addText(image.alt || "图片", {
+      x,
+      y,
+      w,
+      h,
+      fontSize: 12,
+      color: "999999",
+      align: "center",
+      valign: "middle",
+      fontFace: "sans-serif",
+    });
+    return;
+  }
+
+  try {
+    // 尝试从 URL 获取图片数据嵌入 pptx
+    const resp = await fetch(image.url);
+    const blob = await resp.blob();
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    s.addImage({
+      data: `image/${blob.type.split("/").pop() || "png"};base64,${base64}`,
+      x,
+      y,
+      w,
+      h,
+    });
+  } catch {
+    // 图片获取失败时以占位代替
+    s.addShape("rect", {
+      x,
+      y,
+      w,
+      h,
+      fill: { color: "F0F0F0" },
+      line: { color: "CCCCCC", width: 0.5 },
+      rectRadius: 0.05,
+    });
+    s.addText(image.alt || "图片加载失败", {
+      x,
+      y,
+      w,
+      h,
+      fontSize: 12,
+      color: "999999",
+      align: "center",
+      valign: "middle",
+    });
   }
 }
 

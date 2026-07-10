@@ -113,11 +113,17 @@ export class AnthropicProvider {
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") return;
+        if (!line.startsWith("data")) continue;
+        const raw = line.startsWith("data: ") ? line.slice(6) : line.slice(5);
+        const payload = raw.trim();
+        if (payload === "[DONE]") return;
         try {
-          const parsed = JSON.parse(data);
+          const parsed = JSON.parse(payload);
+          if (parsed.type === "error") {
+            throw new Error(
+              `Anthropic API 错误: ${parsed.error?.message ?? JSON.stringify(parsed.error)}`,
+            );
+          }
           if (parsed.type === "content_block_delta") {
             yield parsed.delta?.text ?? "";
           }

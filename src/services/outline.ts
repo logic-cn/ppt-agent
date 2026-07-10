@@ -7,7 +7,7 @@ import {
 import type { BulletNode, Slide } from "@/types/deck";
 import { nanoid } from "nanoid";
 
-/** 递归为 bullet 节点添加 id */
+/** 递归为 bullet 节点添加 id（支持任意层级） */
 function addBulletIds(
   nodes: {
     text: string;
@@ -18,14 +18,8 @@ function addBulletIds(
   return nodes.map((n) => ({
     id: nanoid(),
     text: n.text,
-    level: n.level as 0 | 1 | 2,
-    children: n.children
-      ? n.children.map((c) => ({
-          id: nanoid(),
-          text: c.text,
-          level: c.level as 1 | 2,
-        }))
-      : undefined,
+    level: Math.min(n.level, 2) as 0 | 1 | 2,
+    children: n.children ? addBulletIds(n.children) : undefined,
   }));
 }
 
@@ -120,9 +114,16 @@ export async function generateOutline(params: {
     }
   }
 
-  // 兼容 json_object 模式：将顶层对象中的首个数组提取出来
+  // 兼容 json_object 模式：将顶层对象中的幻灯片数组提取出来
   if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
-    const arrayCandidate = Object.values(parsed).find(Array.isArray);
+    const arrayCandidate = Object.values(parsed).find(
+      (v) =>
+        Array.isArray(v) &&
+        v.length > 0 &&
+        typeof v[0] === "object" &&
+        v[0] !== null &&
+        ("title" in v[0] || "layout" in v[0]),
+    );
     if (arrayCandidate) {
       parsed = arrayCandidate;
     }
@@ -140,6 +141,14 @@ export async function generateOutline(params: {
 
   if (validSlides.length === 0) {
     throw new Error(`大纲格式校验失败：所有幻灯片格式均不正确，请重试`);
+  }
+
+  // 超过 50% 页无效则整体失败（LLM 可能返回了错误格式）
+  if (validSlides.length < rawSlides.length * 0.5) {
+    throw new Error(
+      `大纲格式校验失败：${rawSlides.length} 页中有 ${validSlides.length} 页格式正确，` +
+        `正确率不足 50%，请重试`,
+    );
   }
 
   if (validSlides.length < rawSlides.length) {

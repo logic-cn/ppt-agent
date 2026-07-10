@@ -1,5 +1,12 @@
+import { memo } from "react";
+import { ImageIcon } from "lucide-react";
 import type { Slide, ChartSpec } from "@/types/deck";
-import type { Theme, Rect } from "@/types/theme";
+import type { Theme } from "@/types/theme";
+import {
+  isColsLayout,
+  getColCount,
+  getColumnRects,
+} from "@/engine/shared/layout";
 import { rectToStyle } from "./utils";
 import { BulletList } from "./bullet-list";
 
@@ -8,38 +15,20 @@ interface Props {
   theme: Theme;
   /** 实际渲染宽度（px），用于字号缩放基准 */
   width: number;
+  /** 生成配图回调，传入后会在空 visual 区域显示生成按钮 */
+  onGenerateImage?: (slideId: string) => void;
 }
 
-/** 判断是否为多列布局 */
-function isColsLayout(layout: string): boolean {
-  return layout.startsWith("cols-");
-}
-
-/** 获取列数，如 "cols-3" → 3 */
-function getColCount(layout: string): number {
-  const m = layout.match(/cols-(\d+)/);
-  return m ? parseInt(m[1], 10) : 1;
-}
-
-/** 将 body 区域等分为 N 列，列间保留 gap */
-function getColumnRects(body: Rect, numCols: number): Rect[] {
-  const gap = 0.025;
-  const colW = (body.w - gap * (numCols - 1)) / numCols;
-  const rects: Rect[] = [];
-  for (let i = 0; i < numCols; i++) {
-    rects.push({
-      x: body.x + i * (colW + gap),
-      y: body.y,
-      w: colW,
-      h: body.h,
-    });
-  }
-  return rects;
-}
-
-export function SlideRenderer({ slide, theme, width }: Props) {
+export const SlideRenderer = memo(function SlideRenderer({
+  slide,
+  theme,
+  width,
+  onGenerateImage,
+}: Props) {
   const layout = theme.layouts[slide.layout];
-  const scale = width / 1280;
+  if (!layout) return null;
+  // preview 使用 px, PPTX 使用 pt; 1pt = 4/3px，统一基准后视觉比例一致
+  const scale = (width / 1280) * (4 / 3);
   const isCols = isColsLayout(slide.layout);
   const colCount = isCols ? getColCount(slide.layout) : 0;
 
@@ -242,6 +231,29 @@ export function SlideRenderer({ slide, theme, width }: Props) {
         </div>
       );
     }
+    if (onGenerateImage) {
+      return (
+        <div
+          style={rectToStyle(layout.visual)}
+          className="flex items-center justify-center"
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onGenerateImage(slide.id);
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-dashed px-4 py-2 text-sm transition hover:border-accent hover:bg-white/5"
+            style={{
+              borderColor: `${theme.colors.textMuted}40`,
+              color: theme.colors.textMuted,
+            }}
+          >
+            <ImageIcon className="h-4 w-4" />
+            AI 生成配图
+          </button>
+        </div>
+      );
+    }
     return null;
   };
 
@@ -277,9 +289,8 @@ export function SlideRenderer({ slide, theme, width }: Props) {
               top: "10%",
               width: `${5 * scale}px`,
               height: "80%",
-              background: `linear-gradient(to bottom, ${theme.colors.primary}, ${theme.colors.secondary})`,
+              background: theme.colors.primary,
               borderRadius: `0 ${3 * scale}px ${3 * scale}px 0`,
-              opacity: 0.2,
             }}
           />
         )}
@@ -293,7 +304,7 @@ export function SlideRenderer({ slide, theme, width }: Props) {
         slide.layout === "image") &&
         renderVisual()}
 
-      {slide.layout === "closing" && (
+      {slide.layout === "closing" && !slide.title && (
         <div
           style={{
             position: "absolute",
@@ -309,9 +320,9 @@ export function SlideRenderer({ slide, theme, width }: Props) {
       )}
     </div>
   );
-}
+});
 
-function ChartPlaceholder({
+const ChartPlaceholder = memo(function ChartPlaceholder({
   chart,
   theme,
   scale,
@@ -321,6 +332,187 @@ function ChartPlaceholder({
   scale: number;
 }) {
   const maxVal = Math.max(...chart.data.map((d) => d.value), 1);
+  const total = chart.data.reduce((s, d) => s + d.value, 0);
+
+  const renderBars = () => (
+    <div
+      className="flex flex-1 items-end justify-around"
+      style={{ gap: `${8 * scale}px` }}
+    >
+      {chart.data.map((d, i) => (
+        <div
+          key={i}
+          className="flex flex-1 flex-col items-center justify-end"
+          style={{ height: "100%" }}
+        >
+          <span
+            style={{
+              fontSize: `${theme.fontSize.caption * scale}px`,
+              color: theme.colors.text,
+              marginBottom: `${4 * scale}px`,
+            }}
+          >
+            {d.value}
+          </span>
+          <div
+            style={{
+              width: "60%",
+              height: `${(d.value / maxVal) * 100}%`,
+              background: theme.colors.accent,
+              borderRadius: `${4 * scale}px ${4 * scale}px 0 0`,
+              minHeight: `${4 * scale}px`,
+            }}
+          />
+          <span
+            style={{
+              fontSize: `${theme.fontSize.caption * scale}px`,
+              color: theme.colors.textMuted,
+              marginTop: `${4 * scale}px`,
+              textAlign: "center",
+              wordBreak: "break-all",
+            }}
+          >
+            {d.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderLine = () => {
+    const points = chart.data.map((d, i) => ({
+      x: ((i + 0.5) / chart.data.length) * 100,
+      y: (1 - d.value / maxVal) * 100,
+      label: d.label,
+      value: d.value,
+    }));
+    return (
+      <div className="relative flex-1" style={{ margin: `${4 * scale}px 0` }}>
+        <svg
+          viewBox="0 0 100 100"
+          className="h-full w-full"
+          preserveAspectRatio="none"
+        >
+          <polyline
+            points={points.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke={theme.colors.accent}
+            strokeWidth="2"
+          />
+          {points.map((p, i) => (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r="2"
+              fill={theme.colors.accent}
+            />
+          ))}
+        </svg>
+        <div className="flex justify-between px-1">
+          {points.map((p, i) => (
+            <span
+              key={i}
+              style={{
+                fontSize: `${theme.fontSize.caption * scale * 0.8}px`,
+                color: theme.colors.textMuted,
+                textAlign: "center",
+              }}
+            >
+              {p.value}
+            </span>
+          ))}
+        </div>
+        <div className="flex justify-between px-1">
+          {points.map((p, i) => (
+            <span
+              key={i}
+              style={{
+                fontSize: `${theme.fontSize.caption * scale * 0.7}px`,
+                color: theme.colors.textMuted,
+                textAlign: "center",
+                wordBreak: "break-all",
+              }}
+            >
+              {p.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPie = () => {
+    if (total === 0) return null;
+    let cumulative = 0;
+    const segments = chart.data.map((d, i) => {
+      const start = cumulative;
+      cumulative += d.value;
+      return {
+        key: i,
+        label: d.label,
+        value: d.value,
+        percent: (d.value / total) * 100,
+        start,
+        end: cumulative,
+        color: [
+          theme.colors.accent,
+          theme.colors.secondary,
+          theme.colors.primary,
+          theme.colors.textMuted,
+          "#94A3B8",
+          "#CBD5E1",
+        ][i % 6],
+      };
+    });
+
+    const cx = 50;
+    const cy = 50;
+    const r = 35;
+
+    const paths = segments.map((seg) => {
+      const startAngle = (seg.start / total) * 360 - 90;
+      const endAngle = (seg.end / total) * 360 - 90;
+      const x1 = cx + r * Math.cos((startAngle * Math.PI) / 180);
+      const y1 = cy + r * Math.sin((startAngle * Math.PI) / 180);
+      const x2 = cx + r * Math.cos((endAngle * Math.PI) / 180);
+      const y2 = cy + r * Math.sin((endAngle * Math.PI) / 180);
+      const largeArc = seg.value / total > 0.5 ? 1 : 0;
+      const d = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
+      return <path key={seg.key} d={d} fill={seg.color} />;
+    });
+
+    return (
+      <div className="flex flex-1 items-center justify-center gap-4">
+        <svg viewBox="0 0 100 100" className="h-2/3 w-1/2">
+          {paths}
+        </svg>
+        <div className="flex flex-col gap-1">
+          {segments.map((seg) => (
+            <div key={seg.key} className="flex items-center gap-2">
+              <div
+                style={{
+                  width: `${8 * scale}px`,
+                  height: `${8 * scale}px`,
+                  background: seg.color,
+                  borderRadius: "50%",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: `${theme.fontSize.caption * scale}px`,
+                  color: theme.colors.text,
+                }}
+              >
+                {seg.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="flex h-full w-full flex-col"
@@ -342,48 +534,11 @@ function ChartPlaceholder({
           {chart.title}
         </p>
       )}
-      <div
-        className="flex flex-1 items-end justify-around"
-        style={{ gap: `${8 * scale}px` }}
-      >
-        {chart.data.map((d, i) => (
-          <div
-            key={i}
-            className="flex flex-1 flex-col items-center justify-end"
-            style={{ height: "100%" }}
-          >
-            <span
-              style={{
-                fontSize: `${theme.fontSize.caption * scale}px`,
-                color: theme.colors.text,
-                marginBottom: `${4 * scale}px`,
-              }}
-            >
-              {d.value}
-            </span>
-            <div
-              style={{
-                width: "60%",
-                height: `${(d.value / maxVal) * 100}%`,
-                background: theme.colors.accent,
-                borderRadius: `${4 * scale}px ${4 * scale}px 0 0`,
-                minHeight: `${4 * scale}px`,
-              }}
-            />
-            <span
-              style={{
-                fontSize: `${theme.fontSize.caption * scale}px`,
-                color: theme.colors.textMuted,
-                marginTop: `${4 * scale}px`,
-                textAlign: "center",
-                wordBreak: "break-all",
-              }}
-            >
-              {d.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {chart.type === "line"
+        ? renderLine()
+        : chart.type === "pie" || chart.type === "doughnut"
+          ? renderPie()
+          : renderBars()}
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Upload, Link, FileText, Loader2, X } from "lucide-react";
 import { importDocx, importMarkdown, importUrl } from "@/services/importer";
 import { useDeckStore } from "@/store/deck";
@@ -18,6 +18,19 @@ export function ImportDialog({ open, onClose }: Props) {
   const { deck, replaceSlides } = useDeckStore();
   const addToast = useToastStore((s) => s.add);
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, handleKeyDown]);
+
   if (!open) return null;
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +42,7 @@ export function ImportDialog({ open, onClose }: Props) {
       let text: string;
       let title: string;
 
-      if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+      if (file.name.endsWith(".docx")) {
         const result = await importDocx(file);
         text = result.text;
         title = result.title;
@@ -116,14 +129,21 @@ export function ImportDialog({ open, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="import-dialog-title"
+    >
       <div
         className="w-full max-w-lg rounded-xl border border-border bg-bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold">导入文档</h2>
+          <h2 id="import-dialog-title" className="text-base font-semibold">
+            导入文档
+          </h2>
           <button
             onClick={onClose}
             className="rounded p-1 text-text-muted hover:bg-bg-hover"
@@ -169,13 +189,13 @@ export function ImportDialog({ open, onClose }: Props) {
               <div>
                 <p className="font-medium text-text-primary">点击上传文件</p>
                 <p className="mt-1 text-sm text-text-muted">
-                  支持 .docx（Word）和 .md（Markdown）格式
+                  支持 .docx（Word 文档）和 .md（Markdown）格式
                 </p>
               </div>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".docx,.doc,.md"
+                accept=".docx,.md"
                 onChange={handleFile}
                 className="hidden"
               />

@@ -28,13 +28,34 @@ async function tauriFetch(
         ? JSON.stringify(options.body)
         : undefined;
 
-  return invoke("http_proxy", {
-    req: {
-      method: options.method ?? "GET",
-      url,
-      headers,
-      body,
-    },
+  const signal = options.signal;
+  if (signal?.aborted) {
+    throw new DOMException("The operation was aborted", "AbortError");
+  }
+
+  return new Promise<{ status: number; body: string }>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("The operation was aborted", "AbortError"));
+      return;
+    }
+
+    const abortHandler = () =>
+      reject(new DOMException("The operation was aborted", "AbortError"));
+    signal?.addEventListener("abort", abortHandler);
+
+    invoke("http_proxy", {
+      req: {
+        method: options.method ?? "GET",
+        url,
+        headers,
+        body,
+      },
+    })
+      .then((r) => {
+        resolve(r as { status: number; body: string });
+      })
+      .catch(reject)
+      .finally(() => signal?.removeEventListener("abort", abortHandler));
   });
 }
 
