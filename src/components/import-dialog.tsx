@@ -37,6 +37,14 @@ export function ImportDialog({ open, onClose }: Props) {
   // 记录正在进行的导入任务，便于在关闭/取消时终止后台生成
   const activeJobRef = useRef<string | null>(null);
 
+  const cancelActiveJob = useCallback(() => {
+    const id = activeJobRef.current;
+    if (id) {
+      useJobStore.getState().cancelJob(id);
+      activeJobRef.current = null;
+    }
+  }, []);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -93,14 +101,6 @@ export function ImportDialog({ open, onClose }: Props) {
       setStep("parsed");
     }
   };
-
-  const cancelActiveJob = useCallback(() => {
-    const id = activeJobRef.current;
-    if (id) {
-      useJobStore.getState().cancelJob(id);
-      activeJobRef.current = null;
-    }
-  }, []);
 
   const handleGenerate = async (doc: ParsedDocument, selectedIds: string[]) => {
     setStep("generating");
