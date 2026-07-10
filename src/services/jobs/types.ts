@@ -8,15 +8,11 @@ export type JobType =
   | "deck.patch";
 
 export type JobStatus =
-  | "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 /** 任务失败的错误分类，便于 UI 区分展示与重试策略 */
 export type JobErrorCategory =
-  | "user_cancelled"
-  | "network"
-  | "model"
-  | "parse"
-  | "unknown";
+  "user_cancelled" | "network" | "model" | "parse" | "unknown";
 
 export interface Job {
   id: string;

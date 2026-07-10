@@ -28,16 +28,14 @@ export function getTemplateById(id: string): Template | undefined {
 }
 
 // --- P2: TemplatePack 注册表 ---
-import type {
-  TemplatePack,
-  TemplateGenerationContext,
-} from "@/types/template";
+import type { TemplatePack, TemplateGenerationContext } from "@/types/template";
 
 const BUILTIN_PACKS: TemplatePack[] = [
   {
     id: "quarterly-review",
     name: "季度业务复盘",
-    description: "面向管理层的季度业务回顾，包含业绩概览、亮点与不足、下季度规划",
+    description:
+      "面向管理层的季度业务回顾，包含业绩概览、亮点与不足、下季度规划",
     scenario: "business_review",
     suggestedTheme: "business-blue",
     defaultOptions: {
@@ -326,13 +324,40 @@ export function buildTemplateGenerationContext(
   pack: TemplatePack,
   topic: string,
 ): TemplateGenerationContext {
-  const roleLayoutMap: Record<string, TemplateGenerationContext["slidePlan"][number]> = {
-    cover: { role: "cover", suggestedLayout: "cover", instruction: "吸引注意力的封面" },
-    section: { role: "summary", suggestedLayout: "section", instruction: "章节过渡页" },
-    content: { role: "insight", suggestedLayout: "content", instruction: "核心内容阐述" },
-    "two-column": { role: "analysis", suggestedLayout: "two-column", instruction: "对比分析" },
-    chart: { role: "chart", suggestedLayout: "chart", instruction: "数据可视化" },
-    closing: { role: "closing", suggestedLayout: "closing", instruction: "总结与号召" },
+  const roleLayoutMap: Record<
+    string,
+    TemplateGenerationContext["slidePlan"][number]
+  > = {
+    cover: {
+      role: "cover",
+      suggestedLayout: "cover",
+      instruction: "吸引注意力的封面",
+    },
+    section: {
+      role: "summary",
+      suggestedLayout: "section",
+      instruction: "章节过渡页",
+    },
+    content: {
+      role: "insight",
+      suggestedLayout: "content",
+      instruction: "核心内容阐述",
+    },
+    "two-column": {
+      role: "analysis",
+      suggestedLayout: "two-column",
+      instruction: "对比分析",
+    },
+    chart: {
+      role: "chart",
+      suggestedLayout: "chart",
+      instruction: "数据可视化",
+    },
+    closing: {
+      role: "closing",
+      suggestedLayout: "closing",
+      instruction: "总结与号召",
+    },
   };
 
   const slidePlan = pack.slides.map((s) => {
@@ -356,7 +381,10 @@ export function buildTemplateGenerationContext(
 }
 
 /** 将模板结构转成注入 outline prompt 的字符串 */
-export function buildContextualPrompt(pack: TemplatePack, topic: string): string {
+export function buildContextualPrompt(
+  pack: TemplatePack,
+  topic: string,
+): string {
   const ctx = buildTemplateGenerationContext(pack, topic);
   const lines: string[] = [];
   lines.push(`模板名称：${pack.name}`);

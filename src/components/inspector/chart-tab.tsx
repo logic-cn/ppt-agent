@@ -36,7 +36,9 @@ export function ChartTab({ slide, onUpdate }: Props) {
   };
 
   const updateRow = (index: number, patch: Partial<ChartDataPoint>) => {
-    const data = chart?.data.map((row, i) => (i === index ? { ...row, ...patch } : row)) ?? [];
+    const data =
+      chart?.data.map((row, i) => (i === index ? { ...row, ...patch } : row)) ??
+      [];
     updateChart({ data });
   };
 
@@ -107,7 +109,9 @@ export function ChartTab({ slide, onUpdate }: Props) {
               <input
                 type="number"
                 value={row.value}
-                onChange={(e) => updateRow(i, { value: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  updateRow(i, { value: parseFloat(e.target.value) || 0 })
+                }
                 className="w-20 rounded border border-border bg-bg-base px-2 py-1 text-xs focus:border-accent focus:outline-none"
               />
               <button

@@ -12,8 +12,11 @@ export function parseStoredDeck(raw: string): DeckParseResult {
     return { success: false, error: "JSON 解析失败" };
   }
 
-  const { data: migrated, migrated: didMigrate, futureVersion } =
-    migrateToCurrentDeck(parsed);
+  const {
+    data: migrated,
+    migrated: didMigrate,
+    futureVersion,
+  } = migrateToCurrentDeck(parsed);
 
   if (futureVersion) {
     return {

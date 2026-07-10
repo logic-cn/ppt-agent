@@ -92,7 +92,10 @@ describe("golden deck: chart-heavy", () => {
     const charts = slides.slice(1, 4).map((s) => s.nodes[2]);
     expect(charts[0]).toMatchObject({ type: "chart", chart: { type: "pie" } });
     expect(charts[1]).toMatchObject({ type: "chart", chart: { type: "line" } });
-    expect(charts[2]).toMatchObject({ type: "chart", chart: { type: "doughnut" } });
+    expect(charts[2]).toMatchObject({
+      type: "chart",
+      chart: { type: "doughnut" },
+    });
   });
 
   it("validate 无警告", () => {

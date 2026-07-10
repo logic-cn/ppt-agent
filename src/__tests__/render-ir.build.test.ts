@@ -88,8 +88,13 @@ function makeSlide(overrides?: Partial<Slide>): Slide {
 describe("buildRenderSlides", () => {
   it("生成 RenderSlide 包含 nodes", () => {
     const deck = {
-      id: "test", version: 2, title: "测试", themeId: "test",
-      slides: [makeSlide()], createdAt: Date.now(), updatedAt: Date.now(),
+      id: "test",
+      version: 2,
+      title: "测试",
+      themeId: "test",
+      slides: [makeSlide()],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     } as Deck;
     const theme = mockTheme();
     const slides = buildRenderSlides(deck, theme);
@@ -100,9 +105,13 @@ describe("buildRenderSlides", () => {
 
   it("cover 布局包含顶部装饰条", () => {
     const deck = {
-      id: "test", version: 2, title: "测试", themeId: "test",
+      id: "test",
+      version: 2,
+      title: "测试",
+      themeId: "test",
       slides: [makeSlide({ layout: "cover", title: "封面" })],
-      createdAt: Date.now(), updatedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     } as Deck;
     const theme = mockTheme();
     const slides = buildRenderSlides(deck, theme);
@@ -112,9 +121,13 @@ describe("buildRenderSlides", () => {
 
   it("content 布局包含侧边装饰条", () => {
     const deck = {
-      id: "test", version: 2, title: "测试", themeId: "test",
+      id: "test",
+      version: 2,
+      title: "测试",
+      themeId: "test",
       slides: [makeSlide({ layout: "content" })],
-      createdAt: Date.now(), updatedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     } as Deck;
     const theme = mockTheme();
     const slides = buildRenderSlides(deck, theme);
@@ -124,9 +137,13 @@ describe("buildRenderSlides", () => {
 
   it("包含标题文本节点", () => {
     const deck = {
-      id: "test", version: 2, title: "测试", themeId: "test",
+      id: "test",
+      version: 2,
+      title: "测试",
+      themeId: "test",
       slides: [makeSlide({ title: "页面标题" })],
-      createdAt: Date.now(), updatedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     } as Deck;
     const theme = mockTheme();
     const slides = buildRenderSlides(deck, theme);
@@ -141,9 +158,13 @@ describe("buildRenderSlides", () => {
 
   it("无布局时生成空节点", () => {
     const deck = {
-      id: "test", version: 2, title: "测试", themeId: "test",
+      id: "test",
+      version: 2,
+      title: "测试",
+      themeId: "test",
       slides: [makeSlide({ layout: "nonexistent" as "content" })],
-      createdAt: Date.now(), updatedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     } as Deck;
     const theme = mockTheme();
     const slides = buildRenderSlides(deck, theme);
@@ -153,26 +174,32 @@ describe("buildRenderSlides", () => {
 
 describe("validateRenderSlides", () => {
   it("空节点报 warning", () => {
-    const slides = [{ id: "s1", background: "#fff", nodes: [], notes: undefined }];
+    const slides = [
+      { id: "s1", background: "#fff", nodes: [], notes: undefined },
+    ];
     const warnings = validateRenderSlides(slides);
     expect(warnings.some((w) => w.code === "empty_nodes")).toBe(true);
   });
 
   it("图片节点缺少 URL 报 warning", () => {
-    const slides = [{
-      id: "s1",
-      background: "#fff",
-      nodes: [{
-        type: "image" as const,
-        id: "img1",
-        rect: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 },
-        src: undefined,
-        alt: "test",
-        fit: "cover" as const,
-        zIndex: 1,
-      }],
-      notes: undefined,
-    }];
+    const slides = [
+      {
+        id: "s1",
+        background: "#fff",
+        nodes: [
+          {
+            type: "image" as const,
+            id: "img1",
+            rect: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 },
+            src: undefined,
+            alt: "test",
+            fit: "cover" as const,
+            zIndex: 1,
+          },
+        ],
+        notes: undefined,
+      },
+    ];
     const warnings = validateRenderSlides(slides);
     expect(warnings.some((w) => w.code === "missing_image_url")).toBe(true);
   });

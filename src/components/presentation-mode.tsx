@@ -32,7 +32,10 @@ export function PresentationMode({
   const currentSlide: Slide | undefined = slides[index];
   const slideCount = slides.length;
 
-  const renderSlides = useMemo(() => buildRenderSlides(deck, theme), [deck, theme]);
+  const renderSlides = useMemo(
+    () => buildRenderSlides(deck, theme),
+    [deck, theme],
+  );
   const currentRenderSlide = renderSlides[index];
 
   // 计算最佳缩放尺寸

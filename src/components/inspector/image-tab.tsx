@@ -43,7 +43,11 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
         <label className="mb-1 block text-xs text-text-muted">图片来源</label>
         <select
           value={image.type}
-          onChange={(e) => onUpdate({ image: { ...image, type: e.target.value as ImageSource } })}
+          onChange={(e) =>
+            onUpdate({
+              image: { ...image, type: e.target.value as ImageSource },
+            })
+          }
           className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
         >
           <option value="url">URL</option>
@@ -82,7 +86,9 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
         <label className="mb-1 block text-xs text-text-muted">替代文本</label>
         <input
           value={image.alt}
-          onChange={(e) => onUpdate({ image: { ...image, alt: e.target.value } })}
+          onChange={(e) =>
+            onUpdate({ image: { ...image, alt: e.target.value } })
+          }
           className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
         />
       </div>
@@ -91,7 +97,14 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
         <label className="mb-1 block text-xs text-text-muted">位置</label>
         <select
           value={image.position ?? "full"}
-          onChange={(e) => onUpdate({ image: { ...image, position: e.target.value as "full" | "right" | "background" } })}
+          onChange={(e) =>
+            onUpdate({
+              image: {
+                ...image,
+                position: e.target.value as "full" | "right" | "background",
+              },
+            })
+          }
           className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
         >
           {POSITION_OPTIONS.map((opt) => (

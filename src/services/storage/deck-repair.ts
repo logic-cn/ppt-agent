@@ -15,7 +15,11 @@ export function repairDeck(input: unknown): RepairResult {
     version: (deck.version as number) || 2,
     title: ensureString(deck.title) || "未命名项目",
     themeId: ensureString(deck.themeId) || DEFAULT_THEME_ID,
-    slides: Array.isArray(deck.slides) ? deck.slides.map((s) => repairSlide(s as Record<string, unknown>, warnings)) : [],
+    slides: Array.isArray(deck.slides)
+      ? deck.slides.map((s) =>
+          repairSlide(s as Record<string, unknown>, warnings),
+        )
+      : [],
     createdAt: (deck.createdAt as number) || Date.now(),
     updatedAt: (deck.updatedAt as number) || Date.now(),
   };
@@ -24,7 +28,10 @@ export function repairDeck(input: unknown): RepairResult {
     repaired.themeOverrides = deck.themeOverrides as Record<string, unknown>;
   }
   if (deck.source && typeof deck.source === "object") {
-    repaired.source = deck.source as { type: "topic" | "doc" | "url"; ref: string };
+    repaired.source = deck.source as {
+      type: "topic" | "doc" | "url";
+      ref: string;
+    };
   }
 
   if (!deck.themeId) {
@@ -39,13 +46,25 @@ function repairSlide(
   warnings: string[],
 ): ValidDeck["slides"][number] {
   const validLayouts = [
-    "cover", "section", "content", "two-column", "chart", "image",
-    "closing", "cols-2", "cols-3", "cols-4", "cols-5", "cols-6",
+    "cover",
+    "section",
+    "content",
+    "two-column",
+    "chart",
+    "image",
+    "closing",
+    "cols-2",
+    "cols-3",
+    "cols-4",
+    "cols-5",
+    "cols-6",
   ];
 
   let layout = ensureString(slide.layout);
   if (!layout || !validLayouts.includes(layout)) {
-    warnings.push(`页面「${slide.title || "无标题"}」布局无效，已回退到 content`);
+    warnings.push(
+      `页面「${slide.title || "无标题"}」布局无效，已回退到 content`,
+    );
     layout = "content";
   }
 
@@ -66,15 +85,13 @@ function repairSlide(
     repaired.items = slide.items as ValidDeck["slides"][number]["items"];
   }
   if (Array.isArray(slide.elements)) {
-    repaired.elements = slide.elements as ValidDeck["slides"][number]["elements"];
+    repaired.elements =
+      slide.elements as ValidDeck["slides"][number]["elements"];
   }
 
   if (slide.chart && typeof slide.chart === "object") {
     const chart = slide.chart as Record<string, unknown>;
-    if (
-      !Array.isArray(chart.data) ||
-      chart.data.length === 0
-    ) {
+    if (!Array.isArray(chart.data) || chart.data.length === 0) {
       warnings.push(`页面「${repaired.title}」图表数据无效，已移除图表`);
     } else {
       repaired.chart = slide.chart as ValidDeck["slides"][number]["chart"];
@@ -86,7 +103,8 @@ function repairSlide(
   }
 
   if (Array.isArray(slide.sourceRefs)) {
-    repaired.sourceRefs = slide.sourceRefs as ValidDeck["slides"][number]["sourceRefs"];
+    repaired.sourceRefs =
+      slide.sourceRefs as ValidDeck["slides"][number]["sourceRefs"];
   }
 
   return repaired;

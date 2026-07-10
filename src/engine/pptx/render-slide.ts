@@ -4,7 +4,10 @@ import type { RenderSlide, RenderNode } from "@/engine/render-ir/types";
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
 
-export function renderRenderSlide(pptxSlide: PptxGenJS.Slide, renderSlide: RenderSlide): void {
+export function renderRenderSlide(
+  pptxSlide: PptxGenJS.Slide,
+  renderSlide: RenderSlide,
+): void {
   pptxSlide.background = { fill: renderSlide.background };
 
   for (const node of renderSlide.nodes) {
@@ -60,7 +63,12 @@ function renderTextNode(
     italic: style.italic ?? false,
     align: style.align ?? "left",
     valign: "top",
-    autoFit: node.overflow === "shrink" ? true : node.overflow === "fit" ? true : false,
+    autoFit:
+      node.overflow === "shrink"
+        ? true
+        : node.overflow === "fit"
+          ? true
+          : false,
     ...(node.overflow === "clip" ? { shrinkText: false, wrapText: false } : {}),
   };
 
@@ -78,7 +86,9 @@ function renderTextNode(
           color: style.color,
           bold: !isBullet,
           indentLevel: Math.min(Math.floor(indent / 2), 4),
-          bullet: isBullet ? { characterCode: "25CF", color: style.color } : undefined,
+          bullet: isBullet
+            ? { characterCode: "25CF", color: style.color }
+            : undefined,
           lineSpacingMultiple: 1.4,
           paraSpaceAfter: 4,
         },
@@ -86,10 +96,13 @@ function renderTextNode(
     });
     pptxSlide.addText(segments, r);
   } else {
-    pptxSlide.addText(typeof text === "string" ? text : text.map((run) => run.text).join(""), {
-      ...r,
-      ...textOpts,
-    });
+    pptxSlide.addText(
+      typeof text === "string" ? text : text.map((run) => run.text).join(""),
+      {
+        ...r,
+        ...textOpts,
+      },
+    );
   }
 }
 
@@ -133,15 +146,23 @@ async function renderImageNode(
 
   if (!node.src) {
     pptxSlide.addShape("rect", {
-      x: r.x, y: r.y, w: r.w, h: r.h,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
       fill: { color: "F0F0F0" },
       line: { color: "CCCCCC", width: 0.5 },
       rectRadius: 0.05,
     });
     pptxSlide.addText(node.alt || "图片", {
-      x: r.x, y: r.y, w: r.w, h: r.h,
-      fontSize: 12, color: "999999",
-      align: "center", valign: "middle",
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
+      fontSize: 12,
+      color: "999999",
+      align: "center",
+      valign: "middle",
       fontFace: "sans-serif",
     });
     return;
@@ -158,19 +179,30 @@ async function renderImageNode(
     });
     pptxSlide.addImage({
       data: `image/${blob.type.split("/").pop() || "png"};base64,${base64}`,
-      x: r.x, y: r.y, w: r.w, h: r.h,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
     });
   } catch {
     pptxSlide.addShape("rect", {
-      x: r.x, y: r.y, w: r.w, h: r.h,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
       fill: { color: "F0F0F0" },
       line: { color: "CCCCCC", width: 0.5 },
       rectRadius: 0.05,
     });
     pptxSlide.addText(node.alt || "图片加载失败", {
-      x: r.x, y: r.y, w: r.w, h: r.h,
-      fontSize: 12, color: "999999",
-      align: "center", valign: "middle",
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
+      fontSize: 12,
+      color: "999999",
+      align: "center",
+      valign: "middle",
     });
   }
 }
@@ -203,7 +235,11 @@ function renderChartNode(
     chartColors,
   };
 
-  pptxSlide.addChart(chart.type as "bar" | "pie" | "line" | "doughnut", chartData, chartOpts);
+  pptxSlide.addChart(
+    chart.type as "bar" | "pie" | "line" | "doughnut",
+    chartData,
+    chartOpts,
+  );
 }
 
 // ---- Async wrapper for image nodes ----

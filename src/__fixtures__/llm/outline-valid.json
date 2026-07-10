@@ -7,7 +7,10 @@
   {
     "title": "目录",
     "layout": "content",
-    "bullets": [{ "text": "业绩概览", "level": 0 }, { "text": "问题分析", "level": 0 }]
+    "bullets": [
+      { "text": "业绩概览", "level": 0 },
+      { "text": "问题分析", "level": 0 }
+    ]
   },
   {
     "title": "业绩概览",

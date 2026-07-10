@@ -6,17 +6,16 @@ export function resolveLayoutRect(
   layoutName: string,
   area: "title" | "body" | "visual",
 ): Rect | null {
-  const layout = (theme.layouts as Record<string, LayoutSpec | undefined>)[layoutName];
+  const layout = (theme.layouts as Record<string, LayoutSpec | undefined>)[
+    layoutName
+  ];
   if (!layout) return null;
   const rect = layout[area];
   if (!rect) return null;
   return { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
 }
 
-export function getColumnRects(
-  bodyRect: Rect,
-  colCount: number,
-): Rect[] {
+export function getColumnRects(bodyRect: Rect, colCount: number): Rect[] {
   const gap = 0.02;
   const totalGap = gap * (colCount - 1);
   const colW = (bodyRect.w - totalGap) / colCount;

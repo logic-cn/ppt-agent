@@ -101,7 +101,8 @@ describe("generateOutline 集成测试", () => {
       topic: "测试主题",
       contextualPrompt,
     });
-    const callArg = (chat as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const callArg = (chat as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
     expect(callArg.messages[0].content).toContain("模板结构");
     expect(callArg.messages[0].content).toContain("[cover]");
   });

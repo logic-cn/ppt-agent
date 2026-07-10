@@ -37,7 +37,13 @@ export interface Template {
 export interface GenerationOptions {
   topic: string;
   audience?: string;
-  scenario?: "business_review" | "pitch" | "training" | "market_analysis" | "proposal" | "custom";
+  scenario?:
+    | "business_review"
+    | "pitch"
+    | "training"
+    | "market_analysis"
+    | "proposal"
+    | "custom";
   pageCount?: number;
   tone?: "formal" | "consulting" | "concise" | "storytelling";
   density?: "low" | "medium" | "high";
@@ -61,7 +67,14 @@ export interface TemplatePack {
 }
 
 export interface TemplateSlidePlan {
-  role: "cover" | "agenda" | "insight" | "analysis" | "chart" | "summary" | "closing";
+  role:
+    | "cover"
+    | "agenda"
+    | "insight"
+    | "analysis"
+    | "chart"
+    | "summary"
+    | "closing";
   suggestedLayout: SlideLayout;
   instruction: string;
 }

@@ -45,7 +45,11 @@ describe("parseDocument", () => {
 
 describe("chunkDocument", () => {
   it("短章节不分块", () => {
-    const doc = parseDocument(makeInput({ sections: [{ heading: "短节", content: "短内容", level: 1 }] }));
+    const doc = parseDocument(
+      makeInput({
+        sections: [{ heading: "短节", content: "短内容", level: 1 }],
+      }),
+    );
     const chunks = chunkDocument(doc);
     expect(chunks).toHaveLength(1);
     expect(chunks[0].text).toBe("短内容");
@@ -53,7 +57,11 @@ describe("chunkDocument", () => {
 
   it("长章节被分块", () => {
     const longContent = "段落\n".repeat(2000);
-    const doc = parseDocument(makeInput({ sections: [{ heading: "长节", content: longContent, level: 1 }] }));
+    const doc = parseDocument(
+      makeInput({
+        sections: [{ heading: "长节", content: longContent, level: 1 }],
+      }),
+    );
     const chunks = chunkDocument(doc);
     expect(chunks.length).toBeGreaterThan(1);
   });

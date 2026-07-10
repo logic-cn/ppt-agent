@@ -13,7 +13,12 @@ function makeV1Deck() {
         layout: "content",
         title: "内容页",
         bullets: [
-          { id: "", text: "旧要点", level: 0, children: [{ id: "", text: "子要点", level: 1 }] },
+          {
+            id: "",
+            text: "旧要点",
+            level: 0,
+            children: [{ id: "", text: "子要点", level: 1 }],
+          },
         ],
         items: [{ title: "项", bullets: ["b1"] }],
       },

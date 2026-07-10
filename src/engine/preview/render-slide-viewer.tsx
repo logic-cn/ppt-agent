@@ -1,6 +1,11 @@
 import { memo } from "react";
 import { ImageIcon } from "lucide-react";
-import type { RenderSlide, RenderNode, RenderTextNode, Rect } from "@/engine/render-ir/types";
+import type {
+  RenderSlide,
+  RenderNode,
+  RenderTextNode,
+  Rect,
+} from "@/engine/render-ir/types";
 import type { Theme } from "@/types/theme";
 import type { Slide } from "@/types/deck";
 
@@ -30,8 +35,13 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
   onGenerateImage,
 }: Props) {
   if (!renderSlide) return null;
-  const hasVisual = slide.layout === "two-column" || slide.layout === "chart" || slide.layout === "image";
-  const hasImageOrChart = renderSlide.nodes.some((n) => n.type === "image" || n.type === "chart");
+  const hasVisual =
+    slide.layout === "two-column" ||
+    slide.layout === "chart" ||
+    slide.layout === "image";
+  const hasImageOrChart = renderSlide.nodes.some(
+    (n) => n.type === "image" || n.type === "chart",
+  );
   const layout = theme.layouts[slide.layout];
 
   return (
@@ -141,22 +151,28 @@ const TextNodeViewer = memo(function TextNodeViewer({
         justifyContent: style.align === "center" ? "center" : "flex-start",
       }}
     >
-      {lines
-        ? lines.map((line, i) => (
-            <span
-              key={i}
-              style={{
-                fontSize: sz(line.trim().startsWith("•") ? style.fontSize : style.fontSize + 2),
-                fontWeight: line.trim().startsWith("•") ? 400 : 600,
-                color: style.color,
-                paddingLeft: `${(line.search(/\S/)) * 6}px`,
-                marginBottom: `${(4 * width) / 1280}px`,
-              }}
-            >
-              {line.trim()}
-            </span>
-          ))
-        : <span>{text as string}</span>}
+      {lines ? (
+        lines.map((line, i) => (
+          <span
+            key={i}
+            style={{
+              fontSize: sz(
+                line.trim().startsWith("•")
+                  ? style.fontSize
+                  : style.fontSize + 2,
+              ),
+              fontWeight: line.trim().startsWith("•") ? 400 : 600,
+              color: style.color,
+              paddingLeft: `${line.search(/\S/) * 6}px`,
+              marginBottom: `${(4 * width) / 1280}px`,
+            }}
+          >
+            {line.trim()}
+          </span>
+        ))
+      ) : (
+        <span>{text as string}</span>
+      )}
     </div>
   );
 });
@@ -185,7 +201,7 @@ const ShapeNodeViewer = memo(function ShapeNodeViewer({
       style={{
         ...rectToStyle(node.rect),
         background: node.fill,
-        borderRadius: node.radius ? `${(node.radius * width)}px` : undefined,
+        borderRadius: node.radius ? `${node.radius * width}px` : undefined,
       }}
     />
   );
@@ -219,7 +235,13 @@ const ImageNodeViewer = memo(function ImageNodeViewer({
     );
   }
   return (
-    <div style={{ ...rectToStyle(node.rect), overflow: "hidden", borderRadius: `${(8 * width) / 1280}px` }}>
+    <div
+      style={{
+        ...rectToStyle(node.rect),
+        overflow: "hidden",
+        borderRadius: `${(8 * width) / 1280}px`,
+      }}
+    >
       <img
         src={node.src}
         alt={node.alt}
@@ -244,7 +266,11 @@ const ChartNodeViewer = memo(function ChartNodeViewer({
   const s = (px: number) => `${(px * width) / 1280}px`;
   const chart = node.chart;
   const maxVal = Math.max(...chart.data.map((d) => d.value), 1);
-  const colors = node.style.colors ?? [theme.colors.accent, theme.colors.secondary, theme.colors.primary];
+  const colors = node.style.colors ?? [
+    theme.colors.accent,
+    theme.colors.secondary,
+    theme.colors.primary,
+  ];
 
   return (
     <div
@@ -258,7 +284,14 @@ const ChartNodeViewer = memo(function ChartNodeViewer({
       }}
     >
       {chart.title && (
-        <p style={{ fontSize: s(theme.fontSize.h2 * 0.7), color: theme.colors.primary, fontWeight: 600, marginBottom: s(12) }}>
+        <p
+          style={{
+            fontSize: s(theme.fontSize.h2 * 0.7),
+            color: theme.colors.primary,
+            fontWeight: 600,
+            marginBottom: s(12),
+          }}
+        >
           {chart.title}
         </p>
       )}
@@ -274,7 +307,10 @@ const ChartNodeViewer = memo(function ChartNodeViewer({
 });
 
 const BarView = memo(function BarView({
-  chart, maxVal, theme, s,
+  chart,
+  maxVal,
+  theme,
+  s,
 }: {
   chart: Extract<RenderNode, { type: "chart" }>["chart"];
   maxVal: number;
@@ -284,16 +320,39 @@ const BarView = memo(function BarView({
   return (
     <div className="flex flex-1 items-end justify-around" style={{ gap: s(8) }}>
       {chart.data.map((d, i) => (
-        <div key={i} className="flex flex-1 flex-col items-center justify-end" style={{ height: "100%" }}>
-          <span style={{ fontSize: s(theme.fontSize.caption), color: theme.colors.text, marginBottom: s(4) }}>{d.value}</span>
-          <div style={{
-            width: "60%",
-            height: `${(d.value / maxVal) * 100}%`,
-            background: theme.colors.accent,
-            borderRadius: `${s(4)} ${s(4)} 0 0`,
-            minHeight: s(4),
-          }} />
-          <span style={{ fontSize: s(theme.fontSize.caption), color: theme.colors.textMuted, marginTop: s(4), textAlign: "center" }}>{d.label}</span>
+        <div
+          key={i}
+          className="flex flex-1 flex-col items-center justify-end"
+          style={{ height: "100%" }}
+        >
+          <span
+            style={{
+              fontSize: s(theme.fontSize.caption),
+              color: theme.colors.text,
+              marginBottom: s(4),
+            }}
+          >
+            {d.value}
+          </span>
+          <div
+            style={{
+              width: "60%",
+              height: `${(d.value / maxVal) * 100}%`,
+              background: theme.colors.accent,
+              borderRadius: `${s(4)} ${s(4)} 0 0`,
+              minHeight: s(4),
+            }}
+          />
+          <span
+            style={{
+              fontSize: s(theme.fontSize.caption),
+              color: theme.colors.textMuted,
+              marginTop: s(4),
+              textAlign: "center",
+            }}
+          >
+            {d.label}
+          </span>
         </div>
       ))}
     </div>
@@ -301,7 +360,9 @@ const BarView = memo(function BarView({
 });
 
 const LineView = memo(function LineView({
-  chart, maxVal, s,
+  chart,
+  maxVal,
+  s,
 }: {
   chart: Extract<RenderNode, { type: "chart" }>["chart"];
   maxVal: number;
@@ -314,22 +375,49 @@ const LineView = memo(function LineView({
   }));
   return (
     <div className="relative flex-1" style={{ margin: `${s(4)} 0` }}>
-      <svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="none">
-        <polyline points={points.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth="2" />
-        {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="2" fill="#f59e0b" />)}
+      <svg
+        viewBox="0 0 100 100"
+        className="h-full w-full"
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points.map((p) => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke="#f59e0b"
+          strokeWidth="2"
+        />
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="2" fill="#f59e0b" />
+        ))}
       </svg>
       <div className="flex justify-between px-1">
-        {points.map((p, i) => <span key={i} style={{ fontSize: s(10), color: "#6b7280", textAlign: "center" }}>{p.value}</span>)}
+        {points.map((p, i) => (
+          <span
+            key={i}
+            style={{ fontSize: s(10), color: "#6b7280", textAlign: "center" }}
+          >
+            {p.value}
+          </span>
+        ))}
       </div>
       <div className="flex justify-between px-1">
-        {chart.data.map((d, i) => <span key={i} style={{ fontSize: s(9), color: "#9ca3af", textAlign: "center" }}>{d.label}</span>)}
+        {chart.data.map((d, i) => (
+          <span
+            key={i}
+            style={{ fontSize: s(9), color: "#9ca3af", textAlign: "center" }}
+          >
+            {d.label}
+          </span>
+        ))}
       </div>
     </div>
   );
 });
 
 const PieView = memo(function PieView({
-  chart, colors, s,
+  chart,
+  colors,
+  s,
 }: {
   chart: Extract<RenderNode, { type: "chart" }>["chart"];
   colors: string[];
@@ -338,7 +426,9 @@ const PieView = memo(function PieView({
   const total = chart.data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return null;
   let cumulative = 0;
-  const cx = 50, cy = 50, r = 35;
+  const cx = 50,
+    cy = 50,
+    r = 35;
   const paths = chart.data.map((d, i) => {
     const start = cumulative;
     cumulative += d.value;
@@ -354,11 +444,20 @@ const PieView = memo(function PieView({
   });
   return (
     <div className="flex flex-1 items-center justify-center gap-4">
-      <svg viewBox="0 0 100 100" className="h-2/3 w-1/2">{paths}</svg>
+      <svg viewBox="0 0 100 100" className="h-2/3 w-1/2">
+        {paths}
+      </svg>
       <div className="flex flex-col gap-1">
         {chart.data.map((d, i) => (
           <div key={i} className="flex items-center gap-2">
-            <div style={{ width: s(8), height: s(8), background: colors[i % colors.length], borderRadius: "50%" }} />
+            <div
+              style={{
+                width: s(8),
+                height: s(8),
+                background: colors[i % colors.length],
+                borderRadius: "50%",
+              }}
+            />
             <span style={{ fontSize: s(12), color: "#111827" }}>{d.label}</span>
           </div>
         ))}
