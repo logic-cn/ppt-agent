@@ -55,7 +55,7 @@ const slideSourceRefSchema = z.object({
   quote: z.string().optional(),
 });
 
-const slideSchema = z.object({
+export const slideSchema = z.object({
   id: z.string(),
   layout: z.enum([
     "cover",
