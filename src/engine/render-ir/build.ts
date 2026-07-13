@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { getColumnRects, isColsLayout, getColCount } from "./layout";
 import { resolveTextStyle, getOverflow } from "./text";
+import { getLayoutRects } from "../layout-geometry";
 
 export function buildRenderSlides(deck: Deck, theme: Theme): RenderSlide[] {
   return deck.slides.map((slide) => buildRenderSlide(slide, deck, theme));
@@ -42,7 +43,7 @@ export function buildRenderSlide(
   theme: Theme,
 ): RenderSlide {
   const nodes: RenderNode[] = [];
-  const layout = theme.layouts[slide.layout];
+  const layout = getLayoutRects(slide.layout);
   if (!layout) {
     return {
       id: slide.id,
