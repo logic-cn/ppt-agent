@@ -8,6 +8,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "pyramid",
       visualStyle: "swiss-minimal",
       palette: "business-blue",
+      templateId: "quarterly-review",
     },
     slides: [
       { id: "s1", layout: "cover", title: "Q2 业务复盘", bullets: [] },
@@ -65,6 +66,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "narrative",
       visualStyle: "dark-tech",
       palette: "tech-purple",
+      templateId: "product-launch",
     },
     slides: [
       {
@@ -127,6 +129,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "instructional",
       visualStyle: "soft-rounded",
       palette: "minimal-white",
+      templateId: "training-material",
     },
     slides: [
       {
@@ -204,6 +207,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "briefing",
       visualStyle: "editorial",
       palette: "vibrant-orange",
+      templateId: "market-analysis",
     },
     slides: [
       { id: "s1", layout: "cover", title: "本周市场动态简报", bullets: [] },
@@ -256,6 +260,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "pyramid",
       visualStyle: "blueprint",
       palette: "business-blue",
+      templateId: "project-proposal",
     },
     slides: [
       { id: "s1", layout: "cover", title: "支付系统架构复盘", bullets: [] },
@@ -311,6 +316,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "showcase",
       visualStyle: "glassmorphism",
       palette: "tech-purple",
+      templateId: "product-launch",
     },
     slides: [
       { id: "s1", layout: "cover", title: "Aurora 正式发布", bullets: [] },
@@ -355,6 +361,7 @@ export const EXAMPLES: GalleryExample[] = [
       mode: "instructional",
       visualStyle: "swiss-minimal",
       palette: "minimal-white",
+      templateId: "training-material",
     },
     slides: [
       {

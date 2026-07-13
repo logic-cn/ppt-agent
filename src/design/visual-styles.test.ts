@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getVisualStyle, VISUAL_STYLES } from "./visual-styles";
+import type { VisualStyleId } from "../types/design";
 
 describe("visual-styles", () => {
   it("返回 swiss-minimal 且 cornerRadius 为 0", () => {
@@ -14,7 +15,9 @@ describe("visual-styles", () => {
   });
 
   it("未知 id 返回 undefined", () => {
-    expect(getVisualStyle("not-exist")).toBeUndefined();
+    expect(
+      getVisualStyle("not-exist" as unknown as VisualStyleId),
+    ).toBeUndefined();
   });
 
   it("包含 6 个视觉风格且无 HEX 颜色", () => {

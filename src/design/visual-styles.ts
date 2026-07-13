@@ -1,7 +1,8 @@
 import type { ThemeFonts, ThemeFontSize, Spacing } from "../types/theme";
+import type { VisualStyleId } from "../types/design";
 
 export interface VisualStyleDef {
-  id: string;
+  id: VisualStyleId;
   name: string;
   character: string;
   fonts: ThemeFonts;
@@ -99,6 +100,6 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
   },
 ];
 
-export function getVisualStyle(id: string): VisualStyleDef | undefined {
+export function getVisualStyle(id: VisualStyleId): VisualStyleDef | undefined {
   return VISUAL_STYLES.find((s) => s.id === id);
 }

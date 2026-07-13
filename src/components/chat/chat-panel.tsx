@@ -25,9 +25,8 @@ import {
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { TemplatePack } from "@/types/template";
-import type { Deck as DeckType } from "@/types/deck";
 import { getTemplatePacks } from "@/templates";
-import { DEFAULT_DESIGN, type DesignLock } from "@/types/design";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 
 interface Message {
@@ -235,10 +234,7 @@ export function ChatPanel() {
             await replaceSlides(slides);
             runQualityCheck();
             // 首屏风格锚点：仅检查首屏，hard 问题以横幅提示，不阻断生成
-            // TODO(Phase6): 接 deck.design，当前 chat-panel 回退 DEFAULT_DESIGN 使 pyramid 规则生产环境暂未触发
-            const design =
-              (deck as DeckType & { design?: DesignLock }).design ??
-              DEFAULT_DESIGN;
+            const design = deck.design ?? DEFAULT_DESIGN;
             const gate = runFirstPageGate(
               useDeckStore.getState().deck!,
               design,

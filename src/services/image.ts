@@ -6,6 +6,8 @@ import { getPalette } from "@/design/palettes";
 import { httpRequest } from "@/services/http-client";
 import { decideRecovery } from "@/services/recovery";
 
+class ImageAuthError extends Error {}
+
 export function buildImagePrompt(subject: string, design: DesignLock): string {
   const style = getVisualStyle(design.visualStyle)!;
   const palette = getPalette(design.palette)!;
@@ -56,6 +58,10 @@ export async function generateImage(
 
       if (!res.ok) {
         const err = await res.text().catch(() => "未知错误");
+        // 401/403 属于鉴权/权限配置问题，必须暴露给用户，不可静默降级为占位图
+        if (res.status === 401 || res.status === 403) {
+          throw new ImageAuthError(`图片生成鉴权失败(${res.status}): ${err}`);
+        }
         if (decideRecovery("image", attempt) === "retry") {
           lastError = new Error(`图片生成失败: ${err}`);
           continue;
@@ -71,6 +77,7 @@ export async function generateImage(
       };
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") throw e;
+      if (e instanceof ImageAuthError) throw e;
       if (decideRecovery("image", attempt, e) === "retry") {
         lastError = e instanceof Error ? e : new Error(String(e));
         continue;

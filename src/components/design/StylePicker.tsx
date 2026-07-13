@@ -15,7 +15,7 @@ export function StylePicker({ value, onChange }: Props) {
           <button
             key={style.id}
             type="button"
-            onClick={() => onChange(style.id as VisualStyleId)}
+            onClick={() => onChange(style.id)}
             aria-pressed={selected}
             className={[
               "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition",

@@ -171,8 +171,14 @@ export default function Editor() {
 
     try {
       const result = await generateImage(
-        { prompt: slide.title, size: "1024x1024" },
-        DEFAULT_DESIGN,
+        {
+          prompt: [
+            slide.title,
+            ...(slide.bullets ?? []).map((b) => b.text),
+          ].join("；"),
+          size: "1024x1024",
+        },
+        deck.design ?? DEFAULT_DESIGN,
         job.signal,
       );
       job.succeed("配图生成完成");

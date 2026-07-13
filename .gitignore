@@ -29,3 +29,6 @@ src-tauri/gen/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# 运行时草稿（brainstorm 会话状态，非源码）
+.superpowers/brainstorm/
