@@ -17,7 +17,11 @@ export function runFirstPageGate(
   const first = deck.slides[0];
   if (!first) return [];
 
-  const findings = checkDeckQuality({ ...deck, slides: [first] });
+  // 仅对首屏做检查：剔除 deck 级规则（首屏单页无法判定），避免误报
+  const DECK_WIDE_RULES = new Set(["require_closing"]);
+  const findings = checkDeckQuality({ ...deck, slides: [first] }).filter(
+    (f) => !DECK_WIDE_RULES.has(f.rule) && !/page_count/i.test(f.rule),
+  );
 
   // 模式专属首屏规则：结论先行模式下首屏标题必须是结论句而非话题词
   if (

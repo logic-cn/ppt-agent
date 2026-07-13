@@ -235,6 +235,7 @@ export function ChatPanel() {
             await replaceSlides(slides);
             runQualityCheck();
             // 首屏风格锚点：仅检查首屏，hard 问题以横幅提示，不阻断生成
+            // TODO(Phase6): 接 deck.design，当前 chat-panel 回退 DEFAULT_DESIGN 使 pyramid 规则生产环境暂未触发
             const design =
               (deck as DeckType & { design?: DesignLock }).design ??
               DEFAULT_DESIGN;

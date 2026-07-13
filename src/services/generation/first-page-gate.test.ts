@@ -49,6 +49,8 @@ describe("runFirstPageGate 首屏风格锚点", () => {
     const findings = runFirstPageGate(deck, PYRAMID_DESIGN);
     const finding = findings.find((f) => f.rule === "pyramid_title");
     expect(finding).toBeUndefined();
+    // 首屏单页无法判定 deck 级规则，必须无残留误报（如 require_closing）
+    expect(findings).toHaveLength(0);
   });
 
   it("无首屏 → 返回空数组", () => {
