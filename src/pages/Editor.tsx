@@ -13,7 +13,7 @@ import {
   Copy,
   Loader2,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useJobStore } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
@@ -59,7 +59,17 @@ export default function Editor() {
   const customThemes = useCustomThemeStore((s) => s.themes);
   const loadCustomThemes = useCustomThemeStore((s) => s.load);
   const qualityReport = useQualityStore((s) => s.report);
-  const hasHard = qualityReport ? hasHardError(qualityReport) : false;
+  const pendingRules = useQualityStore((s) => s.pendingRules);
+  // 导出前质量门：实时对当前 deck 跑 checkDeckQuality，存在 hard 即阻断导出。
+  // 同时保留模板流程写入的 report 结果（含模板专属规则），两者取并集。
+  const hasHard = useMemo(() => {
+    if (!deck) return false;
+    const liveHard = hasHardError(
+      checkDeckQuality(deck, { rules: pendingRules ?? undefined }),
+    );
+    const reportHard = qualityReport ? hasHardError(qualityReport) : false;
+    return liveHard || reportHard;
+  }, [deck, pendingRules, qualityReport]);
 
   const jobs = useJobStore((s) => s.jobs);
   const activeJobIds = useJobStore((s) => s.activeJobIds);
@@ -481,6 +491,14 @@ export default function Editor() {
             <Download className="h-3.5 w-3.5" />
             {exporting ? "导出中…" : "导出 PPT"}
           </button>
+          {hasHard && (
+            <span
+              className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-600"
+              title="存在严重质量问题，请先修复后再导出"
+            >
+              质量未达标
+            </span>
+          )}
         </div>
       </header>
 

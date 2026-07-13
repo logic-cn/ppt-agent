@@ -221,7 +221,7 @@ export function ChatPanel() {
             slides = await generateOutline({
               topic: text,
               pageCount: deck?.slides.length ? undefined : 8,
-              design: DEFAULT_DESIGN,
+              design: deck?.design ?? DEFAULT_DESIGN,
               signal: job.signal,
             });
             job.succeed("大纲生成完成");

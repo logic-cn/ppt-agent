@@ -21,8 +21,9 @@ import {
 import { generateOutline } from "@/services/outline";
 import type { TemplateSelectResult } from "@/components/template-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DEFAULT_DESIGN } from "@/types/design";
+import { DEFAULT_DESIGN, type DesignLock } from "@/types/design";
 import { TemplateDialog } from "@/components/template-dialog";
+import { GalleryPanel } from "@/components/gallery/GalleryPanel";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export default function Home() {
   const { recent, loading, loadRecent } = useProjectStore();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     void loadRecent();
@@ -44,6 +46,13 @@ export default function Home() {
 
   const createProject = async () => {
     const deck = await createDeck();
+    navigate(`/editor/${deck.id}?new=1`);
+  };
+
+  const handleGalleryPick = async (design: DesignLock) => {
+    setGalleryOpen(false);
+    const deck = await createDeck();
+    useDeckStore.getState().setDesign(design);
     navigate(`/editor/${deck.id}?new=1`);
   };
 
@@ -170,6 +179,25 @@ export default function Home() {
             </button>
           </div>
 
+          {/* 样例画廊入口 */}
+          <div className="mb-12 flex items-center justify-between rounded-xl border border-border bg-white px-6 py-5">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary">
+                样例画廊
+              </h2>
+              <p className="mt-1 text-sm text-text-muted">
+                挑一个成熟风格作为起点，下一步再输入主题即可生成大纲
+              </p>
+            </div>
+            <button
+              onClick={() => setGalleryOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm font-medium text-white hover:opacity-90 shadow-sm shadow-accent/20"
+            >
+              <LayoutTemplate className="h-4 w-4" />
+              浏览画廊
+            </button>
+          </div>
+
           {/* 最近项目 */}
           <h2 className="mb-4 text-lg font-semibold">最近项目</h2>
           {loading ? (
@@ -260,6 +288,13 @@ export default function Home() {
             onClose={() => setTemplateDialogOpen(false)}
             onSelect={handleTemplateSelect}
           />
+
+          {galleryOpen && (
+            <GalleryPanel
+              onPick={handleGalleryPick}
+              onClose={() => setGalleryOpen(false)}
+            />
+          )}
 
           <ConfirmDialog
             open={deleteTarget !== null}
