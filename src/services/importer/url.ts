@@ -28,6 +28,28 @@ export async function importUrl(url: string): Promise<ImportResult> {
   }
   const html = await resp.text();
 
+  // 检测源站的反爬/安全验证中转页（返回 200 但非正文）。
+  // 这类页面无法用简单 HTTP 请求越过，明确报错而非把验证页当正文导入。
+  const BLOCK_MARKERS = [
+    "百度安全验证",
+    "安全验证",
+    "网络不给力，请稍后重试",
+    "请输入验证码",
+    "Verify you are human",
+    "Just a moment",
+    "Please enable JavaScript and cookies",
+    "Please enable JavaScript to continue",
+    "人机验证",
+    "访问验证",
+    "DDoS 防护",
+  ];
+  const lower = html.toLowerCase();
+  if (BLOCK_MARKERS.some((m) => lower.includes(m.toLowerCase()))) {
+    throw new Error(
+      "该网页启用了安全验证/反爬机制，无法自动抓取。请手动复制正文内容后粘贴导入。",
+    );
+  }
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
 
