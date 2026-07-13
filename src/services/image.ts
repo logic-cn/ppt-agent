@@ -1,6 +1,15 @@
 import { useSettingsStore } from "@/store/settings";
 import type { ImageGenRequest, ImageGenResponse } from "@/types/llm";
+import type { DesignLock } from "@/types/design";
+import { getVisualStyle } from "@/design/visual-styles";
+import { getPalette } from "@/design/palettes";
 import { httpRequest } from "@/services/http-client";
+
+export function buildImagePrompt(subject: string, design: DesignLock): string {
+  const style = getVisualStyle(design.visualStyle)!;
+  const palette = getPalette(design.palette)!;
+  return `为${subject}生成插画，渲染风格=${style.pairedImageRendering}；配色仅用主色${palette.colors.primary}与强调色${palette.colors.accent}，保持与整份演示一致；扁平/无文字。`;
+}
 
 /**
  * 调用 OpenAI DALL-E 兼容的文生图 API。
@@ -9,6 +18,7 @@ import { httpRequest } from "@/services/http-client";
  */
 export async function generateImage(
   req: ImageGenRequest,
+  design: DesignLock,
   signal?: AbortSignal,
 ): Promise<ImageGenResponse> {
   const { settings } = useSettingsStore.getState();
@@ -21,7 +31,7 @@ export async function generateImage(
 
   const body = {
     model: cfg.model || "dall-e-3",
-    prompt: req.prompt,
+    prompt: buildImagePrompt(req.prompt, design),
     n: 1,
     size: req.size ?? "1024x1024",
   };

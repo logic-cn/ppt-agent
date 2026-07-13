@@ -5,6 +5,7 @@ import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import type { Deck, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import type { ImageGenRequest } from "@/types/llm";
+import { DEFAULT_DESIGN } from "@/types/design";
 
 export function runOutlineGeneration(params: {
   topic: string;
@@ -29,6 +30,7 @@ export function runOutlineGeneration(params: {
 export function runImageGeneration(params: {
   req: ImageGenRequest;
   slideTitle: string;
+  design?: DesignLock;
 }): Promise<{ url: string; revisedPrompt?: string }> {
   return runJob(
     {
@@ -38,7 +40,11 @@ export function runImageGeneration(params: {
     },
     async (job) => {
       job.update({ progress: 0.3, message: "正在生成图片…" });
-      const result = await generateImage(params.req, job.signal);
+      const result = await generateImage(
+        params.req,
+        params.design ?? DEFAULT_DESIGN,
+        job.signal,
+      );
       job.update({ progress: 0.9, message: "图片生成完成" });
       return result;
     },

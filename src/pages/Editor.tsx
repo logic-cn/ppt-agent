@@ -32,6 +32,7 @@ import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
 import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import { generateImage } from "@/services/image";
+import { DEFAULT_DESIGN } from "@/types/design";
 
 export default function Editor() {
   const { id } = useParams();
@@ -150,7 +151,6 @@ export default function Editor() {
     if (!deck) return;
     const slide = deck.slides.find((s) => s.id === slideId);
     if (!slide) return;
-    const prompt = `为演示文稿幻灯片生成配图。标题：${slide.title}${slide.bullets ? "。要点：" + slide.bullets.map((b) => b.text).join("、") : ""}${slide.body ? "。正文：" + slide.body.slice(0, 100) : ""}`;
 
     const jobStore = useJobStore.getState();
     const job = jobStore.startJob({
@@ -161,7 +161,8 @@ export default function Editor() {
 
     try {
       const result = await generateImage(
-        { prompt, size: "1024x1024" },
+        { prompt: slide.title, size: "1024x1024" },
+        DEFAULT_DESIGN,
         job.signal,
       );
       job.succeed("配图生成完成");
