@@ -19,6 +19,7 @@ import {
   createEmptyDeck,
 } from "@/services/storage";
 import { generateOutline } from "@/services/outline";
+import { DEFAULT_THEME_ID } from "@/themes";
 import type { TemplateSelectResult } from "@/components/template-dialog";
 import { buildContextualPrompt } from "@/templates";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -57,7 +58,6 @@ export default function Home() {
           name: result.pack.name,
           description: result.pack.description,
           scenario: result.pack.scenario,
-          suggestedTheme: result.pack.suggestedTheme,
           suggestedPageCount: result.pack.slides.length,
           slides: result.pack.slides,
         },
@@ -83,7 +83,7 @@ export default function Home() {
         ...createEmptyDeck(result.topic),
         title: result.topic,
         slides,
-        themeId: result.pack.suggestedTheme,
+        themeId: DEFAULT_THEME_ID,
         createdAt: now,
         updatedAt: now,
       };

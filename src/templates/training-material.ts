@@ -5,7 +5,6 @@ export const trainingMaterial: Template = {
   name: "培训课件",
   description: "适合内部培训、知识分享、新人 onboarding",
   scenario: "training",
-  suggestedTheme: "business-blue",
   suggestedPageCount: 10,
   slides: [
     {

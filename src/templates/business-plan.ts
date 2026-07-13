@@ -5,7 +5,6 @@ export const businessPlan: Template = {
   name: "商业计划书",
   description: "适合创业融资、项目立项、商业模式阐述",
   scenario: "proposal",
-  suggestedTheme: "minimal-white",
   suggestedPageCount: 12,
   slides: [
     {

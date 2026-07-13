@@ -1,4 +1,5 @@
 import type { SlideLayout, ChartType } from "./deck";
+import type { NarrativeModeId, VisualStyleId } from "./design";
 
 export interface TemplateBullet {
   text: string;
@@ -27,7 +28,6 @@ export interface Template {
   name: string;
   description: string;
   scenario: string;
-  suggestedTheme?: string;
   suggestedPageCount: number;
   slides: TemplateSlide[];
 }
@@ -59,10 +59,10 @@ export interface TemplatePack {
   name: string;
   description: string;
   scenario: string;
-  suggestedTheme: string;
+  suggestedMode?: NarrativeModeId;
+  suggestedVisualStyle?: VisualStyleId;
   defaultOptions: GenerationOptions;
   slides: TemplateSlide[];
-  promptHints?: string[];
   qualityRules?: string[];
 }
 
@@ -83,5 +83,4 @@ export interface TemplateGenerationContext {
   templateId: string;
   defaultOptions: GenerationOptions;
   slidePlan: TemplateSlidePlan[];
-  promptHints: string[];
 }

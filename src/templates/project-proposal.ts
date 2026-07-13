@@ -5,7 +5,6 @@ export const projectProposal: Template = {
   name: "项目立项汇报",
   description: "适合新项目立项、资源申请与目标对齐",
   scenario: "proposal",
-  suggestedTheme: "business-blue",
   suggestedPageCount: 9,
   slides: [
     {

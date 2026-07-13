@@ -5,7 +5,6 @@ export const annualPlan: Template = {
   name: "年度规划",
   description: "适合年度战略拆解、OKR 对齐与目标承诺",
   scenario: "business_review",
-  suggestedTheme: "business-blue",
   suggestedPageCount: 10,
   slides: [
     {

@@ -5,7 +5,6 @@ export const quarterlyReview: Template = {
   name: "季度业务汇报",
   description: "适合季度复盘、业绩回顾与下季度规划",
   scenario: "business_review",
-  suggestedTheme: "business-blue",
   suggestedPageCount: 10,
   slides: [
     {

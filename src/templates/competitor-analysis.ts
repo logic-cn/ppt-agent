@@ -5,7 +5,6 @@ export const competitorAnalysis: Template = {
   name: "竞品分析",
   description: "适合市场竞争格局、竞品功能对比与差异化策略",
   scenario: "market_analysis",
-  suggestedTheme: "tech-purple",
   suggestedPageCount: 11,
   slides: [
     {

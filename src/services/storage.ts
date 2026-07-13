@@ -406,7 +406,7 @@ export function createDeckFromTemplate(
     id: crypto.randomUUID(),
     version: CURRENT_DECK_VERSION,
     title: title ?? template.name,
-    themeId: template.suggestedTheme ?? DEFAULT_THEME_ID,
+    themeId: DEFAULT_THEME_ID,
     slides,
     createdAt: now,
     updatedAt: now,

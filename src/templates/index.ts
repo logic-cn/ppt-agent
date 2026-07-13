@@ -37,7 +37,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     description:
       "面向管理层的季度业务回顾，包含业绩概览、亮点与不足、下季度规划",
     scenario: "business_review",
-    suggestedTheme: "business-blue",
+    suggestedMode: "pyramid",
+    suggestedVisualStyle: "swiss-minimal",
     defaultOptions: {
       topic: "",
       scenario: "business_review",
@@ -59,11 +60,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "资源需求" },
       { layout: "closing", title: "感谢" },
     ],
-    promptHints: [
-      "使用具体的KPI数据填充图表",
-      "突出同比和环比增长",
-      "不足部分要提出改进方案",
-    ],
     qualityRules: ["require_charts", "require_data"],
   },
   {
@@ -71,7 +67,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "产品发布会",
     description: "面向市场和用户的产品发布演示，突出产品价值和竞争力",
     scenario: "pitch",
-    suggestedTheme: "vibrant-orange",
+    suggestedMode: "narrative",
+    suggestedVisualStyle: "dark-tech",
     defaultOptions: {
       topic: "",
       scenario: "pitch",
@@ -92,11 +89,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "竞品对比" },
       { layout: "closing", title: "未来展望" },
     ],
-    promptHints: [
-      "强调产品差异化价值",
-      "用故事化的方式描述用户痛点",
-      "竞品对比要突出优势",
-    ],
     qualityRules: ["require_cover", "require_closing"],
   },
   {
@@ -104,7 +96,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "市场分析报告",
     description: "深入的市场研究分析，包含行业趋势、竞争格局和增长机会",
     scenario: "market_analysis",
-    suggestedTheme: "tech-purple",
+    suggestedMode: "briefing",
+    suggestedVisualStyle: "editorial",
     defaultOptions: {
       topic: "",
       scenario: "market_analysis",
@@ -128,11 +121,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "cols-3", title: "进入策略" },
       { layout: "closing", title: "总结与建议" },
     ],
-    promptHints: [
-      "使用权威数据源的市场数据",
-      "竞争分析要包含2-3个主要对手",
-      "增长机会要给出可操作建议",
-    ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
   },
   {
@@ -140,7 +128,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "培训课件",
     description: "面向学员的培训教材，结构清晰、循序渐进",
     scenario: "training",
-    suggestedTheme: "minimal-white",
+    suggestedMode: "instructional",
+    suggestedVisualStyle: "soft-rounded",
     defaultOptions: {
       topic: "",
       scenario: "training",
@@ -166,11 +155,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "Q&A" },
       { layout: "closing", title: "感谢参与" },
     ],
-    promptHints: [
-      "适合零基础学员，由浅入深",
-      "每个概念配一个具体例子",
-      "案例部分要有实际应用场景",
-    ],
     qualityRules: ["require_cover", "require_closing"],
   },
   {
@@ -178,7 +162,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "融资商业计划书",
     description: "面向投资人的BP演示，展示商业模式、市场规模和增长潜力",
     scenario: "proposal",
-    suggestedTheme: "business-blue",
+    suggestedMode: "pyramid",
+    suggestedVisualStyle: "swiss-minimal",
     defaultOptions: {
       topic: "",
       scenario: "proposal",
@@ -200,12 +185,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "融资计划" },
       { layout: "closing", title: "联系我们" },
     ],
-    promptHints: [
-      "突出市场规模的TAM/SAM/SOM",
-      "商业模式要清晰展示收入来源",
-      "财务预测要给出3-5年的数据",
-      "融资用途要具体分配到各环节",
-    ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
   },
   {
@@ -213,7 +192,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "竞品分析",
     description: "深入对比主要竞品，找出差异化机会与竞争策略",
     scenario: "market_analysis",
-    suggestedTheme: "tech-purple",
+    suggestedMode: "briefing",
+    suggestedVisualStyle: "editorial",
     defaultOptions: {
       topic: "",
       scenario: "market_analysis",
@@ -236,11 +216,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "section", title: "行动建议" },
       { layout: "closing", title: "总结" },
     ],
-    promptHints: [
-      "对比至少3个主要竞品",
-      "用表格或并列布局做功能对照",
-      "差异化机会要落到可执行的策略",
-    ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
   },
   {
@@ -248,7 +223,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "项目立项汇报",
     description: "面向管理层的新项目立项，讲清目标、价值、资源与风险",
     scenario: "proposal",
-    suggestedTheme: "business-blue",
+    suggestedMode: "pyramid",
+    suggestedVisualStyle: "swiss-minimal",
     defaultOptions: {
       topic: "",
       scenario: "proposal",
@@ -269,11 +245,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "风险与应对" },
       { layout: "closing", title: "申请立项" },
     ],
-    promptHints: [
-      "目标必须可量化（KPI/OKR）",
-      "用图表展示投入产出预测",
-      "风险要配缓解措施",
-    ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
   },
   {
@@ -281,7 +252,8 @@ const BUILTIN_PACKS: TemplatePack[] = [
     name: "年度规划",
     description: "年度战略拆解，对齐目标、举措、资源与保障",
     scenario: "business_review",
-    suggestedTheme: "business-blue",
+    suggestedMode: "pyramid",
+    suggestedVisualStyle: "swiss-minimal",
     defaultOptions: {
       topic: "",
       scenario: "business_review",
@@ -302,11 +274,6 @@ const BUILTIN_PACKS: TemplatePack[] = [
       { layout: "content", title: "资源与预算" },
       { layout: "content", title: "风险与保障" },
       { layout: "closing", title: "承诺与展望" },
-    ],
-    promptHints: [
-      "战略主题要少而精（3个以内）",
-      "目标拆解到季度可衡量",
-      "预算与人力要对应具体措施",
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
   },
@@ -376,7 +343,6 @@ export function buildTemplateGenerationContext(
     templateId: pack.id,
     defaultOptions: { ...pack.defaultOptions, topic },
     slidePlan,
-    promptHints: pack.promptHints ?? [],
   };
 }
 
@@ -394,9 +360,9 @@ export function buildContextualPrompt(
   ctx.slidePlan.forEach((sp, i) => {
     lines.push(`  ${i + 1}. [${sp.suggestedLayout}] ${sp.instruction}`);
   });
-  if (ctx.promptHints.length > 0) {
-    lines.push(`\n创作提示：`);
-    ctx.promptHints.forEach((h) => lines.push(`  - ${h}`));
+  lines.push(`\n建议叙事模式：${pack.suggestedMode ?? "briefing"}`);
+  if (pack.suggestedVisualStyle) {
+    lines.push(`建议视觉风格：${pack.suggestedVisualStyle}`);
   }
   return lines.join("\n");
 }

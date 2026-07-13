@@ -5,7 +5,6 @@ export const marketAnalysis: Template = {
   name: "市场分析报告",
   description: "适合市场调研、行业分析、竞争格局研究",
   scenario: "market_analysis",
-  suggestedTheme: "vibrant-orange",
   suggestedPageCount: 11,
   slides: [
     {
