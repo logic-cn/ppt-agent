@@ -85,6 +85,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="template-dialog-title"
+      onClick={onClose}
     >
       <div
         className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-white shadow-xl"
