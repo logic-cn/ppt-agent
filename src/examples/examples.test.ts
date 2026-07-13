@@ -35,11 +35,13 @@ describe("内置样例画廊", () => {
     }
   });
 
-  it("至少有一条样例包含 chart", () => {
-    const withChart = examples.filter((ex) =>
-      ex.slides.some((s) => Boolean(s.chart)),
-    );
-    expect(withChart.length).toBeGreaterThanOrEqual(1);
+  it("每条样例都至少包含 1 个 chart 页", () => {
+    for (const ex of examples) {
+      const hasChart = ex.slides.some(
+        (s) => s.layout === "chart" && Boolean(s.chart),
+      );
+      expect(hasChart, `样例 ${ex.id} 缺少 layout:"chart" 的图表页`).toBe(true);
+    }
   });
 
   it("覆盖至少 5 种 (mode, visualStyle) 组合", () => {

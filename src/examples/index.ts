@@ -171,12 +171,26 @@ export const EXAMPLES: GalleryExample[] = [
       },
       {
         id: "s6",
+        layout: "chart",
+        title: "看这张曲线：坚持模板的学员完成率高出 2 倍",
+        chart: {
+          type: "line",
+          title: "学员课程完成度(%)",
+          data: [
+            { label: "第1课", value: 92 },
+            { label: "第2课", value: 78 },
+            { label: "第3课", value: 64 },
+          ],
+        },
+      },
+      {
+        id: "s7",
         layout: "content",
         title: "练习：改写一封你本周要发的邮件",
         bullets: [{ id: "b1", text: "用结论先行模板重新组织", level: 0 }],
       },
       {
-        id: "s7",
+        id: "s8",
         layout: "closing",
         title: "下节课：会议邀请怎么写",
         bullets: [],
@@ -382,7 +396,20 @@ export const EXAMPLES: GalleryExample[] = [
           { id: "b2", text: "导出后预览黑场是否过深", level: 0 },
         ],
       },
-      { id: "s6", layout: "closing", title: "导出成功，送去打样", bullets: [] },
+      {
+        id: "s6",
+        layout: "chart",
+        title: "看这张图表：按本指南操作的导出一次成功率",
+        chart: {
+          type: "doughnut",
+          title: "导出关键指标达成(%)",
+          data: [
+            { label: "一次成功", value: 88 },
+            { label: "需返工", value: 12 },
+          ],
+        },
+      },
+      { id: "s7", layout: "closing", title: "导出成功，送去打样", bullets: [] },
     ],
   },
 ];
