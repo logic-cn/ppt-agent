@@ -92,6 +92,13 @@ export function ImportDialog({ open, onClose }: Props) {
     setDocStrategy(strategy);
     setSelectedSectionIds(doc.sections.map((s) => s.id));
 
+    // 用源标题命名 PPT 项目（URL 导入即网页标题；docx/markdown 即文档标题）
+    const deck = useDeckStore.getState().deck;
+    if (deck) {
+      const name = input.title.trim();
+      if (name) useDeckStore.getState().setTitle(name);
+    }
+
     if (strategy === "direct") {
       await handleGenerate(
         doc,
