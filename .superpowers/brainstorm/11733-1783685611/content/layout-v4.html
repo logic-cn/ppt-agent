@@ -1,0 +1,179 @@
+<h2>📐 布局 v4 — 完整功能 + 正确 Tab 顺序</h2>
+<p class="subtitle">mockup 做视觉简化，功能一个不落</p>
+
+<div class="section">
+  <h3>🏠 首页</h3>
+  <div class="mockup" style="max-width:100%">
+    <div style="background:#FAF9F6;border-radius:12px;border:1px solid #E8E7E2;overflow:hidden;padding:0">
+      <!-- Header: logo + 设置 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 28px;border-bottom:1px solid #E8E7E2;background:#FFFFFF">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:28px;height:28px;background:linear-gradient(135deg,#4F6FFF,#8B5CF6);border-radius:7px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700">P</div>
+          <span style="font-size:16px;font-weight:600;color:#1A1A1E">PPT Agent</span>
+        </div>
+        <div style="width:32px;height:32px;border:1px solid #E8E7E2;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6B6B76;cursor:pointer">⚙️</div>
+      </div>
+      <div style="padding:28px 32px">
+        <h1 style="font-size:22px;font-weight:600;margin:0 0 24px">开始制作</h1>
+        <!-- 三卡片 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:36px">
+          <div style="border:1px solid #E8E7E2;border-radius:12px;padding:24px;text-align:center;background:white">
+            <div style="width:48px;height:48px;border-radius:24px;background:#EEF0FF;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#4F6FFF">＋</div>
+            <div style="font-size:14px;font-weight:500">新建空白项目</div>
+            <div style="font-size:12px;color:#9A9AA8;margin-top:4px">从主题开始生成</div>
+          </div>
+          <div style="border:1px solid #E8E7E2;border-radius:12px;padding:24px;text-align:center;background:white">
+            <div style="width:48px;height:48px;border-radius:24px;background:#EEF0FF;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#4F6FFF">📄</div>
+            <div style="font-size:14px;font-weight:500">导入文档</div>
+            <div style="font-size:12px;color:#9A9AA8;margin-top:4px">Word / Markdown / URL</div>
+          </div>
+          <div style="border:1px solid #E8E7E2;border-radius:12px;padding:24px;text-align:center;background:white">
+            <div style="width:48px;height:48px;border-radius:24px;background:#EEF0FF;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#4F6FFF">📋</div>
+            <div style="font-size:14px;font-weight:500">从模板创建</div>
+            <div style="font-size:12px;color:#9A9AA8;margin-top:4px">精选模板快速开始</div>
+          </div>
+        </div>
+        <!-- 最近项目 -->
+        <h2 style="font-size:16px;font-weight:600;margin:0 0 16px">最近项目</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <div style="border:1px solid #E8E7E2;border-radius:12px;padding:16px;background:white;position:relative">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+              <div style="width:36px;height:36px;border-radius:8px;background:#F5F4F0;display:flex;align-items:center;justify-content:center">📄</div>
+              <span style="font-size:11px;color:#9A9AA8;background:#F5F4F0;padding:2px 8px;border-radius:4px">12 页</span>
+            </div>
+            <div style="font-size:14px;font-weight:500;margin-bottom:4px">Q3 产品路线图</div>
+            <div style="font-size:12px;color:#9A9AA8">2024-06-15</div>
+            <div style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9A9AA8;cursor:pointer">🗑</div>
+          </div>
+          <div style="border:1px solid #E8E7E2;border-radius:12px;padding:16px;background:white;position:relative">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+              <div style="width:36px;height:36px;border-radius:8px;background:#F5F4F0;display:flex;align-items:center;justify-content:center">📄</div>
+              <span style="font-size:11px;color:#9A9AA8;background:#F5F4F0;padding:2px 8px;border-radius:4px">8 页</span>
+            </div>
+            <div style="font-size:14px;font-weight:500;margin-bottom:4px">市场分析报告</div>
+            <div style="font-size:12px;color:#9A9AA8">2024-06-14</div>
+            <div style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9A9AA8;cursor:pointer">🗑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>✏️ 编辑器 — 完整工具栏</h3>
+  <div class="mockup" style="max-width:100%">
+    <div style="background:#FFFFFF;border-radius:8px;border:1px solid #E8E7E2;overflow:hidden">
+      <div style="display:flex;align-items:center;height:42px;padding:0 12px;gap:4px;font-size:13px">
+        <span style="color:#6B6B76;padding:4px;cursor:pointer">←</span>
+        <span style="color:#1A1A1E;font-weight:500;padding:2px 6px;cursor:pointer">Q3 产品路线图</span>
+        <span style="color:#9A9AA8;font-size:12px">12 页</span>
+        <div style="flex:1"></div>
+        <span style="font-size:11px;background:#EEF0FF;color:#4F6FFF;padding:2px 8px;border-radius:6px">2 个任务</span>
+        <span style="padding:4px;color:#6B6B76;cursor:pointer">◧</span>
+        <span style="padding:4px;color:#4F6FFF;cursor:pointer">◨</span>
+        <span style="width:1px;height:16px;background:#E8E7E2;margin:0 4px"></span>
+        <span style="padding:4px;color:#6B6B76;cursor:pointer">🗑</span>
+        <span style="width:1px;height:16px;background:#E8E7E2;margin:0 4px"></span>
+        <span style="display:flex;align-items:center;gap:4px;padding:4px 8px;color:#6B6B76;cursor:pointer">🎨 主题 ▾</span>
+        <span style="display:flex;align-items:center;gap:4px;padding:4px 8px;color:#6B6B76;cursor:pointer">📥 导入</span>
+        <span style="display:flex;align-items:center;gap:4px;padding:4px 8px;color:#6B6B76;cursor:pointer">🖥 演示</span>
+        <span style="background:linear-gradient(135deg,#4F6FFF,#8B5CF6);color:white;padding:4px 12px;border-radius:6px;cursor:pointer;font-weight:500">📥 导出 PPT</span>
+      </div>
+    </div>
+    <p style="font-size:10px;color:#6B6B76;margin-top:4px">10 项功能全覆盖：返回 / 标题编辑 / 页码 / 任务指示 / 侧栏切换 / 删除 / 主题切换 / 导入 / 演示 / 导出</p>
+  </div>
+</div>
+
+<div class="section">
+  <h3>三栏布局 — 预览区最大化 + 侧栏可折叠</h3>
+  <div class="mockup" style="max-width:100%">
+    <div style="background:#FAF9F6;border-radius:12px;border:1px solid #E8E7E2;overflow:hidden">
+      <!-- 状态 A: 展开 -->
+      <div style="display:flex;height:380px">
+        <div style="width:280px;border-right:1px solid #E8E7E2;background:#FFFFFF;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #F5F4F0">
+            <span style="font-size:11px;font-weight:600;color:#9A9AA8;text-transform:uppercase;letter-spacing:0.5px">大纲</span>
+            <div style="width:22px;height:22px;border:1px solid #E8E7E2;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#6B6B76;cursor:pointer;font-size:14px">＋</div>
+          </div>
+          <div style="padding:8px;flex:1;overflow-y:auto">
+            <div style="padding:8px 10px;background:#FAF9F6;border-radius:8px;border:1px solid #4F6FFF;border-left:3px solid #4F6FFF;display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <div style="width:36px;height:22px;background:white;border:1px solid #E8E7E2;border-radius:4px;flex-shrink:0"></div>
+              <span style="font-size:12px;font-weight:500;color:#1A1A1E;flex:1">封面</span>
+              <span style="width:6px;height:6px;border-radius:50%;background:#22C55E"></span>
+            </div>
+            <div style="padding:8px 10px;display:flex;align-items:center;gap:8px">
+              <div style="width:36px;height:22px;background:#F5F4F0;border:1px solid #E8E7E2;border-radius:4px;flex-shrink:0"></div>
+              <span style="font-size:12px;color:#6B6B76;flex:1">市场概况</span>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#F5F4F0;padding:16px 24px">
+          <div style="background:white;border-radius:8px;box-shadow:0 2px 16px rgba(0,0,0,0.06);width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9A9AA8;font-size:13px;flex-direction:column">
+            <div>幻灯片预览</div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <span style="padding:4px 12px;border:1px solid #E8E7E2;border-radius:6px;font-size:11px;color:#6B6B76">◀ 上一页</span>
+              <span style="padding:4px 12px;border:1px solid #E8E7E2;border-radius:6px;font-size:11px;color:#6B6B76">下一页 ▶</span>
+            </div>
+          </div>
+        </div>
+        <div style="width:280px;border-left:1px solid #E8E7E2;background:#FFFFFF;display:flex;flex-direction:column">
+          <!-- Tab: AI → 页面 → 图表 → 配图 → 备注 -->
+          <div style="display:flex;border-bottom:1px solid #F5F4F0;padding:0 4px">
+            <span style="flex:1;text-align:center;padding:8px 2px;font-size:11px;font-weight:600;color:#4F6FFF;border-bottom:2px solid #4F6FFF">AI</span>
+            <span style="flex:1;text-align:center;padding:8px 2px;font-size:11px;color:#9A9AA8">页面</span>
+            <span style="flex:1;text-align:center;padding:8px 2px;font-size:11px;color:#9A9AA8">图表</span>
+            <span style="flex:1;text-align:center;padding:8px 2px;font-size:11px;color:#9A9AA8">配图</span>
+            <span style="flex:1;text-align:center;padding:8px 2px;font-size:11px;color:#9A9AA8">备注</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;padding:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px">
+              <span style="font-size:11px;font-weight:600;color:#9A9AA8;text-transform:uppercase">AI 助手</span>
+              <span style="font-size:11px;color:#6B6B76;cursor:pointer;padding:2px 6px;border-radius:4px;background:#F5F4F0">📋 模板</span>
+            </div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#9A9AA8;font-size:11px">
+              聊天消息 / 快捷指令 / 质量报告
+            </div>
+            <div style="border:1px solid #E8E7E2;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;background:#FAF9F6">
+              <span style="flex:1;font-size:12px;color:#9A9AA8">输入指令…</span>
+              <span style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#4F6FFF,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;cursor:pointer;font-size:13px">✨</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:#9A9AA8;padding:4px 8px;border-top:1px solid #F5F4F0;text-align:center">
+            Tab: AI · 页面 · 图表 · 配图 · 备注
+          </div>
+        </div>
+      </div>
+      <div style="height:1px;background:#E8E7E2;margin:0"></div>
+      <!-- 状态 B: 折叠 -->
+      <div style="display:flex;height:50px;background:#FAF9F6;align-items:center;font-size:11px;color:#6B6B76;padding:0 12px">
+        <span style="font-weight:500">↳ 侧栏折叠后：</span>
+        <span style="margin-left:8px">左栏 36px 图标条</span>
+        <span style="margin-left:12px">预览区 → 全宽填充</span>
+        <span style="margin-left:12px">右栏 36px 图标条</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>✅ 功能核对清单</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:12px">
+    <div>✅ 首页三新建入口</div>
+    <div>✅ 最近项目列表（含删除）</div>
+    <div>✅ 快速开始引导 + API 提示</div>
+    <div>✅ 工具栏全部 10 项</div>
+    <div>✅ 左侧大纲（拖拽/新增/缩略图/质量标记）</div>
+    <div>✅ AI Tab（聊天/模板/质量报告）— 第 1 位</div>
+    <div>✅ 页面 Tab</div>
+    <div>✅ 图表 Tab</div>
+    <div>✅ 配图 Tab（AI 生成/URL/位置/删除）</div>
+    <div>✅ 备注 Tab</div>
+    <div>✅ 任务面板</div>
+    <div>✅ 主题切换下拉</div>
+    <div>✅ 导入弹窗</div>
+    <div>✅ 演示模式（F5）</div>
+    <div>✅ 导出 PPT</div>
+    <div>✅ Toast 通知</div>
+  </div>
+</div>

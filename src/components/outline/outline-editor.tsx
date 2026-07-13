@@ -22,7 +22,7 @@ interface OutlineEditorProps {
   selectedIndex?: number;
 }
 
-const severityRank = { info: 1, warning: 2, error: 3 } as const;
+const severityRank = { soft: 1, hard: 2 } as const;
 
 export function OutlineEditor({
   onSelectSlide,
@@ -43,13 +43,13 @@ export function OutlineEditor({
   const slides = deck.slides;
   const slideIds = slides.map((s) => s.id);
 
-  const severityBySlide = new Map<string, "error" | "warning" | "info">();
+  const severityBySlide = new Map<string, "hard" | "soft">();
   if (qualityReport) {
-    for (const issue of qualityReport.issues) {
-      if (!issue.slideId) continue;
-      const prev = severityBySlide.get(issue.slideId);
-      if (!prev || severityRank[issue.severity] > severityRank[prev]) {
-        severityBySlide.set(issue.slideId, issue.severity);
+    for (const finding of qualityReport) {
+      if (!finding.slideId) continue;
+      const prev = severityBySlide.get(finding.slideId);
+      if (!prev || severityRank[finding.severity] > severityRank[prev]) {
+        severityBySlide.set(finding.slideId, finding.severity);
       }
     }
   }

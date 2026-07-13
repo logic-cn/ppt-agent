@@ -1,0 +1,82 @@
+<h2>🎨 色彩体系设计</h2>
+<p class="subtitle">以 Notion 奶油白为基底 + Linear 精致层次 + 渐变强调色注入活力</p>
+
+<div class="section">
+  <h3>背景色层级</h3>
+  <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#FAF9F6;border:1px solid #E8E7E2"></div>
+      <div><strong>页面背景</strong> <code>#FAF9F6</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#F5F4F0;border:1px solid #E8E7E2"></div>
+      <div><strong>面板/卡片背景</strong> <code>#F5F4F0</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#FFFFFF;border:1px solid #E8E7E2"></div>
+      <div><strong>浮层/白色卡片</strong> <code>#FFFFFF</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#EEEDE8;border:1px solid #E8E7E2"></div>
+      <div><strong>悬浮态</strong> <code>#EEEDE8</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>边框</h3>
+  <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#E8E7E2"></div>
+      <div><strong>默认边框</strong> <code>#E8E7E2</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#D4D3CE"></div>
+      <div><strong>强调边框</strong> <code>#D4D3CE</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>文字层级</h3>
+  <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+    <div><span style="font-size:18px;font-weight:600;color:#1A1A1E">主要文字 #1A1A1E</span></div>
+    <div><span style="font-size:15px;color:#6B6B76">次要文字 #6B6B76</span></div>
+    <div><span style="font-size:13px;color:#9A9AA8">弱化文字 #9A9AA8</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>强调色 — 渐变靛蓝→紫</h3>
+  <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:linear-gradient(135deg,#4F6FFF,#8B5CF6)"></div>
+      <div><strong>渐变主色</strong> <code>#4F6FFF → #8B5CF6</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#3B5FFF"></div>
+      <div><strong>悬浮态</strong> <code>#3B5FFF</code></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:80px;height:40px;border-radius:8px;background:#EEF0FF;border:1px solid #D0D5FF"></div>
+      <div><strong>弱化背景</strong> <code>#EEF0FF</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>语义色</h3>
+  <div style="display:flex;gap:16px;margin:12px 0">
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:24px;height:24px;border-radius:6px;background:#22C55E"></div> 成功</div>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:24px;height:24px;border-radius:6px;background:#F59E0B"></div> 警告</div>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:24px;height:24px;border-radius:6px;background:#EF4444"></div> 错误</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>设计思路</h3>
+  <p><strong>暖白基底</strong>：Notion 风格 <code>#FAF9F6</code> 比纯白 <code>#FFFFFF</code> 更柔和、不刺眼，适合长时间编辑</p>
+  <p><strong>渐变强调色</strong>：靛蓝→紫渐变替代纯蓝，在保持专业感的同时注入创意活力</p>
+  <p><strong>毛玻璃点缀</strong>：弹窗和侧栏用 <code>backdrop-blur</code> 增加层次感（Linear/Raycast 风格）</p>
+  <p><strong>低对比度边框</strong>：<code>#E8E7E2</code> 柔和分割，避免硬线条</p>
+</div>

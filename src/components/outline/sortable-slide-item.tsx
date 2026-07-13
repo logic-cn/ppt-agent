@@ -13,7 +13,7 @@ interface Props {
   total: number;
   isSelected?: boolean;
   onSelect?: (index: number) => void;
-  qualitySeverity?: "error" | "warning" | "info";
+  qualitySeverity?: "hard" | "soft";
 }
 
 const layoutLabels: Record<string, string> = {
@@ -96,18 +96,10 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           {qualitySeverity && (
             <span
               title={
-                qualitySeverity === "error"
-                  ? "存在质量问题"
-                  : qualitySeverity === "warning"
-                    ? "存在警告"
-                    : "提示"
+                qualitySeverity === "hard" ? "存在严重质量问题" : "存在提示"
               }
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                qualitySeverity === "error"
-                  ? "bg-danger"
-                  : qualitySeverity === "warning"
-                    ? "bg-warning"
-                    : "bg-success"
+                qualitySeverity === "hard" ? "bg-danger" : "bg-warning"
               }`}
             />
           )}

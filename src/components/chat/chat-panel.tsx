@@ -456,7 +456,7 @@ export function ChatPanel() {
         <div className="space-y-3">
           {qualityReport && (
             <QualityReport
-              report={qualityReport}
+              findings={qualityReport}
               fixing={fixing}
               onAutoFix={() => void handleAutoFix()}
               onDismiss={() => useQualityStore.getState().clear()}

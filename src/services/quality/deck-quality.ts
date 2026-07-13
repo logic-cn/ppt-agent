@@ -1,9 +1,15 @@
 import type { Deck } from "@/types/deck";
-import type {
-  DeckQualityReport,
-  DeckQualityIssue,
-  AutoFixAction,
-} from "./types";
+import type { AutoFixAction } from "./types";
+
+export type Severity = "hard" | "soft";
+
+export interface QualityFinding {
+  rule: string;
+  severity: Severity;
+  message: string;
+  slideId?: string;
+  autoFixable: boolean;
+}
 
 export interface GenerationOptions {
   pageCount?: number;
@@ -33,36 +39,42 @@ const GENERIC_TITLES = new Set([
   "前言",
 ]);
 
-function checkMissingCover(deck: Deck): DeckQualityIssue | null {
-  if (deck.slides.length === 0) return null;
+function checkMissingCover(deck: Deck): QualityFinding[] {
+  if (deck.slides.length === 0) return [];
   const first = deck.slides[0];
   if (first.layout !== "cover" || !first.title.trim()) {
-    return {
-      severity: "error",
-      slideId: first.id,
-      code: "missing_cover",
-      message: "第一页不是封面布局或标题为空",
-    };
+    return [
+      {
+        rule: "require_cover",
+        severity: "hard",
+        slideId: first.id,
+        message: "第一页不是封面布局或标题为空",
+        autoFixable: false,
+      },
+    ];
   }
-  return null;
+  return [];
 }
 
-function checkMissingClosing(deck: Deck): DeckQualityIssue | null {
-  if (deck.slides.length === 0) return null;
+function checkMissingClosing(deck: Deck): QualityFinding[] {
+  if (deck.slides.length === 0) return [];
   const last = deck.slides[deck.slides.length - 1];
   if (last.layout !== "closing") {
-    return {
-      severity: "warning",
-      slideId: last.id,
-      code: "missing_closing",
-      message: "最后一页不是结尾布局",
-    };
+    return [
+      {
+        rule: "require_closing",
+        severity: "hard",
+        slideId: last.id,
+        message: "最后一页不是结尾布局",
+        autoFixable: false,
+      },
+    ];
   }
-  return null;
+  return [];
 }
 
-function checkDuplicateTitles(deck: Deck): DeckQualityIssue[] {
-  const issues: DeckQualityIssue[] = [];
+function checkDuplicateTitles(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
   const seen = new Map<string, number[]>();
   deck.slides.forEach((slide, index) => {
     const title = slide.title.trim().toLowerCase();
@@ -76,139 +88,147 @@ function checkDuplicateTitles(deck: Deck): DeckQualityIssue[] {
   for (const [, indices] of seen) {
     if (indices.length > 1) {
       for (const idx of indices) {
-        issues.push({
-          severity: "warning",
+        findings.push({
+          rule: "duplicate_title",
+          severity: "soft",
           slideId: deck.slides[idx].id,
-          code: "duplicate_title",
           message: `标题「${deck.slides[idx].title}」与其他页面重复`,
+          autoFixable: false,
         });
       }
     }
   }
-  return issues;
+  return findings;
 }
 
-function checkTooManyBullets(deck: Deck): DeckQualityIssue[] {
-  const issues: DeckQualityIssue[] = [];
+function checkTooManyBullets(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
   for (const slide of deck.slides) {
     if (slide.bullets && slide.bullets.length > 7) {
-      issues.push({
-        severity: "warning",
+      findings.push({
+        rule: "bullets_too_many",
+        severity: "soft",
         slideId: slide.id,
-        code: "too_many_bullets",
         message: `页面「${slide.title}」一级要点超过 7 条（共 ${slide.bullets.length} 条）`,
+        autoFixable: true,
       });
     }
   }
-  return issues;
+  return findings;
 }
 
-function checkEmptyChart(deck: Deck): DeckQualityIssue[] {
-  const issues: DeckQualityIssue[] = [];
+function checkEmptyChart(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
   for (const slide of deck.slides) {
     if (slide.layout === "chart" || slide.chart) {
       if (!slide.chart || slide.chart.data.length === 0) {
-        issues.push({
-          severity: "error",
+        findings.push({
+          rule: "empty_chart",
+          severity: "hard",
           slideId: slide.id,
-          code: "empty_chart",
           message: `页面「${slide.title}」图表无数据`,
+          autoFixable: false,
         });
       }
     }
   }
-  return issues;
+  return findings;
 }
 
-function checkLayoutContentMismatch(deck: Deck): DeckQualityIssue[] {
-  const issues: DeckQualityIssue[] = [];
+function checkLayoutContentMismatch(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
   for (const slide of deck.slides) {
     if (slide.layout === "image" && !slide.image) {
-      issues.push({
-        severity: "warning",
+      findings.push({
+        rule: "layout_content_mismatch",
+        severity: "soft",
         slideId: slide.id,
-        code: "layout_content_mismatch",
         message: `页面「${slide.title}」布局为配图但未配置图片`,
+        autoFixable: false,
       });
     }
     if (
       slide.layout === "two-column" &&
       (!slide.items || slide.items.length < 2)
     ) {
-      issues.push({
-        severity: "warning",
+      findings.push({
+        rule: "layout_content_mismatch",
+        severity: "soft",
         slideId: slide.id,
-        code: "layout_content_mismatch",
         message: `页面「${slide.title}」布局为双栏但不足两栏内容`,
+        autoFixable: false,
       });
     }
   }
-  return issues;
+  return findings;
 }
 
-function checkGenericTitle(deck: Deck): DeckQualityIssue[] {
-  const issues: DeckQualityIssue[] = [];
+function checkGenericTitle(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
   for (const slide of deck.slides) {
     if (GENERIC_TITLES.has(slide.title.trim()) && !slide.subtitle) {
-      issues.push({
-        severity: "info",
+      findings.push({
+        rule: "vague_title",
+        severity: "soft",
         slideId: slide.id,
-        code: "title_too_generic",
         message: `页面「${slide.title}」标题较为空泛，建议添加副标题或更具体的标题`,
+        autoFixable: false,
       });
     }
   }
-  return issues;
+  return findings;
 }
 
 function checkPageCount(
   deck: Deck,
   options?: GenerationOptions,
-): DeckQualityIssue | null {
-  if (!options?.pageCount) return null;
+): QualityFinding[] {
+  if (!options?.pageCount) return [];
   const diff = Math.abs(deck.slides.length - options.pageCount);
   if (diff > 2) {
-    return {
-      severity: "info",
-      code: "page_count_mismatch",
-      message: `期望 ${options.pageCount} 页，实际 ${deck.slides.length} 页（偏差 ${diff} 页）`,
-    };
+    return [
+      {
+        rule: "page_count_mismatch",
+        severity: "soft",
+        message: `期望 ${options.pageCount} 页，实际 ${deck.slides.length} 页（偏差 ${diff} 页）`,
+        autoFixable: false,
+      },
+    ];
   }
-  return null;
+  return [];
 }
 
+/**
+ * 对 deck 做全量质量检查，返回分级后的检查项列表。
+ * severity 为 "hard"（结构性，阻断导出）或 "soft"（提示性，可自动修复）。
+ */
 export function checkDeckQuality(
   deck: Deck,
   options?: GenerationOptions,
-): DeckQualityReport {
-  const issues: DeckQualityIssue[] = [];
+): QualityFinding[] {
+  const findings: QualityFinding[] = [];
 
-  const cover = checkMissingCover(deck);
-  if (cover) issues.push(cover);
-
-  const closing = checkMissingClosing(deck);
-  if (closing) issues.push(closing);
-
-  issues.push(...checkDuplicateTitles(deck));
-  issues.push(...checkTooManyBullets(deck));
-  issues.push(...checkEmptyChart(deck));
-  issues.push(...checkLayoutContentMismatch(deck));
-  issues.push(...checkGenericTitle(deck));
-
-  const pageCount = checkPageCount(deck, options);
-  if (pageCount) issues.push(pageCount);
+  findings.push(...checkMissingCover(deck));
+  findings.push(...checkMissingClosing(deck));
+  findings.push(...checkDuplicateTitles(deck));
+  findings.push(...checkTooManyBullets(deck));
+  findings.push(...checkEmptyChart(deck));
+  findings.push(...checkLayoutContentMismatch(deck));
+  findings.push(...checkGenericTitle(deck));
+  findings.push(...checkPageCount(deck, options));
 
   // 模板推荐的额外质量规则
   const rules = options?.rules ?? [];
-  const has = (code: string) => issues.some((i) => i.code === code);
+  const has = (rule: string) => findings.some((f) => f.rule === rule);
 
   if (rules.includes("require_charts") && !has("chart_required")) {
     const hasChart = deck.slides.some((s) => s.layout === "chart" || s.chart);
     if (!hasChart) {
-      issues.push({
-        severity: "warning",
-        code: "chart_required",
+      findings.push({
+        rule: "chart_required",
+        severity: "hard",
         message: "该模板要求至少包含一个图表页",
+        autoFixable: false,
       });
     }
   }
@@ -219,29 +239,31 @@ export function checkDeckQuality(
         (!slide.chart || slide.chart.data.length === 0) &&
         !has("empty_chart")
       ) {
-        issues.push({
-          severity: "error",
+        findings.push({
+          rule: "empty_chart",
+          severity: "hard",
           slideId: slide.id,
-          code: "empty_chart",
           message: `页面「${slide.title}」图表无数据`,
+          autoFixable: false,
         });
       }
     }
   }
 
-  const errorCount = issues.filter((i) => i.severity === "error").length;
-  const warningCount = issues.filter((i) => i.severity === "warning").length;
-  const infoCount = issues.filter((i) => i.severity === "info").length;
+  return findings;
+}
 
-  let score = 100;
-  score -= errorCount * 15;
-  score -= warningCount * 6;
-  score -= infoCount * 2;
-  score = Math.max(0, Math.min(100, score));
+/** 是否存在阻断导出的 hard 级检查项 */
+export function hasHardError(findings: QualityFinding[]): boolean {
+  return findings.some((f) => f.severity === "hard");
+}
 
-  const suggestions = issues.map((i) => i.message);
-
-  return { score, issues, suggestions };
+/** 根据检查项推导质量分（0-100） */
+export function qualityScore(findings: QualityFinding[]): number {
+  const hard = findings.filter((f) => f.severity === "hard").length;
+  const soft = findings.filter((f) => f.severity === "soft").length;
+  const score = 100 - hard * 15 - soft * 6;
+  return Math.max(0, Math.min(100, score));
 }
 
 export function generateAutoFixes(deck: Deck): AutoFixAction[] {

@@ -105,6 +105,9 @@ export default function Editor() {
   }, []);
 
   useEffect(() => {
+    // 切换/新建 deck 时先清空上一份质量报告，避免残留上一个 deck 的结果
+    // （仅清 report，保留 pendingRules 供模板流程消费）
+    useQualityStore.getState().setReport(null);
     if (isNew && deck) return;
     if (!id) return;
     const from = params.get("from");

@@ -1,9 +1,15 @@
 export type {
-  DeckQualityIssue,
-  DeckQualityReport,
-  QualityIssueCode,
-  AutoFixAction,
-} from "./types";
-export { checkDeckQuality, generateAutoFixes } from "./deck-quality";
-export type { GenerationOptions } from "./deck-quality";
+  Severity,
+  QualityFinding,
+  GenerationOptions,
+  TemplateQualityRule,
+} from "./deck-quality";
+export {
+  checkDeckQuality,
+  generateAutoFixes,
+  hasHardError,
+  qualityScore,
+  TEMPLATE_QUALITY_RULES,
+} from "./deck-quality";
+export type { AutoFixAction } from "./types";
 export { applyAutoFixes } from "./auto-fix";

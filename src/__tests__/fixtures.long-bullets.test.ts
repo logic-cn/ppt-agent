@@ -15,20 +15,21 @@ describe("fixture: long-bullets 质量检查", () => {
     expect(slide?.bullets).toHaveLength(12);
   });
 
-  it("单页一级要点超过 7 条触发 too_many_bullets 警告", () => {
-    const report = checkDeckQuality(deck);
-    const issue = report.issues.find((i) => i.code === "too_many_bullets");
+  it("单页一级要点超过 7 条触发 bullets_too_many（soft, autoFixable）", () => {
+    const findings = checkDeckQuality(deck);
+    const issue = findings.find((f) => f.rule === "bullets_too_many");
     expect(issue).toBeDefined();
-    expect(issue?.severity).toBe("warning");
+    expect(issue?.severity).toBe("soft");
+    expect(issue?.autoFixable).toBe(true);
     expect(issue?.slideId).toBe("s2");
   });
 
   it("其余基础规则不误报（封面/结尾/重复标题/空图表均正常）", () => {
-    const report = checkDeckQuality(deck);
-    const codes = report.issues.map((i) => i.code);
-    expect(codes).not.toContain("missing_cover");
-    expect(codes).not.toContain("missing_closing");
-    expect(codes).not.toContain("duplicate_title");
-    expect(codes).not.toContain("empty_chart");
+    const findings = checkDeckQuality(deck);
+    const rules = findings.map((f) => f.rule);
+    expect(rules).not.toContain("require_cover");
+    expect(rules).not.toContain("require_closing");
+    expect(rules).not.toContain("duplicate_title");
+    expect(rules).not.toContain("empty_chart");
   });
 });

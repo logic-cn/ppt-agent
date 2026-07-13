@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { applyAutoFixes } from "@/services/quality/auto-fix";
 import { checkDeckQuality } from "@/services/quality/deck-quality";
 import type { Deck } from "@/types/deck";
-import type { DeckQualityIssue } from "@/services/quality";
+import type { QualityFinding } from "@/services/quality";
 
 function createMockDeck(overrides?: Partial<Deck>): Deck {
   return {
@@ -106,11 +106,11 @@ describe("applyAutoFixes", () => {
       ],
     });
     const fixed = applyAutoFixes(deck);
-    const report = checkDeckQuality(fixed);
-    const codes = report.issues.map((i: DeckQualityIssue) => i.code);
-    expect(codes).not.toContain("empty_chart");
-    expect(codes).not.toContain("missing_closing");
+    const findings = checkDeckQuality(fixed);
+    const rules = findings.map((f: QualityFinding) => f.rule);
+    expect(rules).not.toContain("empty_chart");
+    expect(rules).not.toContain("require_closing");
     // 封面缺失不在自动修复范围内，仍应保留
-    expect(codes).toContain("missing_cover");
+    expect(rules).toContain("require_cover");
   });
 });

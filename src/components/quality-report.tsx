@@ -1,20 +1,20 @@
-import { AlertTriangle, XCircle, Info, Wand2, X } from "lucide-react";
-import type { DeckQualityReport, DeckQualityIssue } from "@/services/quality";
+import { AlertTriangle, XCircle, Wand2, X } from "lucide-react";
+import type { QualityFinding, Severity } from "@/services/quality";
+import { qualityScore } from "@/services/quality";
 
 interface QualityReportProps {
-  report: DeckQualityReport;
+  findings: QualityFinding[];
   fixing?: boolean;
   onAutoFix?: () => void;
   onDismiss?: () => void;
 }
 
 const severityMeta: Record<
-  DeckQualityIssue["severity"],
+  Severity,
   { label: string; color: string; icon: typeof AlertTriangle }
 > = {
-  error: { label: "错误", color: "text-red-500", icon: XCircle },
-  warning: { label: "警告", color: "text-amber-500", icon: AlertTriangle },
-  info: { label: "提示", color: "text-sky-500", icon: Info },
+  hard: { label: "严重", color: "text-red-500", icon: XCircle },
+  soft: { label: "提示", color: "text-amber-500", icon: AlertTriangle },
 };
 
 function scoreColor(score: number): string {
@@ -24,19 +24,19 @@ function scoreColor(score: number): string {
 }
 
 export function QualityReport({
-  report,
+  findings,
   fixing = false,
   onAutoFix,
   onDismiss,
 }: QualityReportProps) {
-  const { score, issues } = report;
-  if (issues.length === 0) return null;
+  if (findings.length === 0) return null;
 
+  const score = qualityScore(findings);
   const counts = {
-    error: issues.filter((i) => i.severity === "error").length,
-    warning: issues.filter((i) => i.severity === "warning").length,
-    info: issues.filter((i) => i.severity === "info").length,
+    hard: findings.filter((f) => f.severity === "hard").length,
+    soft: findings.filter((f) => f.severity === "soft").length,
   };
+  const autoFixableCount = findings.filter((f) => f.autoFixable).length;
 
   return (
     <div className="rounded-xl border border-border bg-bg-surface p-3">
@@ -49,14 +49,11 @@ export function QualityReport({
             {score}
           </span>
           <div className="flex items-center gap-1.5 text-[11px]">
-            {counts.error > 0 && (
-              <span className="text-red-500">错误 {counts.error}</span>
+            {counts.hard > 0 && (
+              <span className="text-red-500">严重 {counts.hard}</span>
             )}
-            {counts.warning > 0 && (
-              <span className="text-amber-500">警告 {counts.warning}</span>
-            )}
-            {counts.info > 0 && (
-              <span className="text-sky-500">提示 {counts.info}</span>
+            {counts.soft > 0 && (
+              <span className="text-amber-500">提示 {counts.soft}</span>
             )}
           </div>
         </div>
@@ -72,16 +69,16 @@ export function QualityReport({
       </div>
 
       <ul className="mt-2 space-y-1.5">
-        {issues.map((issue, idx) => {
-          const meta = severityMeta[issue.severity];
+        {findings.map((finding, idx) => {
+          const meta = severityMeta[finding.severity];
           const Icon = meta.icon;
           return (
             <li
-              key={`${issue.code}-${issue.slideId ?? idx}`}
+              key={`${finding.rule}-${finding.slideId ?? idx}`}
               className="flex items-start gap-1.5 text-xs text-text-secondary"
             >
               <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${meta.color}`} />
-              <span>{issue.message}</span>
+              <span>{finding.message}</span>
             </li>
           );
         })}
@@ -90,11 +87,11 @@ export function QualityReport({
       {onAutoFix && (
         <button
           onClick={onAutoFix}
-          disabled={fixing || counts.error + counts.warning === 0}
+          disabled={fixing || autoFixableCount === 0}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
         >
           <Wand2 className="h-3.5 w-3.5" />
-          {fixing ? "修复中…" : "一键修复"}
+          {fixing ? "修复中…" : `一键修复（${autoFixableCount}）`}
         </button>
       )}
     </div>

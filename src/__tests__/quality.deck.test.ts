@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkDeckQuality,
   generateAutoFixes,
+  qualityScore,
 } from "@/services/quality/deck-quality";
 import type { Deck } from "@/types/deck";
 
@@ -19,7 +20,7 @@ function createMockDeck(overrides?: Partial<Deck>): Deck {
 }
 
 describe("checkDeckQuality", () => {
-  it("完美 deck 得 100 分", () => {
+  it("完美 deck 无检查项", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -32,32 +33,35 @@ describe("checkDeckQuality", () => {
         { id: "s3", layout: "closing", title: "感谢聆听" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.score).toBe(100);
-    expect(report.issues).toHaveLength(0);
+    const findings = checkDeckQuality(deck);
+    expect(findings).toHaveLength(0);
+    expect(qualityScore(findings)).toBe(100);
   });
 
-  it("缺少封面页报 error", () => {
+  it("缺少封面页 → hard", () => {
     const deck = createMockDeck({
       slides: [{ id: "s1", layout: "content", title: "第一页" }],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "missing_cover")).toBe(true);
-    expect(report.score).toBeLessThan(100);
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "require_cover")).toBe(true);
+    expect(findings.find((f) => f.rule === "require_cover")!.severity).toBe(
+      "hard",
+    );
+    expect(qualityScore(findings)).toBeLessThan(100);
   });
 
-  it("缺少结尾页报 warning", () => {
+  it("缺少结尾页 → hard", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
         { id: "s2", layout: "content", title: "内容" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "missing_closing")).toBe(true);
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "require_closing")).toBe(true);
   });
 
-  it("重复标题报 warning", () => {
+  it("重复标题 → soft", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -66,12 +70,13 @@ describe("checkDeckQuality", () => {
         { id: "s4", layout: "closing", title: "总结" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    const dupIssues = report.issues.filter((i) => i.code === "duplicate_title");
+    const findings = checkDeckQuality(deck);
+    const dupIssues = findings.filter((f) => f.rule === "duplicate_title");
     expect(dupIssues).toHaveLength(2);
+    expect(dupIssues[0].severity).toBe("soft");
   });
 
-  it("过多 bullets 报 warning", () => {
+  it("过多 bullets → soft 且 autoFixable", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -88,11 +93,14 @@ describe("checkDeckQuality", () => {
         { id: "s3", layout: "closing", title: "总结" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "too_many_bullets")).toBe(true);
+    const findings = checkDeckQuality(deck);
+    const f = findings.find((f) => f.rule === "bullets_too_many");
+    expect(f).toBeDefined();
+    expect(f!.severity).toBe("soft");
+    expect(f!.autoFixable).toBe(true);
   });
 
-  it("空图表报 error", () => {
+  it("空图表 → hard", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -100,11 +108,11 @@ describe("checkDeckQuality", () => {
         { id: "s3", layout: "closing", title: "总结" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "empty_chart")).toBe(true);
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "empty_chart")).toBe(true);
   });
 
-  it("布局与内容不匹配报 warning", () => {
+  it("布局与内容不匹配 → soft", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -112,13 +120,13 @@ describe("checkDeckQuality", () => {
         { id: "s3", layout: "closing", title: "总结" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(
-      report.issues.some((i) => i.code === "layout_content_mismatch"),
-    ).toBe(true);
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "layout_content_mismatch")).toBe(
+      true,
+    );
   });
 
-  it("空泛标题报 info", () => {
+  it("空泛标题 → soft", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -126,33 +134,29 @@ describe("checkDeckQuality", () => {
         { id: "s3", layout: "closing", title: "总结" },
       ],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "title_too_generic")).toBe(
-      true,
-    );
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "vague_title")).toBe(true);
   });
 
-  it("页数偏差超过 2 页报 info", () => {
+  it("页数偏差超过 2 页 → soft", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
         { id: "s2", layout: "content", title: "内容" },
       ],
     });
-    const report = checkDeckQuality(deck, { pageCount: 6 });
-    expect(report.issues.some((i) => i.code === "page_count_mismatch")).toBe(
-      true,
-    );
+    const findings = checkDeckQuality(deck, { pageCount: 6 });
+    expect(findings.some((f) => f.rule === "page_count_mismatch")).toBe(true);
   });
 
   it("评分计算正确", () => {
     const deck = createMockDeck({
       slides: [{ id: "s1", layout: "content", title: "概述" }],
     });
-    const report = checkDeckQuality(deck);
-    // error: missing_cover (1), warning: missing_closing (1), info: title_too_generic (1)
-    // score = 100 - 15 - 6 - 2 = 77
-    expect(report.score).toBe(77);
+    const findings = checkDeckQuality(deck);
+    // hard: require_cover, require_closing (2)；soft: vague_title (1)
+    // score = 100 - 2*15 - 1*6 = 64
+    expect(qualityScore(findings)).toBe(64);
   });
 });
 
@@ -186,7 +190,7 @@ describe("generateAutoFixes", () => {
 });
 
 describe("模板 qualityRules", () => {
-  it("require_charts：无图表页时给 warning", () => {
+  it("require_charts：无图表页时给 hard", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -194,8 +198,8 @@ describe("模板 qualityRules", () => {
         { id: "s3", layout: "closing", title: "结尾" },
       ],
     });
-    const report = checkDeckQuality(deck, { rules: ["require_charts"] });
-    expect(report.issues.some((i) => i.code === "chart_required")).toBe(true);
+    const findings = checkDeckQuality(deck, { rules: ["require_charts"] });
+    expect(findings.some((f) => f.rule === "chart_required")).toBe(true);
   });
 
   it("require_charts：已有图表页时不报", () => {
@@ -210,11 +214,11 @@ describe("模板 qualityRules", () => {
         },
       ],
     });
-    const report = checkDeckQuality(deck, { rules: ["require_charts"] });
-    expect(report.issues.some((i) => i.code === "chart_required")).toBe(false);
+    const findings = checkDeckQuality(deck, { rules: ["require_charts"] });
+    expect(findings.some((f) => f.rule === "chart_required")).toBe(false);
   });
 
-  it("require_data：图表无数据时给 error", () => {
+  it("require_data：图表无数据时给 hard", () => {
     const deck = createMockDeck({
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
@@ -226,15 +230,15 @@ describe("模板 qualityRules", () => {
         },
       ],
     });
-    const report = checkDeckQuality(deck, { rules: ["require_data"] });
-    expect(report.issues.some((i) => i.code === "empty_chart")).toBe(true);
+    const findings = checkDeckQuality(deck, { rules: ["require_data"] });
+    expect(findings.some((f) => f.rule === "empty_chart")).toBe(true);
   });
 
   it("不传 rules 时默认检查不含 chart_required", () => {
     const deck = createMockDeck({
       slides: [{ id: "s1", layout: "cover", title: "封面" }],
     });
-    const report = checkDeckQuality(deck);
-    expect(report.issues.some((i) => i.code === "chart_required")).toBe(false);
+    const findings = checkDeckQuality(deck);
+    expect(findings.some((f) => f.rule === "chart_required")).toBe(false);
   });
 });

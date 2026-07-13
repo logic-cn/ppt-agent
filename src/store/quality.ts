@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import type { DeckQualityReport } from "@/services/quality";
+import type { QualityFinding } from "@/services/quality";
 
 interface QualityStore {
-  report: DeckQualityReport | null;
+  report: QualityFinding[] | null;
   /** 待应用的质量规则（来自模板），下一轮质量检查消费后清空 */
   pendingRules: string[] | null;
-  setReport: (report: DeckQualityReport | null) => void;
+  setReport: (report: QualityFinding[] | null) => void;
   setPendingRules: (rules: string[] | null) => void;
   clearPendingRules: () => void;
   clear: () => void;
