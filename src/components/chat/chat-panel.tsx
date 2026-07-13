@@ -12,6 +12,7 @@ import { useDeckStore } from "@/store/deck";
 import { useJobStore } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { generateOutline } from "@/services/outline";
+import { runFirstPageGate } from "@/services/generation/first-page-gate";
 import { generateDeckPatches } from "@/services/deck-patch/ai";
 import { applyDeckPatches } from "@/services/deck-patch/apply";
 import { summarizePatches } from "@/services/deck-patch/summarize";
@@ -24,8 +25,9 @@ import {
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { TemplatePack } from "@/types/template";
+import type { Deck as DeckType } from "@/types/deck";
 import { getTemplatePacks } from "@/templates";
-import { DEFAULT_DESIGN } from "@/types/design";
+import { DEFAULT_DESIGN, type DesignLock } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 
 interface Message {
@@ -54,6 +56,7 @@ export function ChatPanel() {
   const [templateTopic, setTemplateTopic] = useState("");
   const [templateGenerating, setTemplateGenerating] = useState(false);
   const [fixing, setFixing] = useState(false);
+  const [firstPageGateMsg, setFirstPageGateMsg] = useState<string | null>(null);
   const qualityReport = useQualityStore((s) => s.report);
 
   const copyMessage = async (id: string, content: string) => {
@@ -193,6 +196,7 @@ export function ChatPanel() {
       setInput("");
       addMessage("user", text);
       setLoading(true);
+      setFirstPageGateMsg(null);
 
       try {
         // 检查是否包含主题相关的生成意图
@@ -230,6 +234,22 @@ export function ChatPanel() {
           if (deck) {
             await replaceSlides(slides);
             runQualityCheck();
+            // 首屏风格锚点：仅检查首屏，hard 问题以横幅提示，不阻断生成
+            const design =
+              (deck as DeckType & { design?: DesignLock }).design ??
+              DEFAULT_DESIGN;
+            const gate = runFirstPageGate(
+              useDeckStore.getState().deck!,
+              design,
+            );
+            const hardMsgs = gate
+              .filter((f) => f.severity === "hard")
+              .map((f) => f.message);
+            setFirstPageGateMsg(
+              hardMsgs.length > 0
+                ? "首屏风格检查未通过：" + hardMsgs.join("；")
+                : null,
+            );
             if (deck.title === "未命名项目") {
               const name = text
                 .replace(/^(生成|创建|做一个|写一个|关于)\s*/, "")
@@ -476,6 +496,29 @@ export function ChatPanel() {
               onAutoFix={() => void handleAutoFix()}
               onDismiss={() => useQualityStore.getState().clear()}
             />
+          )}
+          {firstPageGateMsg && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">首屏风格检查</span>
+                <p className="mt-0.5 leading-relaxed">{firstPageGateMsg}</p>
+                <div className="mt-1.5 flex gap-2">
+                  <button
+                    onClick={() => void handleSubmit(lastUserText.current)}
+                    className="rounded-md bg-amber-100 px-2 py-0.5 font-medium text-amber-800 hover:bg-amber-200"
+                  >
+                    重新生成首屏
+                  </button>
+                  <button
+                    onClick={() => setFirstPageGateMsg(null)}
+                    className="rounded-md border border-amber-300 px-2 py-0.5 text-amber-700 hover:bg-amber-100"
+                  >
+                    调整后继续
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
           {messages.map((msg) => (
             <div
