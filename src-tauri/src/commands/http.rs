@@ -36,15 +36,36 @@ pub async fn http_proxy(req: ProxyRequest) -> Result<ProxyResponse, String> {
         _ => return Err(format!("不支持的 HTTP 方法: {}", req.method)),
     };
 
-    // 设置 headers
+    // 默认浏览器头：绕过部分站点对程序化请求的基础拦截（如 WAF/UA 校验）。
+    // 调用方显式传入的 header 会覆盖以下默认值。
+    let mut merged: HashMap<String, String> = HashMap::from([
+        (
+            "User-Agent".to_string(),
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                .to_string(),
+        ),
+        (
+            "Accept".to_string(),
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,\
+image/webp,*/*;q=0.8"
+                .to_string(),
+        ),
+        ("Accept-Language".to_string(), "zh-CN,zh;q=0.9,en;q=0.8".to_string()),
+    ]);
     if let Some(headers) = &req.headers {
         for (key, value) in headers {
-            if let (Ok(name), Ok(val)) = (
-                reqwest::header::HeaderName::from_bytes(key.as_bytes()),
-                reqwest::header::HeaderValue::from_str(value),
-            ) {
-                request_builder = request_builder.header(name, val);
-            }
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+
+    // 设置 headers
+    for (key, value) in &merged {
+        if let (Ok(name), Ok(val)) = (
+            reqwest::header::HeaderName::from_bytes(key.as_bytes()),
+            reqwest::header::HeaderValue::from_str(value),
+        ) {
+            request_builder = request_builder.header(name, val);
         }
     }
 
