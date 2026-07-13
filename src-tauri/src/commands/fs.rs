@@ -43,6 +43,11 @@ pub fn delete_file(path: String) -> Result<(), String> {
 /// 列出目录中的文件名（过滤 .json）
 #[tauri::command]
 pub fn list_directory(path: String) -> Result<Vec<String>, String> {
+    // 目录不存在时自动创建（与 app_data_dir / write_* 行为一致），
+    // 避免首次读取 themes/decks 等尚未生成的子目录时报 ENOENT
+    if !PathBuf::from(&path).exists() {
+        fs::create_dir_all(&path).map_err(|e| format!("创建目录失败: {}", e))?;
+    }
     let entries =
         fs::read_dir(&path).map_err(|e| format!("读取目录失败: {}", e))?;
     let mut files = Vec::new();
