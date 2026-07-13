@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F6FFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="gloss2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 内边距 20%：彩色方块缩到画布内，四周留更多透明边 -->
+  <g transform="translate(102,102)">
+    <rect x="0" y="0" width="820" height="820" rx="184" fill="url(#bg)"/>
+    <rect x="0" y="0" width="820" height="410" rx="184" fill="url(#gloss)"/>
+    <rect x="0" y="0" width="820" height="820" rx="184" fill="url(#gloss2)"/>
+
+    <g fill="#ffffff">
+      <rect x="180" y="216" width="460" height="312" rx="40"/>
+      <rect x="390" y="528" width="40" height="54" rx="11"/>
+      <rect x="310" y="582" width="200" height="26" rx="13"/>
+    </g>
+    <path d="M350 272 L350 472 L530 372 Z" fill="url(#bg)"/>
+  </g>
+</svg>
