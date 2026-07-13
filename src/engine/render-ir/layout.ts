@@ -1,19 +1,4 @@
 import type { Rect } from "./types";
-import type { Theme, LayoutSpec } from "@/types/theme";
-
-export function resolveLayoutRect(
-  theme: Theme,
-  layoutName: string,
-  area: "title" | "body" | "visual",
-): Rect | null {
-  const layout = (theme.layouts as Record<string, LayoutSpec | undefined>)[
-    layoutName
-  ];
-  if (!layout) return null;
-  const rect = layout[area];
-  if (!rect) return null;
-  return { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
-}
 
 export function getColumnRects(bodyRect: Rect, colCount: number): Rect[] {
   const gap = 0.02;

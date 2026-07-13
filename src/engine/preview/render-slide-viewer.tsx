@@ -8,6 +8,7 @@ import type {
 } from "@/engine/render-ir/types";
 import type { Theme } from "@/types/theme";
 import type { Slide } from "@/types/deck";
+import { getLayoutRects } from "@/engine/layout-geometry";
 
 interface Props {
   renderSlide: RenderSlide;
@@ -42,7 +43,7 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
   const hasImageOrChart = renderSlide.nodes.some(
     (n) => n.type === "image" || n.type === "chart",
   );
-  const layout = theme.layouts[slide.layout];
+  const layout = getLayoutRects(slide.layout);
 
   return (
     <div
@@ -53,7 +54,7 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
         <NodeViewer key={node.id} node={node} theme={theme} width={width} />
       ))}
 
-      {hasVisual && !hasImageOrChart && layout?.visual && onGenerateImage && (
+      {hasVisual && !hasImageOrChart && layout.visual && onGenerateImage && (
         <div
           style={rectToStyle(layout.visual)}
           className="flex items-center justify-center"
