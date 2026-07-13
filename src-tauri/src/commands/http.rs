@@ -41,8 +41,8 @@ pub async fn http_proxy(req: ProxyRequest) -> Result<ProxyResponse, String> {
     let mut merged: HashMap<String, String> = HashMap::from([
         (
             "User-Agent".to_string(),
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:124.0) \
+Gecko/20100101 Firefox/124.0"
                 .to_string(),
         ),
         (
