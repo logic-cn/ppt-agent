@@ -27,7 +27,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
         {onGenerateImage && (
           <button
             onClick={() => onGenerateImage(slide.id)}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-dashed px-3 py-2 text-xs text-accent hover:bg-accent-soft/10"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ai/30 px-3 py-2 text-xs text-ai hover:bg-ai-soft"
           >
             <ImageIcon className="h-3.5 w-3.5" />
             AI 生成配图
@@ -48,7 +48,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
               image: { ...image, type: e.target.value as ImageSource },
             })
           }
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           <option value="url">URL</option>
           <option value="ai">AI 生成</option>
@@ -68,7 +68,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
             }, 300);
           }}
           placeholder="https://example.com/image.png"
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -89,7 +89,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
           onChange={(e) =>
             onUpdate({ image: { ...image, alt: e.target.value } })
           }
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -105,7 +105,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
               },
             })
           }
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {POSITION_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -117,13 +117,13 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
 
       {confirmDelete ? (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-red-500">确定删除配图？</span>
+          <span className="text-xs text-danger">确定删除配图？</span>
           <button
             onClick={() => {
               onUpdate({ image: undefined });
               setConfirmDelete(false);
             }}
-            className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+            className="rounded-lg bg-danger px-3 py-1.5 text-xs text-white hover:bg-danger/90"
           >
             确认
           </button>
@@ -137,7 +137,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
       ) : (
         <button
           onClick={() => setConfirmDelete(true)}
-          className="flex w-full items-center justify-center gap-1 rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+          className="flex w-full items-center justify-center gap-1 rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
         >
           <Trash2 className="h-3 w-3" />
           删除配图

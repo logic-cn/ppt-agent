@@ -95,7 +95,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
       aria-labelledby="theme-editor-title"
     >
       <div
-        className="mx-4 flex max-h-[90vh] w-full max-w-5xl flex-col rounded-xl border border-border bg-bg-surface shadow-2xl"
+        className="mx-4 flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-border bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
@@ -125,7 +125,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                 placeholder="我的自定义主题"
               />
             </div>
@@ -160,7 +160,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                           setColors((prev) => ({ ...prev, [key]: v }));
                         }
                       }}
-                      className="ml-auto w-20 rounded border border-border bg-bg-base px-1.5 py-0.5 text-xs focus:border-accent focus:outline-none font-mono"
+                      className="ml-auto w-20 rounded border border-border bg-white px-1.5 py-0.5 text-xs text-text-primary focus:border-accent focus:outline-none font-mono"
                     />
                   </div>
                 ))}
@@ -179,7 +179,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                   onChange={(e) =>
                     setFonts((prev) => ({ ...prev, title: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                   placeholder="sans-serif"
                 />
               </div>
@@ -193,7 +193,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                   onChange={(e) =>
                     setFonts((prev) => ({ ...prev, body: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                   placeholder="sans-serif"
                 />
               </div>
@@ -226,7 +226,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
                           [key]: Number(e.target.value),
                         }))
                       }
-                      className="w-full rounded-lg border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
                       min={8}
                       max={96}
                     />
@@ -378,7 +378,7 @@ export function ThemeEditorDialog({ theme, onSave, onDelete, onClose }: Props) {
             <button
               onClick={handleSave}
               disabled={saving || !name.trim()}
-              className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "保存中…" : "保存"}
             </button>

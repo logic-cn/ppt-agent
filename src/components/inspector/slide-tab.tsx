@@ -59,7 +59,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
             setTitleDraft(e.target.value);
             debouncedUpdate(titleTimer, { title: e.target.value });
           }}
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -73,7 +73,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
               subtitle: e.target.value || undefined,
             });
           }}
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -82,7 +82,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
         <select
           value={slide.layout}
           onChange={(e) => onUpdate({ layout: e.target.value as SlideLayout })}
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {LAYOUT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -101,7 +101,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
             debouncedUpdate(bodyTimer, { body: e.target.value || undefined });
           }}
           rows={4}
-          className="w-full resize-none rounded border border-border bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+          className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
             {slide.bullets.map((b, i) => (
               <div
                 key={b.id}
-                className="rounded bg-bg-elevated px-2 py-1 text-xs text-text-secondary"
+                className="rounded-lg bg-bg-surface px-3 py-1.5 text-xs text-text-secondary"
               >
                 <span className="mr-1 text-text-muted">{i + 1}.</span>
                 {b.text}

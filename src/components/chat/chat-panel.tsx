@@ -376,7 +376,7 @@ export function ChatPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-text-muted">
+      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
         <span>AI 助手</span>
         <button
           onClick={() => {
@@ -395,7 +395,7 @@ export function ChatPanel() {
 
       {/* 模板选择面板 */}
       {templateOpen && (
-        <div className="border-b border-border bg-bg-elevated px-3 py-3">
+        <div className="border-b border-border bg-bg-surface px-3 py-3">
           {!templatePack ? (
             <div className="grid grid-cols-2 gap-2">
               {getTemplatePacks().map((p) => (
@@ -431,12 +431,12 @@ export function ChatPanel() {
                 value={templateTopic}
                 onChange={(e) => setTemplateTopic(e.target.value)}
                 placeholder="输入主题，如：Q3 业务复盘"
-                className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               />
               <button
                 onClick={handleTemplateGenerate}
                 disabled={!templateTopic.trim() || templateGenerating}
-                className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
                 {templateGenerating ? (
                   <>
@@ -469,7 +469,7 @@ export function ChatPanel() {
               className={`group relative rounded-lg px-3 py-2.5 ${
                 msg.role === "user"
                   ? "bg-accent-soft/30 text-text-primary"
-                  : "bg-bg-elevated text-text-secondary"
+                  : "bg-bg-surface text-text-secondary"
               }`}
             >
               <button
@@ -499,7 +499,7 @@ export function ChatPanel() {
                   <div className="flex-1" />
                   <button
                     onClick={() => applyPatches(msg)}
-                    className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-white hover:bg-accent-hover"
+                    className="rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1 text-xs font-medium text-white hover:opacity-90 shadow-sm shadow-ai/20"
                   >
                     应用修改
                   </button>
@@ -547,7 +547,7 @@ export function ChatPanel() {
                 setInput(text);
                 textareaRef.current?.focus();
               }}
-              className="rounded-full border border-border bg-bg-elevated px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent"
+              className="rounded-full border border-border bg-white px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent"
             >
               {text}
             </button>
@@ -556,7 +556,7 @@ export function ChatPanel() {
       )}
 
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-base px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2">
           <textarea
             ref={textareaRef}
             value={input}
@@ -569,7 +569,7 @@ export function ChatPanel() {
           <button
             onClick={() => void handleSubmit()}
             disabled={loading || !input.trim()}
-            className="rounded-md bg-accent p-1.5 text-white hover:bg-accent-hover disabled:opacity-40"
+            className="rounded-lg bg-gradient-to-r from-ai to-orange-400 p-1.5 text-white hover:opacity-90 disabled:opacity-40 shadow-sm shadow-ai/20"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

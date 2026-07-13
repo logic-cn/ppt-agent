@@ -71,7 +71,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           : isDragging
             ? "border-accent"
             : "border-border"
-      } bg-bg-surface transition-shadow hover:shadow-md`}
+      } bg-white transition-shadow hover:shadow-sm`}
     >
       {/* Drag handle */}
       <button
@@ -104,10 +104,10 @@ export const SortableSlideItem = memo(function SortableSlideItem({
               }
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                 qualitySeverity === "error"
-                  ? "bg-red-500"
+                  ? "bg-danger"
                   : qualitySeverity === "warning"
-                    ? "bg-amber-500"
-                    : "bg-sky-500"
+                    ? "bg-warning"
+                    : "bg-success"
               }`}
             />
           )}
@@ -127,7 +127,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
                   layout: e.target.value as Slide["layout"],
                 })
               }
-              className="rounded border border-border bg-bg-base px-1.5 py-0.5 text-[11px] text-text-secondary focus:border-accent focus:outline-none"
+              className="rounded border border-border bg-white px-1.5 py-0.5 text-[11px] text-text-secondary focus:border-accent focus:outline-none"
             >
               {Object.entries(layoutLabels).map(([val, label]) => (
                 <option key={val} value={val}>
@@ -159,7 +159,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
 
             <button
               onClick={() => removeSlide(slide.id)}
-              className="rounded p-0.5 text-red-400 hover:bg-red-500/10 hover:text-red-500"
+              className="rounded p-0.5 text-text-muted hover:bg-danger/10 hover:text-danger"
               title="删除"
             >
               <Trash2 className="h-3.5 w-3.5" />

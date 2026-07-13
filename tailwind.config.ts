@@ -5,30 +5,34 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // 应用级语义色
         bg: {
-          base: "#0f1115",
-          surface: "#171a21",
-          elevated: "#1e222b",
-          hover: "#252a35",
+          base: "#FAF9F6",
+          surface: "#F5F4F0",
+          elevated: "#FFFFFF",
+          hover: "#EEEDE8",
         },
         border: {
-          DEFAULT: "#2a2f3a",
-          strong: "#3a4150",
+          DEFAULT: "#E8E7E2",
+          strong: "#D4D3CE",
         },
         text: {
-          primary: "#e6e8ec",
-          secondary: "#9ba3b0",
-          muted: "#6b7280",
+          primary: "#1A1A1E",
+          secondary: "#6B6B76",
+          muted: "#9A9AA8",
         },
         accent: {
-          DEFAULT: "#4f8cff",
-          hover: "#3b7bff",
-          soft: "#1e2f4d",
+          DEFAULT: "#4F6FFF",
+          hover: "#3B5FFF",
+          soft: "#EEF0FF",
         },
-        success: "#22c55e",
-        warning: "#f59e0b",
-        danger: "#ef4444",
+        ai: {
+          DEFAULT: "#FF6B6B",
+          hover: "#FF5252",
+          soft: "#FFF5F5",
+        },
+        success: "#22C55E",
+        warning: "#F59E0B",
+        danger: "#EF4444",
       },
       fontFamily: {
         sans: [
@@ -41,7 +45,6 @@ const config: Config = {
         mono: ["'JetBrains Mono'", "'SF Mono'", "Menlo", "monospace"],
       },
       fontSize: {
-        // 暗色界面排版刻度
         xs: ["11px", "16px"],
         sm: ["12px", "18px"],
         base: ["13px", "20px"],

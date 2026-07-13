@@ -39,7 +39,7 @@ export function QualityReport({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-bg-elevated p-3">
+    <div className="rounded-xl border border-border bg-bg-surface p-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -91,7 +91,7 @@ export function QualityReport({
         <button
           onClick={onAutoFix}
           disabled={fixing || counts.error + counts.warning === 0}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
         >
           <Wand2 className="h-3.5 w-3.5" />
           {fixing ? "修复中…" : "一键修复"}

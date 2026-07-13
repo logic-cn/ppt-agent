@@ -138,9 +138,9 @@ export function InspectorPanel({
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+            className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
               activeTab === t.key
-                ? "border-b-2 border-accent text-accent"
+                ? "border-b-2 border-accent text-accent font-semibold"
                 : "text-text-muted hover:text-text-secondary"
             }`}
           >

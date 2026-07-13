@@ -87,11 +87,11 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
       aria-labelledby="template-dialog-title"
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-bg-surface shadow-2xl"
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-bg-surface px-5 py-3">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-white px-5 py-3">
           <h2 id="template-dialog-title" className="text-base font-semibold">
             {selected ? "配置主题" : "选择模板"}
           </h2>
@@ -129,7 +129,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder={`例如：${selected.defaultOptions.topic || "输入主题…"}`}
-                className="w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                 autoFocus
               />
 
@@ -167,7 +167,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
               <button
                 onClick={handleAiGenerate}
                 disabled={!topic.trim() || generating}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? (
                   <>
@@ -193,7 +193,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
               <button
                 key={p.id}
                 onClick={() => setSelected(p)}
-                className="group flex flex-col items-start gap-1.5 rounded-lg border border-border p-3 text-left transition hover:border-accent hover:bg-bg-elevated"
+                className="group flex flex-col items-start gap-1.5 rounded-lg border border-border p-3 text-left transition hover:border-accent hover:bg-bg-hover"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft/50 group-hover:bg-accent-soft">
                   <FileText className="h-4 w-4 text-accent" />

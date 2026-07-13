@@ -115,9 +115,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 }));
 
-export function getProviderApiKey(
-  providerId: LLMProviderId,
-): string | null {
+export function getProviderApiKey(providerId: LLMProviderId): string | null {
   const { settings } = useSettingsStore.getState();
   return settings.providers[providerId]?.apiKey ?? null;
 }

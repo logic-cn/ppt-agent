@@ -63,7 +63,7 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
               e.stopPropagation();
               onGenerateImage(slide.id);
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed px-4 py-2 text-sm transition hover:border-accent hover:bg-white/5"
+            className="flex items-center gap-1.5 rounded-lg border border-dashed px-4 py-2 text-sm transition hover:border-accent hover:bg-bg-hover"
             style={{
               borderColor: `${theme.colors.textMuted}40`,
               color: theme.colors.textMuted,

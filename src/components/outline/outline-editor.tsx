@@ -78,11 +78,11 @@ export function OutlineEditor({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-text-muted">
+      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
         大纲
         <button
           onClick={addSlide}
-          className="rounded p-1 hover:bg-bg-hover"
+          className="rounded-md p-1.5 hover:bg-bg-hover transition-colors"
           title="添加页面"
         >
           <Plus className="h-3.5 w-3.5 text-text-secondary" />
@@ -91,7 +91,7 @@ export function OutlineEditor({
 
       <div className="flex-1 overflow-auto px-2 pb-3">
         {slides.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-4 py-12 text-center text-sm text-text-muted">
+          <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-text-muted">
             在右侧 AI 助手聊天框中输入主题生成大纲
           </div>
         ) : (

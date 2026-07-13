@@ -104,7 +104,7 @@ export default function Home() {
   return (
     <div className="flex h-full flex-col">
       {/* 顶栏 */}
-      <header className="flex items-center justify-between border-b border-border bg-bg-surface px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border bg-white px-6 py-3">
         <div className="flex items-center gap-2">
           <Presentation className="h-5 w-5 text-accent" />
           <span className="text-lg font-semibold">PPT Agent</span>
@@ -125,7 +125,7 @@ export default function Home() {
           <div className="mb-12 grid grid-cols-3 gap-4">
             <button
               onClick={createProject}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-surface p-8 transition hover:border-accent hover:bg-bg-elevated"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <Plus className="h-7 w-7" />
@@ -143,7 +143,7 @@ export default function Home() {
                 const deck = await createDeck();
                 navigate(`/editor/${deck.id}?import=1`);
               }}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-surface p-8 transition hover:border-accent hover:bg-bg-elevated"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <FileText className="h-7 w-7" />
@@ -158,7 +158,7 @@ export default function Home() {
 
             <button
               onClick={() => setTemplateDialogOpen(true)}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-surface p-8 transition hover:border-accent hover:bg-bg-elevated"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <LayoutTemplate className="h-7 w-7" />
@@ -180,7 +180,7 @@ export default function Home() {
               <span className="ml-3 text-sm">加载中…</span>
             </div>
           ) : recent.length === 0 ? (
-            <div className="rounded-lg border border-border bg-bg-surface p-8">
+            <div className="rounded-xl border border-border bg-white p-8">
               <h2 className="mb-4 text-lg font-semibold">快速开始</h2>
               <div className="grid grid-cols-3 gap-6">
                 <div className="space-y-2">
@@ -211,7 +211,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className="mt-6 rounded-md bg-bg-elevated px-4 py-3 text-sm text-text-muted">
+              <div className="mt-6 rounded-md bg-bg-surface px-4 py-3 text-sm text-text-muted">
                 💡 提示：先去设置页填写你的 API Key，才能使用 AI 生成功能
               </div>
             </div>
@@ -220,7 +220,7 @@ export default function Home() {
               {recent.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative rounded-xl border border-border bg-bg-surface p-5 text-left transition hover:border-accent hover:shadow-md"
+                  className="group relative rounded-xl border border-border bg-white p-5 text-left transition-all hover:border-accent hover:shadow-sm"
                 >
                   <button
                     onClick={() => navigate(`/editor/${p.id}`)}
@@ -230,7 +230,7 @@ export default function Home() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft/50">
                         <FileText className="h-5 w-5 text-accent" />
                       </div>
-                      <span className="rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
+                      <span className="rounded-md bg-bg-surface px-2 py-0.5 text-xs text-text-muted">
                         {getSlideSummary(p.slidesCount)}
                       </span>
                     </div>
@@ -247,7 +247,7 @@ export default function Home() {
                       e.stopPropagation();
                       setDeleteTarget(p.id);
                     }}
-                    className="absolute right-2 top-2 rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-red-100 hover:text-red-500 group-hover:opacity-100"
+                    className="absolute right-2 top-2 rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
                     title="删除项目"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

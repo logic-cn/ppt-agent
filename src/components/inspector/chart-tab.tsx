@@ -52,7 +52,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
               chart: { type: "bar", data: [{ label: "分类", value: 100 }] },
             })
           }
-          className="mt-2 rounded bg-accent px-3 py-1 text-xs text-white hover:bg-accent-hover"
+          className="mt-2 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-xs text-white hover:opacity-90"
         >
           添加图表
         </button>
@@ -67,7 +67,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
         <select
           value={chart.type}
           onChange={(e) => updateChart({ type: e.target.value as ChartType })}
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {CHART_TYPES.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -83,7 +83,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
           value={chart.title ?? ""}
           onChange={(e) => updateChart({ title: e.target.value || undefined })}
           placeholder="可选"
-          className="w-full rounded border border-border bg-bg-base px-2 py-1.5 text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -104,7 +104,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
                 value={row.label}
                 onChange={(e) => updateRow(i, { label: e.target.value })}
                 placeholder="标签"
-                className="flex-1 rounded border border-border bg-bg-base px-2 py-1 text-xs focus:border-accent focus:outline-none"
+                className="flex-1 rounded border border-border bg-white px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <input
                 type="number"
@@ -112,11 +112,11 @@ export function ChartTab({ slide, onUpdate }: Props) {
                 onChange={(e) =>
                   updateRow(i, { value: parseFloat(e.target.value) || 0 })
                 }
-                className="w-20 rounded border border-border bg-bg-base px-2 py-1 text-xs focus:border-accent focus:outline-none"
+                className="w-20 rounded border border-border bg-white px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <button
                 onClick={() => removeRow(i)}
-                className="rounded p-1 text-text-muted hover:text-red-500"
+                className="rounded p-1 text-text-muted hover:text-danger"
               >
                 ✕
               </button>
@@ -128,7 +128,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
       {chart.data.length > 0 && (
         <button
           onClick={() => onUpdate({ chart: undefined })}
-          className="w-full rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+          className="w-full rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
         >
           删除图表
         </button>

@@ -262,7 +262,7 @@ export default function Editor() {
   return (
     <div className="flex h-full flex-col bg-bg-base">
       {/* 顶部工具栏 */}
-      <header className="flex items-center justify-between border-b border-border bg-bg-surface px-4 py-2">
+      <header className="flex items-center justify-between border-b border-border bg-white px-4 h-10">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/")}
@@ -343,7 +343,7 @@ export default function Editor() {
 
           <button
             onClick={() => setDeleteConfirm(true)}
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-red-100 hover:text-red-500"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger"
             title="删除项目"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -366,7 +366,7 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setThemeOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-bg-surface p-1 shadow-lg">
+                <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-border bg-white p-1 shadow-lg">
                   {BUILTIN_THEMES.map((t) => {
                     const swatch =
                       t.id === "minimal-white"
@@ -463,7 +463,7 @@ export default function Editor() {
           <button
             onClick={handleExport}
             disabled={exporting || !deck || deck.slides.length === 0}
-            className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
           >
             <Download className="h-3.5 w-3.5" />
             {exporting ? "导出中…" : "导出 PPT"}
@@ -549,12 +549,22 @@ export default function Editor() {
       {/* 三栏工作区 */}
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
-        {leftOpen && (
-          <aside className="flex w-80 flex-col border-r border-border bg-bg-surface">
+        {leftOpen ? (
+          <aside className="flex w-[280px] flex-col border-r border-border bg-white">
             <OutlineEditor
               onSelectSlide={setSelectedIndex}
               selectedIndex={selectedIndex}
             />
+          </aside>
+        ) : (
+          <aside className="flex w-9 flex-col items-center border-r border-border bg-white py-2">
+            <button
+              onClick={() => setLeftOpen(true)}
+              className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
+              title="展开大纲"
+            >
+              <PanelLeft className="h-3.5 w-3.5" />
+            </button>
           </aside>
         )}
 
@@ -575,13 +585,23 @@ export default function Editor() {
         </main>
 
         {/* 右栏：属性检查器（AI / 页面 / 图表 / 配图 / 备注） */}
-        {rightOpen && deck && (
-          <aside className="flex w-80 flex-col border-l border-border bg-bg-surface">
+        {rightOpen && deck ? (
+          <aside className="flex w-[280px] flex-col border-l border-border bg-white">
             <InspectorPanel
               deck={deck}
               selectedIndex={selectedIndex}
               onGenerateImage={handleGenerateImage}
             />
+          </aside>
+        ) : (
+          <aside className="flex w-9 flex-col items-center border-l border-border bg-white py-2">
+            <button
+              onClick={() => setRightOpen(true)}
+              className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
+              title="展开 AI 面板"
+            >
+              <PanelRight className="h-3.5 w-3.5" />
+            </button>
           </aside>
         )}
       </div>

@@ -267,7 +267,7 @@ export function ImportDialog({ open, onClose }: Props) {
 
     return (
       <div className="space-y-3">
-        <div className="rounded-lg bg-bg-elevated p-3 text-sm">
+        <div className="rounded-lg bg-bg-surface p-3 text-sm">
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium text-text-primary">
               {parsed.source.title}
@@ -334,7 +334,7 @@ export function ImportDialog({ open, onClose }: Props) {
           <button
             onClick={() => parsed && handleGenerate(parsed, selectedSectionIds)}
             disabled={importing || selectedSectionIds.length === 0}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-50"
           >
             {importing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -368,7 +368,7 @@ export function ImportDialog({ open, onClose }: Props) {
       }}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-bg-surface shadow-2xl"
+        className="w-full max-w-lg rounded-2xl border border-border bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
@@ -452,7 +452,7 @@ export function ImportDialog({ open, onClose }: Props) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/article"
-                  className="w-full rounded-lg border border-border bg-bg-base px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                 />
               </div>
               <p className="text-xs text-text-muted">
@@ -462,7 +462,7 @@ export function ImportDialog({ open, onClose }: Props) {
               <button
                 onClick={handleUrl}
                 disabled={importing || !url.trim()}
-                className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
               >
                 {importing && <Loader2 className="h-4 w-4 animate-spin" />}
                 解析并导入

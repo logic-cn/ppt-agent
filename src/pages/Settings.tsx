@@ -47,7 +47,7 @@ export default function Settings() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border bg-bg-surface px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-border bg-white px-6 py-3">
         <button
           onClick={() => navigate("/")}
           className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -75,7 +75,7 @@ export default function Settings() {
                 onChange={(e) =>
                   setActiveProvider(e.target.value as LLMProviderId)
                 }
-                className="w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               >
                 {(Object.keys(PROVIDER_PRESETS) as LLMProviderId[]).map(
                   (id) => (
@@ -100,7 +100,7 @@ export default function Settings() {
                         className={`rounded-lg border p-4 ${
                           isActive
                             ? "border-accent bg-accent-soft/30"
-                            : "border-border bg-bg-surface"
+                            : "border-border bg-white"
                         }`}
                       >
                         <div className="mb-3 flex items-center justify-between">
@@ -122,7 +122,7 @@ export default function Settings() {
                               onChange={(e) =>
                                 updateProvider(id, { baseUrl: e.target.value })
                               }
-                              className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                             />
                           </div>
                           <div>
@@ -135,7 +135,7 @@ export default function Settings() {
                               onChange={(e) =>
                                 updateProvider(id, { model: e.target.value })
                               }
-                              className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                             />
                           </div>
                         </div>
@@ -150,7 +150,7 @@ export default function Settings() {
                               updateProvider(id, { apiKey: e.target.value })
                             }
                             placeholder="sk-..."
-                            className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                           />
                         </div>
                       </div>
@@ -170,7 +170,7 @@ export default function Settings() {
               </div>
               <button
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"
+                className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
               >
                 <Plus className="h-3.5 w-3.5" />
                 新建
@@ -186,7 +186,7 @@ export default function Settings() {
                 {customThemes.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-bg-surface px-4 py-3"
+                    className="flex items-center justify-between rounded-lg border border-border bg-white px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
                       <span
@@ -245,7 +245,7 @@ export default function Settings() {
             </div>
 
             {settings.imageEnabled && (
-              <div className="space-y-4 rounded-lg border border-border bg-bg-surface p-4">
+              <div className="space-y-4 rounded-xl border border-border bg-white p-4">
                 <p className="text-sm text-text-muted">
                   使用 OpenAI 兼容 API 生成配图（如
                   DALL-E）。未单独配置时将使用当前 LLM Provider。
@@ -273,7 +273,7 @@ export default function Settings() {
                       placeholder={
                         settings.providers[settings.activeProvider]?.baseUrl
                       }
-                      className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                     />
                   </div>
                   <div>
@@ -295,7 +295,7 @@ export default function Settings() {
                           model: e.target.value,
                         })
                       }
-                      className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                     />
                   </div>
                 </div>
@@ -319,7 +319,7 @@ export default function Settings() {
                       })
                     }
                     placeholder="sk-..."
-                    className="w-full rounded-md border border-border bg-bg-base px-2.5 py-1.5 text-sm focus:border-accent focus:outline-none"
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                   />
                 </div>
               </div>
@@ -332,10 +332,10 @@ export default function Settings() {
               <Layers className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-semibold">渲染管线</h2>
             </div>
-            <div className="space-y-2 rounded-lg border border-border bg-bg-surface p-4">
+            <div className="space-y-2 rounded-xl border border-border bg-white p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-secondary">当前渲染模式</span>
-                <span className="rounded bg-bg-elevated px-2 py-0.5 font-mono text-xs text-text-primary">
+                <span className="rounded bg-bg-surface px-2 py-0.5 font-mono text-xs text-text-primary">
                   {getRendererMode()}
                 </span>
               </div>
@@ -343,7 +343,7 @@ export default function Settings() {
                 Preview 与 PPTX 导出共享统一的 RenderIR
                 渲染中间层。旧渲染器已在迁移完成后移除，
                 如要临时切换，可设置环境变量
-                <code className="mx-1 rounded bg-bg-elevated px-1">
+                <code className="mx-1 rounded bg-bg-surface px-1">
                   VITE_RENDERER_MODE
                 </code>
                 并重新构建。
