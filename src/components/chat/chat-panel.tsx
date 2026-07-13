@@ -19,8 +19,8 @@ import type { DeckPatch } from "@/services/deck-patch/types";
 import { DESTRUCTIVE_OPS } from "@/services/deck-patch/types";
 import {
   checkDeckQuality,
-  generateAutoFixes,
   applyAutoFixes,
+  getHardFindings,
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { TemplatePack } from "@/types/template";
@@ -145,20 +145,35 @@ export function ChatPanel() {
     if (!current) return;
     setFixing(true);
     try {
-      const fixes = generateAutoFixes(current);
-      if (fixes.length === 0) {
-        addMessage("assistant", "没有发现可自动修复的问题");
-        return;
+      // (a) 先跑质量检查，拿到分级后的 findings
+      const qualityStore = useQualityStore.getState();
+      const rules = qualityStore.pendingRules ?? undefined;
+      qualityStore.clearPendingRules();
+      const findings = checkDeckQuality(current, { rules });
+      // (b) applyAutoFixes 内部只会处理 soft+autoFixable，hard 问题自动被隔离
+      const fixed = applyAutoFixes(current, findings);
+      const hard = getHardFindings(findings);
+      // 仅当确有 soft+autoFixable 修复时才替换 slides；hard 问题绝不自动修复
+      if (fixed !== current) {
+        await replaceSlides(fixed.slides);
       }
-      const fixed = applyAutoFixes(current, fixes);
-      await replaceSlides(fixed.slides);
-      useQualityStore
-        .getState()
-        .setReport(checkDeckQuality(useDeckStore.getState().deck!));
-      addMessage(
-        "assistant",
-        `✅ 已自动修复 ${fixes.length} 个问题：${fixes.map((f) => f.description).join("；")}`,
-      );
+      const newDeck = useDeckStore.getState().deck!;
+      // 重新检查并把完整报告（含 hard）写回，确保 hard 问题对用户可见
+      const newFindings = checkDeckQuality(newDeck, { rules });
+      useQualityStore.getState().setReport(newFindings);
+      if (hard.length > 0) {
+        // (c) hard 问题阻断导出，仅提示不自动修复
+        addMessage(
+          "assistant",
+          `⚠️${fixed !== current ? "已自动修复部分可修复问题，" : ""}仍有 ${hard.length} 项严重问题需手动处理，导出已阻断：${hard
+            .map((f) => f.message)
+            .join("；")}`,
+        );
+      } else if (fixed !== current) {
+        addMessage("assistant", "✅ 已自动修复可修复的问题");
+      } else {
+        addMessage("assistant", "没有发现可自动修复的问题");
+      }
     } finally {
       setFixing(false);
     }

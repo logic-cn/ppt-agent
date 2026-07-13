@@ -26,7 +26,7 @@ import { BUILTIN_THEMES } from "@/themes";
 import { useCustomThemeStore } from "@/store/custom-themes";
 import { deleteDeck } from "@/services/storage";
 import { useQualityStore } from "@/store/quality";
-import { checkDeckQuality } from "@/services/quality";
+import { checkDeckQuality, hasHardError } from "@/services/quality";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
@@ -57,6 +57,8 @@ export default function Editor() {
   const titleRef = useRef<HTMLInputElement>(null);
   const customThemes = useCustomThemeStore((s) => s.themes);
   const loadCustomThemes = useCustomThemeStore((s) => s.load);
+  const qualityReport = useQualityStore((s) => s.report);
+  const hasHard = qualityReport ? hasHardError(qualityReport) : false;
 
   const jobs = useJobStore((s) => s.jobs);
   const activeJobIds = useJobStore((s) => s.activeJobIds);
@@ -465,7 +467,8 @@ export default function Editor() {
           </button>
           <button
             onClick={handleExport}
-            disabled={exporting || !deck || deck.slides.length === 0}
+            disabled={exporting || !deck || deck.slides.length === 0 || hasHard}
+            title={hasHard ? "存在严重质量问题，请先修复后再导出" : "导出 PPT"}
             className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
           >
             <Download className="h-3.5 w-3.5" />
