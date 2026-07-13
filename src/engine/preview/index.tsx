@@ -1,6 +1,7 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { buildRenderSlideCached } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
@@ -27,8 +28,8 @@ export const SlidePreview = memo(function SlidePreview({
   const [containerWidth, setContainerWidth] = useState(960);
 
   const theme = useMemo(
-    () => resolveTheme(deck.themeId, deck.themeOverrides),
-    [deck.themeId, deck.themeOverrides],
+    () => resolveTheme(deck.design.palette, deck.themeOverrides),
+    [deck.design.palette, deck.themeOverrides],
   );
   const slides = deck.slides;
   const currentSlide: Slide | undefined = slides[currentIndex];
@@ -132,7 +133,7 @@ export const SlideThumbnail = memo(function SlideThumbnail({
     const dummyDeck = {
       id: "thumb",
       title: slide.title,
-      themeId: theme.id,
+      design: { ...DEFAULT_DESIGN, palette: theme.id },
       slides: [slide],
       version: 2,
       createdAt: 0,

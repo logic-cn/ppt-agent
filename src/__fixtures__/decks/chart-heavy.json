@@ -2,7 +2,11 @@
   "id": "golden-chart-heavy",
   "version": 2,
   "title": "数据分析报告",
-  "themeId": "tech-purple",
+  "design": {
+    "mode": "briefing",
+    "visualStyle": "soft-rounded",
+    "palette": "tech-purple"
+  },
   "createdAt": 1700000000000,
   "updatedAt": 1700000000000,
   "slides": [

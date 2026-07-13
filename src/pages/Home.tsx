@@ -19,7 +19,6 @@ import {
   createEmptyDeck,
 } from "@/services/storage";
 import { generateOutline } from "@/services/outline";
-import { DEFAULT_THEME_ID } from "@/themes";
 import type { TemplateSelectResult } from "@/components/template-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -83,7 +82,6 @@ export default function Home() {
         ...createEmptyDeck(result.topic),
         title: result.topic,
         slides,
-        themeId: DEFAULT_THEME_ID,
         createdAt: now,
         updatedAt: now,
       };

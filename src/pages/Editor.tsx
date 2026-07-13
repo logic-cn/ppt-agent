@@ -50,7 +50,7 @@ export default function Editor() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [jobPanelOpen, setJobPanelOpen] = useState(false);
-  const setTheme = useDeckStore((s) => s.setTheme);
+  const setDesign = useDeckStore((s) => s.setDesign);
   const setTitle = useDeckStore((s) => s.setTitle);
   const persist = useDeckStore((s) => s.persist);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -384,11 +384,14 @@ export default function Editor() {
                       <button
                         key={t.id}
                         onClick={() => {
-                          setTheme(t.id);
+                          setDesign({
+                            ...(deck?.design ?? DEFAULT_DESIGN),
+                            palette: t.id,
+                          });
                           setThemeOpen(false);
                         }}
                         className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
-                          deck?.themeId === t.id
+                          deck?.design.palette === t.id
                             ? "text-accent"
                             : "text-text-secondary"
                         }`}
@@ -398,7 +401,7 @@ export default function Editor() {
                           style={{ background: swatch }}
                         />
                         <span className="flex-1 text-left">{t.name}</span>
-                        {deck?.themeId === t.id && (
+                        {deck?.design.palette === t.id && (
                           <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
                         )}
                       </button>
@@ -412,11 +415,14 @@ export default function Editor() {
                         <button
                           key={t.id}
                           onClick={() => {
-                            setTheme(t.id);
+                            setDesign({
+                              ...(deck?.design ?? DEFAULT_DESIGN),
+                              palette: t.id,
+                            });
                             setThemeOpen(false);
                           }}
                           className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
-                            deck?.themeId === t.id
+                            deck?.design.palette === t.id
                               ? "text-accent"
                               : "text-text-secondary"
                           }`}
@@ -426,7 +432,7 @@ export default function Editor() {
                             style={{ background: t.colors.primary }}
                           />
                           <span className="flex-1 text-left">{t.name}</span>
-                          {deck?.themeId === t.id && (
+                          {deck?.design.palette === t.id && (
                             <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
                           )}
                         </button>
@@ -616,7 +622,7 @@ export default function Editor() {
       {presenting && deck && (
         <PresentationMode
           deck={deck}
-          theme={resolveTheme(deck.themeId, deck.themeOverrides)}
+          theme={resolveTheme(deck.design.palette, deck.themeOverrides)}
           initialIndex={selectedIndex}
           onExit={() => setPresenting(false)}
         />

@@ -9,7 +9,7 @@ import {
 
 export interface DeckContextSummary {
   title: string;
-  themeId: string;
+  palette: string;
   slides: Array<{
     id: string;
     index: number;
@@ -24,7 +24,7 @@ export interface DeckContextSummary {
 export function buildDeckContextSummary(deck: Deck): DeckContextSummary {
   return {
     title: deck.title,
-    themeId: deck.themeId,
+    palette: deck.design.palette,
     slides: deck.slides.map((slide, index) => ({
       id: slide.id,
       index,

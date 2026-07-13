@@ -2,7 +2,7 @@ import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Theme } from "@/types/theme";
 import type { Template } from "@/types/template";
 import { PROVIDER_PRESETS } from "@/types/llm";
-import { DEFAULT_THEME_ID } from "@/themes";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { parseStoredDeck } from "./storage/deck-parse";
 import { CURRENT_DECK_VERSION } from "./storage/deck-schema";
 
@@ -406,7 +406,7 @@ export function createDeckFromTemplate(
     id: crypto.randomUUID(),
     version: CURRENT_DECK_VERSION,
     title: title ?? template.name,
-    themeId: DEFAULT_THEME_ID,
+    design: DEFAULT_DESIGN,
     slides,
     createdAt: now,
     updatedAt: now,
@@ -419,7 +419,7 @@ export function createEmptyDeck(title = "未命名项目"): Deck {
     id: crypto.randomUUID(),
     version: CURRENT_DECK_VERSION,
     title,
-    themeId: DEFAULT_THEME_ID,
+    design: DEFAULT_DESIGN,
     slides: [],
     createdAt: now,
     updatedAt: now,

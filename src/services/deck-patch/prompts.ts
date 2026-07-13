@@ -39,7 +39,7 @@ export function buildDeckPatchUserPrompt(params: {
 
   return `当前 Deck 信息：
 - 标题：${context.title}
-- 主题：${context.themeId}
+- 主题：${context.palette}
 - 总页数：${context.slides.length}
 
 页面列表：

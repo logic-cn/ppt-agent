@@ -2,7 +2,11 @@
   "id": "fixture-long-bullets",
   "version": 2,
   "title": "要点过多的示例 Deck",
-  "themeId": "business-blue",
+  "design": {
+    "mode": "briefing",
+    "visualStyle": "soft-rounded",
+    "palette": "business-blue"
+  },
   "createdAt": 1700000000000,
   "updatedAt": 1700000000000,
   "slides": [

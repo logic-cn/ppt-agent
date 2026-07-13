@@ -6,7 +6,11 @@ function makeV1Deck() {
     id: "test-1",
     version: 1,
     title: "V1 测试",
-    themeId: "business-blue",
+    design: {
+      mode: "briefing",
+      visualStyle: "soft-rounded",
+      palette: "business-blue",
+    },
     slides: [
       { id: "", layout: "cover", title: "封面" },
       {
@@ -35,7 +39,11 @@ describe("parseStoredDeck", () => {
       id: "test",
       version: 2,
       title: "测试",
-      themeId: "business-blue",
+      design: {
+        mode: "briefing",
+        visualStyle: "soft-rounded",
+        palette: "business-blue",
+      },
       slides: [{ id: "s1", layout: "cover", title: "封面" }],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -83,7 +91,11 @@ describe("parseStoredDeck", () => {
       id: "future",
       version: 99,
       title: "未来版",
-      themeId: "business-blue",
+      design: {
+        mode: "briefing",
+        visualStyle: "soft-rounded",
+        palette: "business-blue",
+      },
       slides: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),

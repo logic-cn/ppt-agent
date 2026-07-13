@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Deck } from "@/types/deck";
+import type { DesignLock } from "@/types/design";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
 import { clearRenderCache } from "@/engine/render-ir/build";
 
@@ -19,7 +20,7 @@ interface DeckStore {
   load: (id: string) => Promise<void>;
   createDeck: (title?: string) => Promise<Deck>;
   setTitle: (title: string) => void;
-  setTheme: (themeId: string) => void;
+  setDesign: (design: DesignLock) => void;
   setSource: (source: Deck["source"]) => void;
 
   // 幻灯片操作（自动记录历史）
@@ -100,12 +101,12 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     });
   },
 
-  setTheme: (themeId) => {
+  setDesign: (design) => {
     set((s) => {
       const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
-        deck: s.deck ? { ...s.deck, themeId, updatedAt: Date.now() } : null,
+        deck: s.deck ? { ...s.deck, design, updatedAt: Date.now() } : null,
         dirty: true,
         past: snap ? [...s.past.slice(-49), snap] : s.past,
         future: [],

@@ -14,7 +14,7 @@ function createDeck(): Deck {
     id: "d1",
     version: 2,
     title: "Q3 复盘",
-    themeId: "business-blue",
+    design: DEFAULT_DESIGN,
     slides: [
       { id: "s1", layout: "cover", title: "封面" },
       { id: "s2", layout: "content", title: "市场分析" },

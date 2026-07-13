@@ -11,7 +11,11 @@ function createMockDeck(overrides?: Partial<Deck>): Deck {
     id: "test-deck",
     version: 1,
     title: "测试 Deck",
-    themeId: "business-blue",
+    design: {
+      mode: "briefing",
+      visualStyle: "soft-rounded",
+      palette: "business-blue",
+    },
     slides: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),

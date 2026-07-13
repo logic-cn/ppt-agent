@@ -1,4 +1,5 @@
 import type { Theme } from "./theme";
+import type { DesignLock } from "./design";
 
 export type SlideLayout =
   | "cover"
@@ -91,7 +92,7 @@ export interface Deck {
   id: string;
   version: number;
   title: string;
-  themeId: string;
+  design: DesignLock;
   themeOverrides?: Partial<Theme>;
   slides: Slide[];
   createdAt: number;

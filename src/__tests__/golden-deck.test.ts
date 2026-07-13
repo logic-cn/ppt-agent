@@ -12,7 +12,7 @@ function asDeck(raw: unknown): Deck {
 
 describe("golden deck: simple-business-review", () => {
   const deck = asDeck(simpleReview);
-  const theme = resolveTheme(deck.themeId);
+  const theme = resolveTheme(deck.design.palette);
 
   it("有 5 页幻灯片", () => {
     expect(deck.slides).toHaveLength(5);
@@ -67,7 +67,7 @@ describe("golden deck: simple-business-review", () => {
 
 describe("golden deck: chart-heavy", () => {
   const deck = asDeck(chartHeavy);
-  const theme = resolveTheme(deck.themeId);
+  const theme = resolveTheme(deck.design.palette);
 
   it("有 5 页幻灯片", () => {
     expect(deck.slides).toHaveLength(5);

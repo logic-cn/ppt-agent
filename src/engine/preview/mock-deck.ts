@@ -103,7 +103,11 @@ export function createMockDeck(): Deck {
     id: "mock-demo",
     version: 1,
     title: "Q3 业务复盘汇报（示例）",
-    themeId: "business-blue",
+    design: {
+      mode: "briefing",
+      visualStyle: "soft-rounded",
+      palette: "business-blue",
+    },
     slides,
     createdAt: now,
     updatedAt: now,

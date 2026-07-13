@@ -5,6 +5,7 @@ import { GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { Slide } from "@/types/deck";
 import { useDeckStore } from "@/store/deck";
 import { getTheme } from "@/themes";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { SlideThumbnail } from "@/engine/preview";
 
 interface Props {
@@ -39,8 +40,8 @@ export const SortableSlideItem = memo(function SortableSlideItem({
   onSelect,
   qualitySeverity,
 }: Props) {
-  const themeId = useDeckStore((s) => s.deck?.themeId);
-  const theme = getTheme(themeId ?? "business-blue");
+  const palette = useDeckStore((s) => s.deck?.design.palette);
+  const theme = getTheme(palette ?? DEFAULT_DESIGN.palette);
   const updateSlide = useDeckStore((s) => s.updateSlide);
   const removeSlide = useDeckStore((s) => s.removeSlide);
   const moveSlide = useDeckStore((s) => s.moveSlide);

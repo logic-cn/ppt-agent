@@ -38,10 +38,10 @@ export function getTheme(id: string): Theme {
 }
 
 export function resolveTheme(
-  themeId: string,
+  themeKey: string,
   overrides?: Partial<Theme>,
 ): Theme {
-  const base = getTheme(themeId);
+  const base = getTheme(themeKey);
   if (!overrides) return base;
   return {
     ...base,

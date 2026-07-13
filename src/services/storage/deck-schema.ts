@@ -1,6 +1,16 @@
 import { z } from "zod/v4";
+import { NARRATIVE_MODE_IDS, VISUAL_STYLE_IDS } from "@/types/design";
 
 export const CURRENT_DECK_VERSION = 2;
+
+const designSchema = z.object({
+  mode: z.enum(NARRATIVE_MODE_IDS as [string, ...string[]]),
+  visualStyle: z.enum(VISUAL_STYLE_IDS as [string, ...string[]]),
+  palette: z.string(),
+  templateId: z.string().optional(),
+  modeBehavior: z.string().optional(),
+  visualStyleBehavior: z.string().optional(),
+});
 
 const bulletNodeSchema = z.object({
   id: z.string(),
@@ -87,7 +97,7 @@ export const deckSchema = z.object({
   id: z.string(),
   version: z.number(),
   title: z.string(),
-  themeId: z.string(),
+  design: designSchema,
   themeOverrides: z.record(z.string(), z.unknown()).optional(),
   slides: z.array(slideSchema),
   createdAt: z.number(),

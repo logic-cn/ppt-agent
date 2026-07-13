@@ -16,7 +16,11 @@ function createDeck(): Deck {
     id: "deck-1",
     version: 2,
     title: "季度复盘",
-    themeId: "business-blue",
+    design: {
+      mode: "briefing",
+      visualStyle: "soft-rounded",
+      palette: "business-blue",
+    },
     slides: [
       { id: "s-cover", layout: "cover", title: "季度复盘" },
       { id: "s-revenue", layout: "chart", title: "季度营收" },

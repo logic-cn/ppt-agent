@@ -2,7 +2,11 @@
   "id": "golden-simple-review",
   "version": 2,
   "title": "Q2 业务复盘",
-  "themeId": "business-blue",
+  "design": {
+    "mode": "briefing",
+    "visualStyle": "soft-rounded",
+    "palette": "business-blue"
+  },
   "createdAt": 1700000000000,
   "updatedAt": 1700000000000,
   "slides": [

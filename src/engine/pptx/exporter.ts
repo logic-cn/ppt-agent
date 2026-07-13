@@ -16,7 +16,7 @@ export async function exportDeck(
   if (signal?.aborted) throw new DOMException("已取消", "AbortError");
   const pptx = new PptxGenJS();
   initPptx(pptx);
-  const theme = resolveTheme(deck.themeId, deck.themeOverrides);
+  const theme = resolveTheme(deck.design.palette, deck.themeOverrides);
   // feature flag：当前仅 render-ir 一种模式（旧渲染器已迁移移除）
   const renderSlides = buildRenderSlides(deck, theme);
   for (const rs of renderSlides) {
@@ -42,7 +42,7 @@ export async function exportDeckToBlob(
   if (signal?.aborted) throw new DOMException("已取消", "AbortError");
   const pptx = new PptxGenJS();
   initPptx(pptx);
-  const theme = resolveTheme(deck.themeId, deck.themeOverrides);
+  const theme = resolveTheme(deck.design.palette, deck.themeOverrides);
   // feature flag：当前仅 render-ir 一种模式（旧渲染器已迁移移除）
   void getRendererMode();
   const renderSlides = buildRenderSlides(deck, theme);

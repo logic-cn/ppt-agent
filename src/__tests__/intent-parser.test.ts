@@ -9,7 +9,11 @@ function setupMockDeck() {
       id: "test",
       version: 1,
       title: "测试",
-      themeId: "business-blue",
+      design: {
+        mode: "briefing",
+        visualStyle: "soft-rounded",
+        palette: "business-blue",
+      },
       slides: [
         { id: "s1", layout: "cover", title: "封面" },
         {

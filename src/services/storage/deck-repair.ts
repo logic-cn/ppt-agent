@@ -1,4 +1,4 @@
-import { DEFAULT_THEME_ID } from "@/themes";
+import { DEFAULT_DESIGN, isDesignLock } from "@/types/design";
 import type { ValidDeck } from "./deck-schema";
 
 export interface RepairResult {
@@ -10,11 +10,18 @@ export function repairDeck(input: unknown): RepairResult {
   const warnings: string[] = [];
   const deck = input as Record<string, unknown>;
 
+  const design: ValidDeck["design"] = isDesignLock(deck.design)
+    ? deck.design
+    : {
+        ...DEFAULT_DESIGN,
+        palette: ensureString(deck.themeId) || DEFAULT_DESIGN.palette,
+      };
+
   const repaired: ValidDeck = {
     id: ensureString(deck.id) || crypto.randomUUID(),
     version: (deck.version as number) || 2,
     title: ensureString(deck.title) || "未命名项目",
-    themeId: ensureString(deck.themeId) || DEFAULT_THEME_ID,
+    design,
     slides: Array.isArray(deck.slides)
       ? deck.slides.map((s) =>
           repairSlide(s as Record<string, unknown>, warnings),
@@ -34,8 +41,8 @@ export function repairDeck(input: unknown): RepairResult {
     };
   }
 
-  if (!deck.themeId) {
-    warnings.push("缺少 themeId，已回退到默认主题");
+  if (!isDesignLock(deck.design)) {
+    warnings.push("缺少 design，已回退到默认设计");
   }
 
   return { deck: repaired, warnings };
