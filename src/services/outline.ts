@@ -5,6 +5,9 @@ import {
   buildOutlineUserPrompt,
 } from "./llm/prompts/outline";
 import type { BulletNode, Slide } from "@/types/deck";
+import type { DesignLock } from "@/types/design";
+import { buildContextualPrompt, getTemplatePackById } from "@/templates";
+import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
 
 /** 递归为 bullet 节点添加 id（支持任意层级） */
@@ -76,13 +79,27 @@ const slideSchema = z.object({
  */
 export async function generateOutline(params: {
   topic: string;
+  design: DesignLock;
   audience?: string;
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
   contextualPrompt?: string;
 }): Promise<Slide[]> {
-  const systemPrompt = buildOutlineSystemPrompt(params.contextualPrompt);
+  const design = params.design;
+  const templateCtx =
+    params.contextualPrompt ??
+    (design.templateId
+      ? buildContextualPrompt(
+          getTemplatePackById(design.templateId)!,
+          params.topic,
+        )
+      : undefined);
+  const systemPrompt = buildOutlineSystemPrompt({
+    design,
+    templateCtx,
+    fewShot: buildFewShotPrompt(selectFewShot(design)),
+  });
   const userPrompt = buildOutlineUserPrompt(params);
 
   const res = await chat({

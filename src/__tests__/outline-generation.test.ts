@@ -7,6 +7,7 @@ vi.mock("@/services/llm", () => ({
 
 import { chat } from "@/services/llm";
 import { generateOutline } from "@/services/outline";
+import { DEFAULT_DESIGN } from "@/types/design";
 
 const VALID_OUTLINE = JSON.stringify([
   {
@@ -46,14 +47,20 @@ describe("generateOutline 集成测试", () => {
   });
 
   it("解析 LLM 返回的合法大纲", async () => {
-    const slides = await generateOutline({ topic: "测试主题" });
+    const slides = await generateOutline({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+    });
     expect(slides).toHaveLength(4);
     expect(slides[0].layout).toBe("cover");
     expect(slides[3].layout).toBe("closing");
   });
 
   it("每页都注入了 id", async () => {
-    const slides = await generateOutline({ topic: "测试主题" });
+    const slides = await generateOutline({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+    });
     for (const s of slides) {
       expect(s.id).toBeTruthy();
     }
@@ -63,7 +70,10 @@ describe("generateOutline 集成测试", () => {
   });
 
   it("bullets 注入了 id", async () => {
-    const slides = await generateOutline({ topic: "测试主题" });
+    const slides = await generateOutline({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+    });
     const content = slides.find((s) => s.layout === "content");
     expect(content?.bullets?.[0].id).toBeTruthy();
   });
@@ -72,7 +82,10 @@ describe("generateOutline 集成测试", () => {
     (chat as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       content: "```json\n" + VALID_OUTLINE + "\n```",
     });
-    const slides = await generateOutline({ topic: "测试主题" });
+    const slides = await generateOutline({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+    });
     expect(slides).toHaveLength(4);
   });
 
@@ -80,7 +93,9 @@ describe("generateOutline 集成测试", () => {
     (chat as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       content: "这不是 JSON",
     });
-    await expect(generateOutline({ topic: "测试主题" })).rejects.toThrow();
+    await expect(
+      generateOutline({ topic: "测试主题", design: DEFAULT_DESIGN }),
+    ).rejects.toThrow();
   });
 
   it("超过一半页无效时整体失败", async () => {
@@ -92,13 +107,16 @@ describe("generateOutline 集成测试", () => {
     (chat as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       content: bad,
     });
-    await expect(generateOutline({ topic: "测试主题" })).rejects.toThrow();
+    await expect(
+      generateOutline({ topic: "测试主题", design: DEFAULT_DESIGN }),
+    ).rejects.toThrow();
   });
 
   it("上下文提示词注入模板结构", async () => {
     const contextualPrompt = "模板结构：\n1. [cover] 封面\n2. [content] 正文";
     await generateOutline({
       topic: "测试主题",
+      design: DEFAULT_DESIGN,
       contextualPrompt,
     });
     const callArg = (chat as unknown as ReturnType<typeof vi.fn>).mock

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { useDeckStore } from "@/store/deck";
 import { useJobStore } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
@@ -67,6 +68,7 @@ export function InspectorPanel({
       const result = await generateSlideContent({
         slideTitle: slide.title,
         context: buildContentContext(deck, slide),
+        design: DEFAULT_DESIGN,
         signal: job.signal,
       });
       job.succeed("内容已生成");
@@ -104,6 +106,7 @@ export function InspectorPanel({
         const result = await generateSlideContent({
           slideTitle: s.title,
           context: buildContentContext(deck, s),
+          design: DEFAULT_DESIGN,
           signal: job.signal,
         });
         updateSlide(s.id, collectPatch(result));

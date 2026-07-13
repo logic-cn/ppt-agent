@@ -3,10 +3,12 @@ import { generateOutline } from "@/services/outline";
 import { generateImage } from "@/services/image";
 import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import type { Deck, Slide } from "@/types/deck";
+import type { DesignLock } from "@/types/design";
 import type { ImageGenRequest } from "@/types/llm";
 
 export function runOutlineGeneration(params: {
   topic: string;
+  design: DesignLock;
   audience?: string;
   pageCount?: number;
   docContent?: string;

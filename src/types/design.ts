@@ -51,3 +51,9 @@ export function isDesignLock(v: unknown): v is DesignLock {
     typeof o.palette === "string"
   );
 }
+
+export const DEFAULT_DESIGN: DesignLock = {
+  mode: "briefing",
+  visualStyle: "soft-rounded",
+  palette: "business-blue",
+};

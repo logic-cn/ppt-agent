@@ -7,6 +7,7 @@ vi.mock("@/services/llm", () => ({
 import { chat } from "@/services/llm";
 import { generateSlideContent, buildContentContext } from "@/services/content";
 import type { Deck } from "@/types/deck";
+import { DEFAULT_DESIGN } from "@/types/design";
 
 function createDeck(): Deck {
   return {
@@ -65,6 +66,7 @@ describe("generateSlideContent", () => {
     const result = await generateSlideContent({
       slideTitle: "市场分析",
       context: "ctx",
+      design: DEFAULT_DESIGN,
     });
     expect(result.body).toBe("本页分析市场格局。");
     expect(result.bullets).toHaveLength(2);
@@ -80,6 +82,7 @@ describe("generateSlideContent", () => {
     const result = await generateSlideContent({
       slideTitle: "x",
       context: "c",
+      design: DEFAULT_DESIGN,
     });
     expect(result.body).toBe("这是一段纯文本正文");
     expect(result.bullets).toBeUndefined();
@@ -92,6 +95,7 @@ describe("generateSlideContent", () => {
     const result = await generateSlideContent({
       slideTitle: "x",
       context: "c",
+      design: DEFAULT_DESIGN,
     });
     expect(result.body).toBe("本页分析市场格局。");
     expect(result.chart).toBeDefined();
@@ -102,7 +106,11 @@ describe("generateSlideContent", () => {
       content: JSON.stringify({ chart: { type: "bar", data: "not-array" } }),
     });
     await expect(
-      generateSlideContent({ slideTitle: "x", context: "c" }),
+      generateSlideContent({
+        slideTitle: "x",
+        context: "c",
+        design: DEFAULT_DESIGN,
+      }),
     ).rejects.toThrow();
   });
 });

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, X, Sparkles, Loader2 } from "lucide-react";
 import type { TemplatePack } from "@/types/template";
-import { getTemplatePacks, buildContextualPrompt } from "@/templates";
+import { getTemplatePacks } from "@/templates";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { generateOutline } from "@/services/outline";
 
 export interface TemplateSelectResult {
@@ -58,7 +59,7 @@ export function TemplateDialog({ open, onClose, onSelect }: Props) {
       await generateOutline({
         topic: topic.trim(),
         pageCount,
-        contextualPrompt: buildContextualPrompt(selected, topic.trim()),
+        design: { ...DEFAULT_DESIGN, templateId: selected.id },
         signal: new AbortController().signal,
       });
       onSelect({ pack: selected, topic: topic.trim(), mode: "ai" });

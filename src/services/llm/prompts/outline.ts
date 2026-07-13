@@ -1,11 +1,34 @@
 /**
  * 大纲生成提示词。
- * 注入角色「资深咨询顾问/汇报设计师」并使用 JSON mode。
+ * 注入锁定的 DesignLock（叙事模式 + 视觉风格 + 配色）并使用 JSON mode。
  * 输出遵循 Slide[] 类型的 JSON schema。
  */
 
-export function buildOutlineSystemPrompt(contextualPrompt?: string): string {
-  let prompt = `你是一位资深的咨询顾问和PPT汇报设计师。你的任务是根据用户提供的主题或文档，生成专业的PPT大纲。
+import type { DesignLock } from "../../../types/design";
+import { getMode } from "../../../design/narrative-modes";
+import { getVisualStyle } from "../../../design/visual-styles";
+import { getPalette } from "../../../design/palettes";
+
+export function buildOutlineSystemPrompt(opts: {
+  design: DesignLock;
+  templateCtx?: string;
+  fewShot?: string;
+}): string {
+  const mode = getMode(opts.design.mode);
+  const style = getVisualStyle(opts.design.visualStyle)!;
+  const palette = getPalette(opts.design.palette)!;
+  const c = palette.colors;
+
+  const lockBlock = [
+    "你是资深 PPT 设计顾问。严格按以下锁定设计生成：",
+    `【叙事模式:${mode.name}】${mode.titleRule} ${mode.structureTendency}`,
+    `【视觉风格:${style.name}】${style.character}`,
+    `【配色(仅用这些 HEX)】primary:${c.primary} secondary:${c.secondary} accent:${c.accent} bg:${c.background} surface:${c.surface} text:${c.text} muted:${c.textMuted}`,
+  ].join("\n");
+
+  let prompt = `${lockBlock}
+
+你是一位资深的咨询顾问和PPT汇报设计师。你的任务是根据用户提供的主题或文档，生成专业的PPT大纲。
 
 ## 要求
 1. 输出必须是 **合法的 JSON 数组**，数组中的每个元素对应一页幻灯片。
@@ -55,11 +78,15 @@ export function buildOutlineSystemPrompt(contextualPrompt?: string): string {
   "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] }
 }`;
 
-  if (contextualPrompt) {
+  if (opts.templateCtx) {
     prompt += `\n\n## 模板结构指引（请严格遵守）
 以下是你本次生成必须遵循的模板编排。输出幻灯片**页数必须与模板精确匹配**，每页的布局必须与模板指定的布局一致。
 
-${contextualPrompt}`;
+${opts.templateCtx}`;
+  }
+
+  if (opts.fewShot) {
+    prompt += `\n\n${opts.fewShot}`;
   }
 
   return prompt;

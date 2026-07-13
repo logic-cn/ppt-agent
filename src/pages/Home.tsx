@@ -21,8 +21,8 @@ import {
 import { generateOutline } from "@/services/outline";
 import { DEFAULT_THEME_ID } from "@/themes";
 import type { TemplateSelectResult } from "@/components/template-dialog";
-import { buildContextualPrompt } from "@/templates";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { TemplateDialog } from "@/components/template-dialog";
 
 export default function Home() {
@@ -76,7 +76,7 @@ export default function Home() {
       const slides = await generateOutline({
         topic: result.topic,
         pageCount: result.pack.slides.length,
-        contextualPrompt: buildContextualPrompt(result.pack, result.topic),
+        design: { ...DEFAULT_DESIGN, templateId: result.pack.id },
       });
       const now = Date.now();
       const deck = {

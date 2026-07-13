@@ -1,5 +1,16 @@
-export function buildContentSystemPrompt(): string {
+import type { DesignLock } from "../../../types/design";
+import { getVisualStyle } from "../../../design/visual-styles";
+import { getPalette } from "../../../design/palettes";
+
+export function buildContentSystemPrompt(design: DesignLock): string {
+  const style = getVisualStyle(design.visualStyle)!;
+  const palette = getPalette(design.palette)!;
+  const c = palette.colors;
   return `你是 PPT 内容撰写专家。请根据已有的大纲标题和要点，为当前页面编写详细、专业的内容。
+
+## 锁定设计（必须遵循）
+【视觉风格:${style.name}】${style.character}
+【配色(仅用这些 HEX)】primary:${c.primary} secondary:${c.secondary} accent:${c.accent} bg:${c.background} surface:${c.surface} text:${c.text} muted:${c.textMuted}
 
 要求：
 - 用专业的商务语言，避免空话套话

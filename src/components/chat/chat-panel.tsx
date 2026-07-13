@@ -24,7 +24,8 @@ import {
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { TemplatePack } from "@/types/template";
-import { getTemplatePacks, buildContextualPrompt } from "@/templates";
+import { getTemplatePacks } from "@/templates";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 
 interface Message {
@@ -201,6 +202,7 @@ export function ChatPanel() {
             slides = await generateOutline({
               topic: text,
               pageCount: deck?.slides.length ? undefined : 8,
+              design: DEFAULT_DESIGN,
               signal: job.signal,
             });
             job.succeed("大纲生成完成");
@@ -345,10 +347,7 @@ export function ChatPanel() {
       const slides = await generateOutline({
         topic: templateTopic.trim(),
         pageCount: templatePack.slides.length,
-        contextualPrompt: buildContextualPrompt(
-          templatePack,
-          templateTopic.trim(),
-        ),
+        design: { ...DEFAULT_DESIGN, templateId: templatePack.id },
         signal: job.signal,
       });
       job.succeed("大纲生成完成");

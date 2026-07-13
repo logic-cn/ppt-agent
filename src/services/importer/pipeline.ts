@@ -10,6 +10,7 @@ import type {
   KeyFact,
 } from "./types";
 import type { Slide, SlideSourceRef } from "@/types/deck";
+import { DEFAULT_DESIGN } from "@/types/design";
 import { generateOutline } from "@/services/outline";
 import { chat } from "@/services/llm";
 
@@ -286,6 +287,7 @@ export async function generateOutlineFromDocument(
 
   const slides = await generateOutline({
     topic: context.source.title,
+    design: DEFAULT_DESIGN,
     docContent: docContent.slice(0, 12000),
     pageCount: options?.pageCount,
     signal: options?.signal,

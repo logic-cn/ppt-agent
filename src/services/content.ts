@@ -5,6 +5,7 @@ import {
   buildContentUserPrompt,
 } from "./llm/prompts/content";
 import type { BulletNode, ChartSpec, Deck, Slide } from "@/types/deck";
+import type { DesignLock } from "@/types/design";
 import { nanoid } from "nanoid";
 
 /** 根据 Deck 与当前页构建传给 LLM 的上下文（其他页面标题 + 主题） */
@@ -46,9 +47,10 @@ const contentSchema = z.object({
 export async function generateSlideContent(params: {
   slideTitle: string;
   context: string;
+  design: DesignLock;
   signal?: AbortSignal;
 }): Promise<{ body?: string; bullets?: BulletNode[]; chart?: ChartSpec }> {
-  const systemPrompt = buildContentSystemPrompt();
+  const systemPrompt = buildContentSystemPrompt(params.design);
   const userPrompt = buildContentUserPrompt(params.slideTitle, params.context);
 
   const res = await chat({
