@@ -1,6 +1,7 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
 import { httpRequest } from "@/services/http-client";
+import { decideRecovery, type FailureKind } from "@/services/recovery";
 
 /**
  * OpenAI 兼容协议的 Provider 适配器。
@@ -13,7 +14,10 @@ export class OpenAICompatProvider {
     this.config = config;
   }
 
-  async chat(req: ChatRequest): Promise<ChatResponse> {
+  async chat(
+    req: ChatRequest,
+    kind: FailureKind = "outline",
+  ): Promise<ChatResponse> {
     const body: Record<string, unknown> = {
       model: req.model,
       messages: req.messages,
@@ -49,8 +53,8 @@ export class OpenAICompatProvider {
 
         if (!res.ok) {
           const err = await res.text().catch(() => "未知错误");
-          // 429/502/503 可重试，其余直接抛
-          if ([429, 502, 503].includes(res.status) && attempt < 2) {
+          // 429/502/503 等可重试错误，交由决策矩阵决定是否继续
+          if (decideRecovery(kind, attempt) === "retry") {
             lastError = new Error(`LLM API 调用失败 (${res.status}): ${err}`);
             continue;
           }
@@ -68,7 +72,11 @@ export class OpenAICompatProvider {
         };
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") throw e;
-        if (attempt < 2 && req.signal && !req.signal.aborted) {
+        if (
+          decideRecovery(kind, attempt, e) === "retry" &&
+          req.signal &&
+          !req.signal.aborted
+        ) {
           lastError = e instanceof Error ? e : new Error(String(e));
           continue;
         }
@@ -168,7 +176,7 @@ export class OpenAICompatProvider {
 }
 
 interface ChatProvider {
-  chat(req: ChatRequest): Promise<ChatResponse>;
+  chat(req: ChatRequest, kind?: FailureKind): Promise<ChatResponse>;
   chatStream(req: ChatRequest): AsyncIterable<string>;
 }
 

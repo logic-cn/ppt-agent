@@ -102,15 +102,18 @@ export async function generateOutline(params: {
   });
   const userPrompt = buildOutlineUserPrompt(params);
 
-  const res = await chat({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.6,
-    responseFormat: "json",
-    signal: params.signal,
-  });
+  const res = await chat(
+    {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.6,
+      responseFormat: "json",
+      signal: params.signal,
+    },
+    "outline",
+  );
 
   // 解析 JSON
   let parsed: unknown;

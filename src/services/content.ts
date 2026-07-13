@@ -53,15 +53,18 @@ export async function generateSlideContent(params: {
   const systemPrompt = buildContentSystemPrompt(params.design);
   const userPrompt = buildContentUserPrompt(params.slideTitle, params.context);
 
-  const res = await chat({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.6,
-    responseFormat: "json",
-    signal: params.signal,
-  });
+  const res = await chat(
+    {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.6,
+      responseFormat: "json",
+      signal: params.signal,
+    },
+    "content",
+  );
 
   let parsed: unknown;
   let isStructured = false;

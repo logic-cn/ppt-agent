@@ -1,6 +1,7 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
 import { createProviderAsync, type ChatProvider } from "./adapter";
+import type { FailureKind } from "@/services/recovery";
 import { useSettingsStore } from "@/store/settings";
 
 /** 获取当前激活的 provider 配置 */
@@ -23,10 +24,11 @@ export async function getActiveProviderAsync(): Promise<ChatProvider> {
 /** 便捷封装：非流式聊天 */
 export async function chat(
   req: Omit<ChatRequest, "model">,
+  kind: FailureKind = "outline",
 ): Promise<ChatResponse> {
   const config = getActiveProviderConfig();
   const provider = await createProviderAsync(config);
-  return provider.chat({ ...req, model: config.model });
+  return provider.chat({ ...req, model: config.model }, kind);
 }
 
 /** 便捷封装：流式聊天 */

@@ -1,6 +1,7 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
 import { httpRequest } from "@/services/http-client";
+import { decideRecovery, type FailureKind } from "@/services/recovery";
 
 const isTauri =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -12,7 +13,10 @@ export class AnthropicProvider {
     this.config = config;
   }
 
-  async chat(req: ChatRequest): Promise<ChatResponse> {
+  async chat(
+    req: ChatRequest,
+    kind: FailureKind = "outline",
+  ): Promise<ChatResponse> {
     const body = {
       model: this.config.model,
       max_tokens: 4096,
@@ -21,31 +25,58 @@ export class AnthropicProvider {
       system: req.messages.find((m) => m.role === "system")?.content,
     };
 
-    const res = await httpRequest(`${this.config.baseUrl}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(body),
-      signal: req.signal,
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      if (attempt > 0) {
+        const delay = Math.min(1000 * 2 ** attempt, 8000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      try {
+        const res = await httpRequest(`${this.config.baseUrl}/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.config.apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify(body),
+          signal: req.signal,
+        });
 
-    if (!res.ok) {
-      const err = await res.text().catch(() => "未知错误");
-      throw new Error(`Anthropic API 调用失败 (${res.status}): ${err}`);
+        if (!res.ok) {
+          const err = await res.text().catch(() => "未知错误");
+          if (decideRecovery(kind, attempt) === "retry") {
+            lastError = new Error(
+              `Anthropic API 调用失败 (${res.status}): ${err}`,
+            );
+            continue;
+          }
+          throw new Error(`Anthropic API 调用失败 (${res.status}): ${err}`);
+        }
+
+        const data = await res.json();
+        const content = data.content?.[0]?.text ?? "";
+        return {
+          content,
+          usage: {
+            promptTokens: data.usage?.input_tokens,
+            completionTokens: data.usage?.output_tokens,
+          },
+        };
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") throw e;
+        if (
+          decideRecovery(kind, attempt, e) === "retry" &&
+          req.signal &&
+          !req.signal.aborted
+        ) {
+          lastError = e instanceof Error ? e : new Error(String(e));
+          continue;
+        }
+        throw e;
+      }
     }
-
-    const data = await res.json();
-    const content = data.content?.[0]?.text ?? "";
-    return {
-      content,
-      usage: {
-        promptTokens: data.usage?.input_tokens,
-        completionTokens: data.usage?.output_tokens,
-      },
-    };
+    throw lastError ?? new Error("Anthropic 调用重试失败");
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<string> {

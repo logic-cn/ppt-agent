@@ -4,6 +4,7 @@ import type { DesignLock } from "@/types/design";
 import { getVisualStyle } from "@/design/visual-styles";
 import { getPalette } from "@/design/palettes";
 import { httpRequest } from "@/services/http-client";
+import { decideRecovery } from "@/services/recovery";
 
 export function buildImagePrompt(subject: string, design: DesignLock): string {
   const style = getVisualStyle(design.visualStyle)!;
@@ -36,24 +37,46 @@ export async function generateImage(
     size: req.size ?? "1024x1024",
   };
 
-  const res = await httpRequest(`${cfg.baseUrl}/images/generations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${cfg.apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    try {
+      const res = await httpRequest(`${cfg.baseUrl}/images/generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cfg.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => "未知错误");
-    throw new Error(`图片生成失败: ${err}`);
+      if (!res.ok) {
+        const err = await res.text().catch(() => "未知错误");
+        if (decideRecovery("image", attempt) === "retry") {
+          lastError = new Error(`图片生成失败: ${err}`);
+          continue;
+        }
+        // 降级为占位图，避免中断整份演示
+        return { url: "", placeholder: true };
+      }
+
+      const data = await res.json();
+      return {
+        url: data.data?.[0]?.url ?? "",
+        revisedPrompt: data.data?.[0]?.revised_prompt,
+      };
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") throw e;
+      if (decideRecovery("image", attempt, e) === "retry") {
+        lastError = e instanceof Error ? e : new Error(String(e));
+        continue;
+      }
+      return { url: "", placeholder: true };
+    }
   }
-
-  const data = await res.json();
-  return {
-    url: data.data?.[0]?.url ?? "",
-    revisedPrompt: data.data?.[0]?.revised_prompt,
-  };
+  throw lastError ?? new Error("图片生成重试失败");
 }

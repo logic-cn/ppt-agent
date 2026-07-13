@@ -41,6 +41,8 @@ export interface ImageGenRequest {
 export interface ImageGenResponse {
   url: string;
   revisedPrompt?: string;
+  /** 图片生成失败降级为占位图时为 true，调用方应继续而非中断整份演示 */
+  placeholder?: boolean;
 }
 
 export interface AppSettings {
