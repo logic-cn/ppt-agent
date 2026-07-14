@@ -73,6 +73,10 @@ export function getCustomPalettes(): Palette[] {
   return _customPalettes;
 }
 
+export function getPalettes(): Palette[] {
+  return [...PALETTES, ...getCustomPalettes()];
+}
+
 export function getPalette(id: string): Palette | undefined {
   return (
     PALETTES.find((p) => p.id === id) ??

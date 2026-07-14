@@ -22,9 +22,9 @@ import { InspectorPanel } from "@/components/inspector/inspector-panel";
 import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
-import { BUILTIN_THEMES } from "@/themes";
-import { useCustomThemeStore } from "@/store/custom-themes";
 import { deleteDeck } from "@/services/storage";
+import { useCustomPalettes } from "@/store/custom-palettes";
+import { DesignPanel } from "@/components/design";
 import { useQualityStore } from "@/store/quality";
 import { checkDeckQuality, hasHardError } from "@/services/quality";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -45,7 +45,7 @@ export default function Editor() {
   const [rightOpen, setRightOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
-  const [themeOpen, setThemeOpen] = useState(false);
+  const [designOpen, setDesignOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -56,8 +56,6 @@ export default function Editor() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
-  const customThemes = useCustomThemeStore((s) => s.themes);
-  const loadCustomThemes = useCustomThemeStore((s) => s.load);
   const qualityReport = useQualityStore((s) => s.report);
   const pendingRules = useQualityStore((s) => s.pendingRules);
   // 导出前质量门：实时对当前 deck 跑 checkDeckQuality，存在 hard 即阻断导出。
@@ -102,8 +100,8 @@ export default function Editor() {
   };
 
   useEffect(() => {
-    void loadCustomThemes();
-  }, [loadCustomThemes]);
+    void useCustomPalettes.getState().load();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -375,98 +373,28 @@ export default function Editor() {
 
           <div className="relative">
             <button
-              onClick={() => setThemeOpen((v) => !v)}
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-              title="切换主题"
+              onClick={() => setDesignOpen((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm hover:bg-bg-hover ${
+                designOpen
+                  ? "text-accent"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+              title="设计"
             >
               <Palette className="h-3.5 w-3.5" />
-              主题
+              设计
             </button>
-            {themeOpen && (
+            {designOpen && (
               <>
                 <div
                   className="fixed inset-0 z-10"
-                  onClick={() => setThemeOpen(false)}
+                  onClick={() => setDesignOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-border bg-white p-1 shadow-lg">
-                  {BUILTIN_THEMES.map((t) => {
-                    const swatch =
-                      t.id === "minimal-white"
-                        ? "#e5e7eb"
-                        : t.id === "vibrant-orange"
-                          ? t.colors.secondary
-                          : t.colors.primary;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => {
-                          setDesign({
-                            ...(deck?.design ?? DEFAULT_DESIGN),
-                            palette: t.id,
-                          });
-                          setThemeOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
-                          deck?.design.palette === t.id
-                            ? "text-accent"
-                            : "text-text-secondary"
-                        }`}
-                      >
-                        <span
-                          className="h-4 w-4 shrink-0 rounded-full border border-border"
-                          style={{ background: swatch }}
-                        />
-                        <span className="flex-1 text-left">{t.name}</span>
-                        {deck?.design.palette === t.id && (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  {customThemes.length > 0 && (
-                    <>
-                      <div className="mx-2 my-1 border-t border-border" />
-                      {customThemes.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => {
-                            setDesign({
-                              ...(deck?.design ?? DEFAULT_DESIGN),
-                              palette: t.id,
-                            });
-                            setThemeOpen(false);
-                          }}
-                          className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-bg-hover ${
-                            deck?.design.palette === t.id
-                              ? "text-accent"
-                              : "text-text-secondary"
-                          }`}
-                        >
-                          <span
-                            className="h-4 w-4 shrink-0 rounded-full border border-border"
-                            style={{ background: t.colors.primary }}
-                          />
-                          <span className="flex-1 text-left">{t.name}</span>
-                          {deck?.design.palette === t.id && (
-                            <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
-                          )}
-                        </button>
-                      ))}
-                    </>
-                  )}
-
-                  <div className="mx-2 my-1 border-t border-border" />
-                  <button
-                    onClick={() => {
-                      setThemeOpen(false);
-                      navigate("/settings");
-                    }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-hover"
-                  >
-                    <Palette className="h-3 w-3" />
-                    管理自定义主题
-                  </button>
+                <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-xl border border-border bg-white p-3 shadow-lg">
+                  <DesignPanel
+                    design={deck?.design ?? DEFAULT_DESIGN}
+                    onChange={(d) => setDesign(d)}
+                  />
                 </div>
               </>
             )}

@@ -1,5 +1,5 @@
 import type { PaletteId } from "@/types/design";
-import { PALETTES } from "@/design/palettes";
+import { getPalettes } from "@/design/palettes";
 
 interface Props {
   value: PaletteId;
@@ -7,9 +7,10 @@ interface Props {
 }
 
 export function PalettePicker({ value, onChange }: Props) {
+  const palettes = getPalettes();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {PALETTES.map((palette) => {
+      {palettes.map((palette) => {
         const selected = palette.id === value;
         return (
           <button
@@ -32,6 +33,10 @@ export function PalettePicker({ value, onChange }: Props) {
               <span
                 className="h-3.5 w-3.5 rounded-full border border-border"
                 style={{ backgroundColor: palette.colors.accent }}
+              />
+              <span
+                className="h-3.5 w-3.5 rounded-full border border-border"
+                style={{ backgroundColor: palette.colors.background }}
               />
             </span>
             <span className="text-sm font-medium text-text-primary">
