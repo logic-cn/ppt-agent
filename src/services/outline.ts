@@ -6,7 +6,6 @@ import {
 } from "./llm/prompts/outline";
 import type { BulletNode, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
-import { buildContextualPrompt, getTemplatePackById } from "@/templates";
 import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
 
@@ -87,17 +86,8 @@ export async function generateOutline(params: {
   contextualPrompt?: string;
 }): Promise<Slide[]> {
   const design = params.design;
-  const templateCtx =
-    params.contextualPrompt ??
-    (design.templateId
-      ? buildContextualPrompt(
-          getTemplatePackById(design.templateId)!,
-          params.topic,
-        )
-      : undefined);
   const systemPrompt = buildOutlineSystemPrompt({
     design,
-    templateCtx,
     fewShot: buildFewShotPrompt(selectFewShot(design)),
   });
   const userPrompt = buildOutlineUserPrompt(params);
