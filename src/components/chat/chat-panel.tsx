@@ -383,6 +383,7 @@ export function ChatPanel() {
         signal: job.signal,
       });
       job.succeed("大纲生成完成");
+      useDeckStore.getState().setDesign(preset.design);
       await replaceSlides(slides);
       useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
       runQualityCheck();

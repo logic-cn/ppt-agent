@@ -121,8 +121,6 @@ export default function Editor() {
     useQualityStore.getState().setReport(null);
     if (isNew && deck) return;
     if (!id) return;
-    const from = params.get("from");
-    const shouldCheckQuality = from === "template" || from === "template-ai";
     load(id).then(() => {
       const current = useDeckStore.getState().deck;
       if (!current && !isNew) {
@@ -135,13 +133,6 @@ export default function Editor() {
         void deckStore.createDeck().then((d) => {
           window.history.replaceState(null, "", `/editor/${d.id}?new=1`);
         });
-      } else if (shouldCheckQuality) {
-        const qualityStore = useQualityStore.getState();
-        const rules = qualityStore.pendingRules ?? undefined;
-        qualityStore.clearPendingRules();
-        qualityStore.setReport(
-          current ? checkDeckQuality(current, { rules }) : null,
-        );
       }
     });
   }, [id, isNew, load, params]);

@@ -32,7 +32,10 @@ export function repairDeck(input: unknown): RepairResult {
     updatedAt: (deck.updatedAt as number) || Date.now(),
   };
 
-  if (!getPalette(design.palette)) {
+  // 自定义配色(custom-*) 在 Editor 加载后由 getPalette 解析；此处不回退，
+  // 交由 resolveTheme 的统一兜底处理，避免持久化的自定义配色被静默重置。
+  const isCustomPalette = design.palette.startsWith("custom-");
+  if (!isCustomPalette && !getPalette(design.palette)) {
     design.palette = DEFAULT_DESIGN.palette;
     warnings.push("design.palette 无效，已回退默认配色");
   }
