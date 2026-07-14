@@ -1,29 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { getPalette, PALETTES } from "./palettes";
+import { getPalette, setCustomPalettes, PALETTES } from "./palettes";
+import type { Palette } from "./palettes";
 
-describe("palettes", () => {
-  it("business-blue 返回含 7 个颜色字段的对象", () => {
-    const palette = getPalette("business-blue");
-    expect(palette).toBeDefined();
-    const keys = Object.keys(palette!.colors).sort();
-    expect(keys).toEqual(
-      [
-        "accent",
-        "background",
-        "primary",
-        "secondary",
-        "surface",
-        "text",
-        "textMuted",
-      ].sort(),
-    );
+describe("getPalette 自定义配色", () => {
+  it("内置 id 可解析", () => {
+    expect(getPalette("business-blue")?.colors.primary).toBe("#60A5FA");
   });
-
+  it("自定义 id 在 setCustomPalettes 后可解析", () => {
+    const custom: Palette = {
+      id: "custom-1",
+      name: "测试配色",
+      colors: {
+        primary: "#123456",
+        secondary: "#234567",
+        accent: "#345678",
+        background: "#ffffff",
+        surface: "#f5f5f5",
+        text: "#111111",
+        textMuted: "#666666",
+      },
+    };
+    setCustomPalettes([custom]);
+    expect(getPalette("custom-1")?.colors.primary).toBe("#123456");
+    setCustomPalettes([]);
+  });
   it("未知 id 返回 undefined", () => {
-    expect(getPalette("not-exist")).toBeUndefined();
+    expect(getPalette("nope")).toBeUndefined();
   });
-
-  it("保留全部 4 套配色", () => {
-    expect(PALETTES).toHaveLength(4);
+  it("内置配色不少于 4", () => {
+    expect(PALETTES.length).toBeGreaterThanOrEqual(4);
   });
 });

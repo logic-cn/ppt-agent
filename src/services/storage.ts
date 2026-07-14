@@ -1,4 +1,5 @@
 import type { AppSettings, Deck, DeckMeta } from "@/types";
+import type { Palette } from "@/design/palettes";
 import type { Theme } from "@/types/theme";
 import type { Template } from "@/types/template";
 import { PROVIDER_PRESETS } from "@/types/llm";
@@ -277,7 +278,7 @@ export async function deleteDeck(id: string): Promise<void> {
   }
 }
 
-// ---- 自定义主题 ----
+// ---- 自定义主题（待 Task 7 删除） ----
 
 const CUSTOM_THEME_PREFIX = "custom-";
 
@@ -356,6 +357,86 @@ export async function deleteCustomTheme(id: string): Promise<void> {
     await inv("delete_file", { path });
   } catch (e) {
     console.error("deleteCustomTheme failed:", e);
+  }
+}
+
+// ---- 自定义配色 ----
+
+const CUSTOM_PALETTE_PREFIX = "custom-";
+
+export async function saveCustomPalette(p: Palette): Promise<void> {
+  const dir = await getDataDir();
+  const path = await joinPath(dir, "palettes", `${p.id}.json`);
+  await writeText(path, JSON.stringify(p, null, 2));
+}
+
+export async function listCustomPalettes(): Promise<Palette[]> {
+  const dir = await getDataDir();
+  const out: Palette[] = [];
+
+  if (!isTauri) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        key.startsWith("ppt-agent-data/palettes/") &&
+        key.endsWith(".json")
+      ) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const p = JSON.parse(raw) as Palette;
+            if (p.id?.startsWith(CUSTOM_PALETTE_PREFIX)) out.push(p);
+          } catch {
+            /* skip */
+          }
+        }
+      }
+    }
+  } else {
+    try {
+      const inv = await getInvoke();
+      if (inv) {
+        const palettesDir = await joinPath(dir, "palettes");
+        const names = await inv<string[]>("list_directory", {
+          path: palettesDir,
+        });
+        for (const name of names) {
+          if (name.endsWith(".json")) {
+            const raw = await readText(await joinPath(palettesDir, name));
+            if (raw) {
+              try {
+                const p = JSON.parse(raw) as Palette;
+                if (p.id?.startsWith(CUSTOM_PALETTE_PREFIX)) out.push(p);
+              } catch {
+                /* skip */
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      /* skip */
+    }
+  }
+
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+export async function deleteCustomPalette(id: string): Promise<void> {
+  const dir = await getDataDir();
+  if (!isTauri) {
+    localStorage.removeItem(`ppt-agent-data/palettes/${id}.json`);
+    return;
+  }
+  try {
+    const inv = await getInvoke();
+    if (!inv) return;
+    const path = await joinPath(dir, "palettes", `${id}.json`);
+    await inv("delete_file", { path });
+  } catch (e) {
+    console.error("deleteCustomPalette failed:", e);
   }
 }
 

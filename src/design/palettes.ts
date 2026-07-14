@@ -1,5 +1,7 @@
 import type { ThemeColors } from "../types/theme";
 
+export type { ThemeColors } from "../types/theme";
+
 export interface Palette {
   id: string;
   name: string;
@@ -61,6 +63,19 @@ export const PALETTES: Palette[] = [
   },
 ];
 
+let _customPalettes: Palette[] = [];
+
+export function setCustomPalettes(p: Palette[]): void {
+  _customPalettes = p;
+}
+
+export function getCustomPalettes(): Palette[] {
+  return _customPalettes;
+}
+
 export function getPalette(id: string): Palette | undefined {
-  return PALETTES.find((p) => p.id === id);
+  return (
+    PALETTES.find((p) => p.id === id) ??
+    _customPalettes.find((p) => p.id === id)
+  );
 }
