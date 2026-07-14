@@ -124,9 +124,11 @@ export async function generateOutline(params: {
     }
   }
 
-  // 兼容 json_object 模式：将顶层对象中的幻灯片数组提取出来
+  // 兼容 json_object 模式：模型禁止返回顶层数组，可能包裹为 {"slides": [...]}，
+  // 或仅返回单个 slide 对象。此处统一规整为 Slide[]。
   if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
-    const arrayCandidate = Object.values(parsed).find(
+    const obj = parsed as Record<string, unknown>;
+    const arrayCandidate = Object.values(obj).find(
       (v) =>
         Array.isArray(v) &&
         v.length > 0 &&
@@ -136,6 +138,12 @@ export async function generateOutline(params: {
     );
     if (arrayCandidate) {
       parsed = arrayCandidate;
+    } else if (
+      typeof obj.title === "string" &&
+      typeof obj.layout === "string"
+    ) {
+      // 仅返回单个 slide 对象（json_object 模式下的退化输出）
+      parsed = [obj];
     }
   }
 

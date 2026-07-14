@@ -31,7 +31,7 @@ export function buildOutlineSystemPrompt(opts: {
 你是一位资深的咨询顾问和PPT汇报设计师。你的任务是根据用户提供的主题或文档，生成专业的PPT大纲。
 
 ## 要求
-1. 输出必须是 **合法的 JSON 数组**，数组中的每个元素对应一页幻灯片。
+1. 输出必须是 **合法的 JSON 对象**，顶层结构为 {"slides": [...]}，其中 slides 是幻灯片数组，数组中的每个元素对应一页幻灯片。
 2. **每页幻灯片必须包含 "title"（字符串）和 "layout"（下方枚举值之一）**，缺少这两个字段会导致解析失败。
 3. 第一页必须是 "cover" 类型，最后一页必须是 "closing" 类型。
 4. 正文页不要只用 "content" 布局，要根据内容的逻辑关系**多样化选择布局**，让每页内容更有层次。
@@ -70,12 +70,16 @@ export function buildOutlineSystemPrompt(opts: {
 
 ## Schema
 {
-  "title": string,
-  "layout": "cover" | "section" | "content" | "two-column" | "chart" | "image" | "closing" | "cols-2" | "cols-3" | "cols-4" | "cols-5" | "cols-6",
-  "subtitle"?: string,
-  "bullets"?: { text: string, level: 0 | 1 | 2, children?: { text: string, level: 1 | 2 }[] }[],
-  "items"?: { title?: string, bullets?: string[], body?: string }[],
-  "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] }
+  "slides": [
+    {
+      "title": string,
+      "layout": "cover" | "section" | "content" | "two-column" | "chart" | "image" | "closing" | "cols-2" | "cols-3" | "cols-4" | "cols-5" | "cols-6",
+      "subtitle"?: string,
+      "bullets"?: { text: string, level: 0 | 1 | 2, children?: { text: string, level: 1 | 2 }[] }[],
+      "items"?: { title?: string, bullets?: string[], body?: string }[],
+      "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] }
+    }
+  ]
 }`;
 
   if (opts.templateCtx) {

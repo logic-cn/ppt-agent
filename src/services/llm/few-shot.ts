@@ -23,13 +23,13 @@ export function buildFewShotPrompt(examples: GalleryExample[]): string {
     .map(
       (e) =>
         `示例(${e.design.mode}/${e.design.visualStyle}):\n` +
-        JSON.stringify(
-          e.slides.map((s) => ({
+        JSON.stringify({
+          slides: e.slides.map((s) => ({
             layout: s.layout,
             title: s.title,
             bullets: (s.bullets ?? []).length,
           })),
-        ),
+        }),
     )
     .join("\n\n");
   return `以下是同风格的优质结构范例，请参考其章节编排与标题写法（不要照抄内容）：\n${body}`;
