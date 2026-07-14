@@ -98,6 +98,16 @@ describe("generateOutline 集成测试", () => {
     ).rejects.toThrow();
   });
 
+  it("上下文提示词不再注入模板结构（已移除模板上下文依赖）", async () => {
+    await generateOutline({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+    });
+    const callArg = (chat as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(callArg.messages[0].content).not.toContain("模板结构");
+  });
+
   it("超过一半页无效时整体失败", async () => {
     const bad = JSON.stringify([
       { title: "ok", layout: "cover" },
@@ -110,18 +120,5 @@ describe("generateOutline 集成测试", () => {
     await expect(
       generateOutline({ topic: "测试主题", design: DEFAULT_DESIGN }),
     ).rejects.toThrow();
-  });
-
-  it("上下文提示词注入模板结构", async () => {
-    const contextualPrompt = "模板结构：\n1. [cover] 封面\n2. [content] 正文";
-    await generateOutline({
-      topic: "测试主题",
-      design: DEFAULT_DESIGN,
-      contextualPrompt,
-    });
-    const callArg = (chat as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0][0];
-    expect(callArg.messages[0].content).toContain("模板结构");
-    expect(callArg.messages[0].content).toContain("[cover]");
   });
 });

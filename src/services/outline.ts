@@ -83,7 +83,6 @@ export async function generateOutline(params: {
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
-  contextualPrompt?: string;
 }): Promise<Slide[]> {
   const design = params.design;
   const systemPrompt = buildOutlineSystemPrompt({
