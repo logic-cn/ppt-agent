@@ -1,4 +1,3 @@
-import type { Theme } from "./theme";
 import type { DesignLock } from "./design";
 
 export type SlideLayout =
@@ -93,7 +92,6 @@ export interface Deck {
   version: number;
   title: string;
   design: DesignLock;
-  themeOverrides?: Partial<Theme>;
   slides: Slide[];
   createdAt: number;
   updatedAt: number;

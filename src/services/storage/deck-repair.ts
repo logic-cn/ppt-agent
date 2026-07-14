@@ -1,4 +1,5 @@
 import { DEFAULT_DESIGN, isDesignLock } from "@/types/design";
+import { getPalette } from "@/design/palettes";
 import type { ValidDeck } from "./deck-schema";
 
 export interface RepairResult {
@@ -31,9 +32,11 @@ export function repairDeck(input: unknown): RepairResult {
     updatedAt: (deck.updatedAt as number) || Date.now(),
   };
 
-  if (deck.themeOverrides) {
-    repaired.themeOverrides = deck.themeOverrides as Record<string, unknown>;
+  if (!getPalette(design.palette)) {
+    design.palette = DEFAULT_DESIGN.palette;
+    warnings.push("design.palette 无效，已回退默认配色");
   }
+
   if (deck.source && typeof deck.source === "object") {
     repaired.source = deck.source as {
       type: "topic" | "doc" | "url";

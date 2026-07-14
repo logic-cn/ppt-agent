@@ -98,7 +98,6 @@ export const deckSchema = z.object({
   version: z.number(),
   title: z.string(),
   design: designSchema,
-  themeOverrides: z.record(z.string(), z.unknown()).optional(),
   slides: z.array(slideSchema),
   createdAt: z.number(),
   updatedAt: z.number(),
