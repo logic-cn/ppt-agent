@@ -1,5 +1,3 @@
-import type { SlideLayout } from "./deck";
-
 export type Spacing = "compact" | "comfortable" | "airy";
 
 export interface ThemeColors {
@@ -45,5 +43,4 @@ export interface Theme {
   fonts: ThemeFonts;
   fontSize: ThemeFontSize;
   spacing: Spacing;
-  layouts: Record<SlideLayout, LayoutSpec>;
 }

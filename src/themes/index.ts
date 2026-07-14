@@ -1,17 +1,10 @@
 import type { Theme } from "@/types/theme";
-import businessBlue from "./business-blue.json";
-import minimalWhite from "./minimal-white.json";
-import techPurple from "./tech-purple.json";
-import vibrantOrange from "./vibrant-orange.json";
+import type { VisualStyleId } from "@/types/design";
+import { getPalette, PALETTES } from "@/design/palettes";
+import { getVisualStyle } from "@/design/visual-styles";
+import { DEFAULT_DESIGN } from "@/types/design";
 
-export const BUILTIN_THEMES: Theme[] = [
-  businessBlue as Theme,
-  minimalWhite as Theme,
-  techPurple as Theme,
-  vibrantOrange as Theme,
-];
-
-export const DEFAULT_THEME_ID = "vibrant-orange";
+export const DEFAULT_THEME_ID = DEFAULT_DESIGN.palette;
 export const CUSTOM_THEME_PREFIX = "custom-";
 
 // 全局自定义主题缓存，由 useCustomThemeStore 在加载时填充
@@ -25,32 +18,46 @@ export function getCustomThemes(): Theme[] {
   return _customThemes;
 }
 
+/**
+ * Theme 不再单独存储，统一由 (palette, visualStyle) 派生：
+ * - colors 来自统一 palette 注册表（内置 + 自定义）
+ * - fonts / fontSize / spacing 来自 VISUAL_STYLES
+ */
+export function resolveTheme(
+  paletteId: string,
+  visualStyleId: VisualStyleId,
+): Theme {
+  const palette = getPalette(paletteId) ?? getPalette(DEFAULT_DESIGN.palette)!;
+  const style =
+    getVisualStyle(visualStyleId) ??
+    getVisualStyle(DEFAULT_DESIGN.visualStyle)!;
+  return {
+    id: palette.id,
+    name: palette.name,
+    colors: palette.colors,
+    fonts: style.fonts,
+    fontSize: style.fontSize,
+    spacing: style.spacing,
+  };
+}
+
+// 由统一 palette 注册表派生，不再维护重复的主题注册表
+export const BUILTIN_THEMES: Theme[] = PALETTES.map((p) =>
+  resolveTheme(p.id, DEFAULT_DESIGN.visualStyle),
+);
+
 export function getAllThemes(): Theme[] {
   return [...BUILTIN_THEMES, ..._customThemes];
 }
 
 export function getTheme(id: string): Theme {
   return (
-    BUILTIN_THEMES.find((t) => t.id === id) ??
+    (getPalette(id)
+      ? resolveTheme(id, DEFAULT_DESIGN.visualStyle)
+      : undefined) ??
     _customThemes.find((t) => t.id === id) ??
-    BUILTIN_THEMES.find((t) => t.id === DEFAULT_THEME_ID)!
+    BUILTIN_THEMES[0]!
   );
-}
-
-export function resolveTheme(
-  themeKey: string,
-  overrides?: Partial<Theme>,
-): Theme {
-  const base = getTheme(themeKey);
-  if (!overrides) return base;
-  return {
-    ...base,
-    ...overrides,
-    colors: { ...base.colors, ...overrides.colors },
-    fonts: { ...base.fonts, ...overrides.fonts },
-    fontSize: { ...base.fontSize, ...overrides.fontSize },
-    layouts: { ...base.layouts, ...overrides.layouts },
-  };
 }
 
 export function cloneThemeFrom(
@@ -65,6 +72,5 @@ export function cloneThemeFrom(
     colors: { ...base.colors },
     fonts: { ...base.fonts },
     fontSize: { ...base.fontSize },
-    layouts: JSON.parse(JSON.stringify(base.layouts)) as typeof base.layouts,
   };
 }

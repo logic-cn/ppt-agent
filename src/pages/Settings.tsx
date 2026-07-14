@@ -14,7 +14,6 @@ import {
   useCustomThemeStore,
   generateCustomThemeId,
 } from "@/store/custom-themes";
-import { BUILTIN_THEMES } from "@/themes";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import type { LLMProviderId } from "@/types/llm";
 import type { Theme } from "@/types/theme";
@@ -386,7 +385,6 @@ export default function Settings() {
             fonts: { title: "sans-serif", body: "sans-serif" },
             fontSize: { h1: 44, h2: 32, body: 18, caption: 14 },
             spacing: "comfortable" as const,
-            layouts: BUILTIN_THEMES[0]!.layouts,
           }}
           onSave={async (t) => {
             await saveTheme(t);

@@ -646,7 +646,7 @@ export default function Editor() {
       {presenting && deck && (
         <PresentationMode
           deck={deck}
-          theme={resolveTheme(deck.design.palette, deck.themeOverrides)}
+          theme={resolveTheme(deck.design.palette, deck.design.visualStyle)}
           initialIndex={selectedIndex}
           onExit={() => setPresenting(false)}
         />

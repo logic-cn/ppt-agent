@@ -20,59 +20,6 @@ function mockTheme(): Theme {
     fonts: { title: "sans-serif", body: "sans-serif" },
     fontSize: { h1: 36, h2: 24, body: 16, caption: 12 },
     spacing: "comfortable",
-    layouts: {
-      cover: {
-        title: { x: 0.1, y: 0.3, w: 0.8, h: 0.15 },
-        body: { x: 0.1, y: 0.5, w: 0.8, h: 0.3 },
-      },
-      section: {
-        title: { x: 0.1, y: 0.35, w: 0.8, h: 0.15 },
-        body: { x: 0.1, y: 0.55, w: 0.8, h: 0.3 },
-      },
-      content: {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-        visual: { x: 0.55, y: 0.22, w: 0.4, h: 0.6 },
-      },
-      "two-column": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.4, h: 0.7 },
-        visual: { x: 0.52, y: 0.22, w: 0.4, h: 0.7 },
-      },
-      chart: {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-      image: {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.55, w: 0.84, h: 0.35 },
-        visual: { x: 0.08, y: 0.22, w: 0.84, h: 0.3 },
-      },
-      closing: {
-        title: { x: 0.1, y: 0.35, w: 0.8, h: 0.15 },
-        body: { x: 0.1, y: 0.55, w: 0.8, h: 0.3 },
-      },
-      "cols-2": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-      "cols-3": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-      "cols-4": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-      "cols-5": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-      "cols-6": {
-        title: { x: 0.08, y: 0.08, w: 0.84, h: 0.1 },
-        body: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
-      },
-    },
   };
 }
 

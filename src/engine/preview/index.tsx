@@ -28,8 +28,8 @@ export const SlidePreview = memo(function SlidePreview({
   const [containerWidth, setContainerWidth] = useState(960);
 
   const theme = useMemo(
-    () => resolveTheme(deck.design.palette, deck.themeOverrides),
-    [deck.design.palette, deck.themeOverrides],
+    () => resolveTheme(deck.design.palette, deck.design.visualStyle),
+    [deck.design.palette, deck.design.visualStyle],
   );
   const slides = deck.slides;
   const currentSlide: Slide | undefined = slides[currentIndex];
