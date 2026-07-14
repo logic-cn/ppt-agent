@@ -7,31 +7,20 @@ import {
   Settings,
   Clock,
   Trash2,
-  LayoutTemplate,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
 import { useProjectStore } from "@/store/project";
-import {
-  deleteDeck,
-  createDeckFromTemplate,
-  saveDeck,
-  createEmptyDeck,
-} from "@/services/storage";
-import { generateOutline } from "@/services/outline";
-import type { TemplateSelectResult } from "@/components/template-dialog";
+import { deleteDeck } from "@/services/storage";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DEFAULT_DESIGN, type DesignLock } from "@/types/design";
-import { TemplateDialog } from "@/components/template-dialog";
-import { GalleryPanel } from "@/components/gallery/GalleryPanel";
+import { PresetLibrary } from "@/components/preset/PresetLibrary";
+import type { DeckPreset } from "@/types/preset";
 
 export default function Home() {
   const navigate = useNavigate();
   const createDeck = useDeckStore((s) => s.createDeck);
   const { recent, loading, loadRecent } = useProjectStore();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     void loadRecent();
@@ -49,61 +38,12 @@ export default function Home() {
     navigate(`/editor/${deck.id}?new=1`);
   };
 
-  const handleGalleryPick = async (design: DesignLock) => {
-    setGalleryOpen(false);
+  const handlePresetPick = async (preset: DeckPreset) => {
     const deck = await createDeck();
-    useDeckStore.getState().setDesign(design);
+    useDeckStore.getState().setDesign(preset.design);
+    useDeckStore.getState().replaceSlides(preset.slides);
+    useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
     navigate(`/editor/${deck.id}?new=1`);
-  };
-
-  const handleTemplateSelect = async (result: TemplateSelectResult) => {
-    setTemplateDialogOpen(false);
-
-    if (result.mode === "static") {
-      const deck = createDeckFromTemplate(
-        {
-          id: result.pack.id,
-          name: result.pack.name,
-          description: result.pack.description,
-          scenario: result.pack.scenario,
-          suggestedPageCount: result.pack.slides.length,
-          slides: result.pack.slides,
-        },
-        result.topic,
-      );
-      await saveDeck(deck);
-      useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
-      useQualityStore
-        .getState()
-        .setPendingRules(result.pack.qualityRules ?? []);
-      navigate(`/editor/${deck.id}?from=template`);
-      return;
-    }
-
-    try {
-      const slides = await generateOutline({
-        topic: result.topic,
-        pageCount: result.pack.slides.length,
-        design: { ...DEFAULT_DESIGN, templateId: result.pack.id },
-      });
-      const now = Date.now();
-      const deck = {
-        ...createEmptyDeck(result.topic),
-        title: result.topic,
-        slides,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await saveDeck(deck);
-      useDeckStore.setState({ deck, dirty: false, past: [], future: [] });
-      useQualityStore
-        .getState()
-        .setPendingRules(result.pack.qualityRules ?? []);
-      navigate(`/editor/${deck.id}?from=template-ai`);
-    } catch (e) {
-      console.error("模板 AI 生成失败:", e);
-      alert("AI 生成失败，请重试或选择直接创建");
-    }
   };
 
   const getSlideSummary = (slidesCount: number) => `${slidesCount} 页`;
@@ -164,38 +104,25 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setTemplateDialogOpen(true)}
+              onClick={() => navigate("/settings")}
               className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
-                <LayoutTemplate className="h-7 w-7" />
+                <FileText className="h-7 w-7" />
               </div>
               <div className="text-center">
-                <div className="font-medium">从模板创建</div>
+                <div className="font-medium">示例库</div>
                 <div className="mt-1 text-sm text-text-muted">
-                  精选模板快速开始
+                  挑选成熟风格作为起点
                 </div>
               </div>
             </button>
           </div>
 
-          {/* 样例画廊入口 */}
-          <div className="mb-12 flex items-center justify-between rounded-xl border border-border bg-white px-6 py-5">
-            <div>
-              <h2 className="text-base font-semibold text-text-primary">
-                样例画廊
-              </h2>
-              <p className="mt-1 text-sm text-text-muted">
-                挑一个成熟风格作为起点，下一步再输入主题即可生成大纲
-              </p>
-            </div>
-            <button
-              onClick={() => setGalleryOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm font-medium text-white hover:opacity-90 shadow-sm shadow-accent/20"
-            >
-              <LayoutTemplate className="h-4 w-4" />
-              浏览画廊
-            </button>
+          {/* 示例库 */}
+          <div className="mb-12">
+            <h2 className="mb-4 text-lg font-semibold">示例库</h2>
+            <PresetLibrary onPick={handlePresetPick} />
           </div>
 
           {/* 最近项目 */}
@@ -281,19 +208,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          )}
-
-          <TemplateDialog
-            open={templateDialogOpen}
-            onClose={() => setTemplateDialogOpen(false)}
-            onSelect={handleTemplateSelect}
-          />
-
-          {galleryOpen && (
-            <GalleryPanel
-              onPick={handleGalleryPick}
-              onClose={() => setGalleryOpen(false)}
-            />
           )}
 
           <ConfirmDialog
