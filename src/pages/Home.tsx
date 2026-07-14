@@ -104,7 +104,11 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => navigate("/settings")}
+              onClick={() =>
+                document
+                  .getElementById("preset-library")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
               className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
@@ -120,7 +124,7 @@ export default function Home() {
           </div>
 
           {/* 示例库 */}
-          <div className="mb-12">
+          <div id="preset-library" className="mb-12">
             <h2 className="mb-4 text-lg font-semibold">示例库</h2>
             <PresetLibrary onPick={handlePresetPick} />
           </div>
