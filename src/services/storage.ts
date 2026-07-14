@@ -1,6 +1,5 @@
 import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Palette } from "@/design/palettes";
-import type { Theme } from "@/types/theme";
 import type { Template } from "@/types/template";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -275,88 +274,6 @@ export async function deleteDeck(id: string): Promise<void> {
     await removeFromIndex(dir, id);
   } catch (e) {
     console.error("deleteDeck failed:", e);
-  }
-}
-
-// ---- 自定义主题（待 Task 7 删除） ----
-
-const CUSTOM_THEME_PREFIX = "custom-";
-
-export async function saveCustomTheme(theme: Theme): Promise<void> {
-  const dir = await getDataDir();
-  const path = await joinPath(dir, "themes", `${theme.id}.json`);
-  await writeText(path, JSON.stringify(theme, null, 2));
-}
-
-export async function listCustomThemes(): Promise<Theme[]> {
-  const dir = await getDataDir();
-  const themes: Theme[] = [];
-
-  if (!isTauri) {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (
-        key &&
-        key.startsWith("ppt-agent-data/themes/") &&
-        key.endsWith(".json")
-      ) {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            const theme = JSON.parse(raw) as Theme;
-            if (theme.id?.startsWith(CUSTOM_THEME_PREFIX)) themes.push(theme);
-          } catch {
-            /* skip */
-          }
-        }
-      }
-    }
-  } else {
-    try {
-      const inv = await getInvoke();
-      if (inv) {
-        const themesDir = await joinPath(dir, "themes");
-        const names = await inv<string[]>("list_directory", {
-          path: themesDir,
-        });
-        for (const name of names) {
-          if (name.endsWith(".json")) {
-            const filePath = await joinPath(themesDir, name);
-            const raw = await readText(filePath);
-            if (raw) {
-              try {
-                const theme = JSON.parse(raw) as Theme;
-                if (theme.id?.startsWith(CUSTOM_THEME_PREFIX))
-                  themes.push(theme);
-              } catch {
-                /* skip */
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      /* skip */
-    }
-  }
-
-  themes.sort((a, b) => a.name.localeCompare(b.name));
-  return themes;
-}
-
-export async function deleteCustomTheme(id: string): Promise<void> {
-  const dir = await getDataDir();
-  if (!isTauri) {
-    localStorage.removeItem(`ppt-agent-data/themes/${id}.json`);
-    return;
-  }
-  try {
-    const inv = await getInvoke();
-    if (!inv) return;
-    const path = await joinPath(dir, "themes", `${id}.json`);
-    await inv("delete_file", { path });
-  } catch (e) {
-    console.error("deleteCustomTheme failed:", e);
   }
 }
 

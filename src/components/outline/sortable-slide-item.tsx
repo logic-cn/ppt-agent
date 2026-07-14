@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { Slide } from "@/types/deck";
 import { useDeckStore } from "@/store/deck";
-import { getTheme } from "@/themes";
+import { resolveTheme } from "@/themes";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { SlideThumbnail } from "@/engine/preview";
 
@@ -41,7 +41,11 @@ export const SortableSlideItem = memo(function SortableSlideItem({
   qualitySeverity,
 }: Props) {
   const palette = useDeckStore((s) => s.deck?.design.palette);
-  const theme = getTheme(palette ?? DEFAULT_DESIGN.palette);
+  const visualStyle = useDeckStore((s) => s.deck?.design.visualStyle);
+  const theme = resolveTheme(
+    palette ?? DEFAULT_DESIGN.palette,
+    visualStyle ?? DEFAULT_DESIGN.visualStyle,
+  );
   const updateSlide = useDeckStore((s) => s.updateSlide);
   const removeSlide = useDeckStore((s) => s.removeSlide);
   const moveSlide = useDeckStore((s) => s.moveSlide);

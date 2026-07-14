@@ -1,23 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  Key,
-  Image as ImageIcon,
-  Palette,
-  Plus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { useEffect } from "react";
+import { ChevronLeft, Key, Image as ImageIcon } from "lucide-react";
 import { useSettingsStore } from "@/store/settings";
-import {
-  useCustomThemeStore,
-  generateCustomThemeId,
-} from "@/store/custom-themes";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import type { LLMProviderId } from "@/types/llm";
-import type { Theme } from "@/types/theme";
-import { ThemeEditorDialog } from "@/components/theme-editor-dialog";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -30,17 +16,10 @@ export default function Settings() {
     setImageEnabled,
     setImageProvider,
   } = useSettingsStore();
-  const customThemes = useCustomThemeStore((s) => s.themes);
-  const loadCustomThemes = useCustomThemeStore((s) => s.load);
-  const saveTheme = useCustomThemeStore((s) => s.save);
-  const removeTheme = useCustomThemeStore((s) => s.remove);
-  const [editingTheme, setEditingTheme] = useState<Theme | null>(null);
-  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     void load();
-    void loadCustomThemes();
-  }, [load, loadCustomThemes]);
+  }, [load]);
 
   return (
     <div className="flex h-full flex-col">
@@ -264,147 +243,8 @@ export default function Settings() {
               </div>
             </div>
           </section>
-
-          {/* ===== 自定义主题 ===== */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-white">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Palette className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold">自定义主题</h2>
-              </div>
-              <button
-                onClick={() => setCreating(true)}
-                className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                新建
-              </button>
-            </div>
-
-            <div className="p-5">
-              {customThemes.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-muted">
-                  暂无自定义主题，点击「新建」开始创建
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {customThemes.map((t) => (
-                    <div
-                      key={t.id}
-                      className="overflow-hidden rounded-xl border border-border bg-white"
-                    >
-                      {/* 样式预览：直接展示主题视觉效果 */}
-                      <div
-                        className="space-y-2 p-3"
-                        style={{ background: t.colors.background }}
-                      >
-                        <div
-                          className="h-1.5 w-12 rounded-full"
-                          style={{ background: t.colors.primary }}
-                        />
-                        <div
-                          className="truncate text-sm font-semibold"
-                          style={{ color: t.colors.text }}
-                        >
-                          {t.name}
-                        </div>
-                        <div
-                          className="truncate text-xs"
-                          style={{ color: t.colors.textMuted }}
-                        >
-                          幻灯片标题示例文本
-                        </div>
-                        <div
-                          className="inline-flex items-center rounded-md px-2 py-1 text-xs text-white"
-                          style={{ background: t.colors.accent }}
-                        >
-                          示例按钮
-                        </div>
-                      </div>
-                      {/* 底部：调色板 + 操作 */}
-                      <div className="flex items-center justify-between border-t border-border px-3 py-2">
-                        <div className="flex gap-1">
-                          {[
-                            t.colors.primary,
-                            t.colors.secondary,
-                            t.colors.accent,
-                            t.colors.background,
-                            t.colors.text,
-                          ].map((c, i) => (
-                            <span
-                              key={i}
-                              className="h-3.5 w-3.5 rounded-full border border-black/10"
-                              style={{ background: c }}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setEditingTheme(t)}
-                            className="rounded p-1.5 text-text-muted hover:bg-bg-hover hover:text-text-primary"
-                            title="编辑"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm(`确定删除主题「${t.name}」？`)) {
-                                await removeTheme(t.id);
-                              }
-                            }}
-                            className="rounded p-1.5 text-text-muted hover:bg-red-100/10 hover:text-red-400"
-                            title="删除"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
         </div>
       </main>
-
-      {creating && (
-        <ThemeEditorDialog
-          theme={{
-            id: generateCustomThemeId(),
-            name: "新建主题",
-            colors: {
-              primary: "#1e40af",
-              secondary: "#3b82f6",
-              accent: "#f59e0b",
-              background: "#ffffff",
-              surface: "#f8fafc",
-              text: "#1e293b",
-              textMuted: "#94a3b8",
-            },
-            fonts: { title: "sans-serif", body: "sans-serif" },
-            fontSize: { h1: 44, h2: 32, body: 18, caption: 14 },
-            spacing: "comfortable" as const,
-          }}
-          onSave={async (t) => {
-            await saveTheme(t);
-          }}
-          onClose={() => setCreating(false)}
-        />
-      )}
-
-      {editingTheme && (
-        <ThemeEditorDialog
-          theme={editingTheme}
-          onSave={async (t) => {
-            await saveTheme(t);
-          }}
-          onDelete={async () => {
-            await removeTheme(editingTheme.id);
-          }}
-          onClose={() => setEditingTheme(null)}
-        />
-      )}
     </div>
   );
 }
