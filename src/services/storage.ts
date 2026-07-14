@@ -1,6 +1,5 @@
 import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Palette } from "@/design/palettes";
-import type { Template } from "@/types/template";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { parseStoredDeck } from "./storage/deck-parse";
@@ -358,58 +357,6 @@ export async function deleteCustomPalette(id: string): Promise<void> {
 }
 
 // ---- 工厂函数 ----
-
-export function createDeckFromTemplate(
-  template: Template,
-  title?: string,
-): Deck {
-  const now = Date.now();
-
-  const slides = template.slides.map((ts) => ({
-    id: crypto.randomUUID(),
-    layout: ts.layout,
-    title: ts.title,
-    subtitle: ts.subtitle,
-    body: ts.body,
-    bullets: ts.bullets?.map((b) => ({
-      id: crypto.randomUUID(),
-      text: b.text,
-      level: b.level as 0 | 1 | 2,
-      children: b.children?.map((c) => ({
-        id: crypto.randomUUID(),
-        text: c.text,
-        level: c.level as 1 | 2,
-      })),
-    })),
-    items: ts.items?.map((item) => ({
-      id: crypto.randomUUID(),
-      title: item.title,
-      bullets: item.bullets,
-      body: item.body,
-    })),
-    chart: ts.chart
-      ? { type: ts.chart.type, title: ts.chart.title, data: ts.chart.data }
-      : undefined,
-    image: ts.image
-      ? {
-          type: ts.image.type as "icon" | "url",
-          url: ts.image.url,
-          alt: ts.image.alt,
-        }
-      : undefined,
-    notes: ts.notes,
-  }));
-
-  return {
-    id: crypto.randomUUID(),
-    version: CURRENT_DECK_VERSION,
-    title: title ?? template.name,
-    design: DEFAULT_DESIGN,
-    slides,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
 
 export function createEmptyDeck(title = "未命名项目"): Deck {
   const now = Date.now();

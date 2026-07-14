@@ -24,8 +24,8 @@ import {
   getHardFindings,
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
-import type { TemplatePack } from "@/types/template";
-import { getTemplatePacks } from "@/templates";
+import type { DeckPreset } from "@/types/preset";
+import { getPresets } from "@/presets";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 
@@ -51,7 +51,7 @@ export function ChatPanel() {
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [templatePack, setTemplatePack] = useState<TemplatePack | null>(null);
+  const [preset, setPreset] = useState<DeckPreset | null>(null);
   const [templateTopic, setTemplateTopic] = useState("");
   const [templateGenerating, setTemplateGenerating] = useState(false);
   const [fixing, setFixing] = useState(false);
@@ -360,42 +360,40 @@ export function ChatPanel() {
     }
   };
 
-  const handleTemplateSelect = (pack: TemplatePack) => {
-    setTemplatePack(pack);
+  const handleTemplateSelect = (p: DeckPreset) => {
+    setPreset(p);
     const deck = useDeckStore.getState().deck;
     setTemplateTopic(deck && deck.title !== "未命名项目" ? deck.title : "");
   };
 
   const handleTemplateGenerate = async () => {
-    if (!templatePack || !templateTopic.trim() || templateGenerating) return;
+    if (!preset || !templateTopic.trim() || templateGenerating) return;
     setTemplateGenerating(true);
     const jobStore = useJobStore.getState();
     const job = jobStore.startJob({
       type: "outline.generate",
-      title: `按模板生成：${templatePack.name}`,
+      title: `按模板生成：${preset.name}`,
       canCancel: true,
     });
     try {
       const slides = await generateOutline({
         topic: templateTopic.trim(),
-        pageCount: templatePack.slides.length,
-        design: { ...DEFAULT_DESIGN, templateId: templatePack.id },
+        pageCount: preset.slides.length,
+        design: preset.design,
         signal: job.signal,
       });
       job.succeed("大纲生成完成");
       await replaceSlides(slides);
-      useQualityStore
-        .getState()
-        .setPendingRules(templatePack.qualityRules ?? []);
+      useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
       runQualityCheck();
       const deck = useDeckStore.getState().deck;
       if (deck && deck.title === "未命名项目") setTitle(templateTopic.trim());
       addMessage(
         "assistant",
-        `已按模板「${templatePack.name}」重新生成 **${slides.length} 页大纲**！`,
+        `已按模板「${preset.name}」重新生成 **${slides.length} 页大纲**！`,
       );
       setTemplateOpen(false);
-      setTemplatePack(null);
+      setPreset(null);
     } catch (e) {
       if (job.signal.aborted) job.cancel();
       else job.fail(e);
@@ -412,7 +410,7 @@ export function ChatPanel() {
         <button
           onClick={() => {
             setTemplateOpen((v) => !v);
-            setTemplatePack(null);
+            setPreset(null);
           }}
           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-bg-hover hover:text-accent ${
             templateOpen ? "text-accent" : "text-text-muted"
@@ -427,9 +425,9 @@ export function ChatPanel() {
       {/* 模板选择面板 */}
       {templateOpen && (
         <div className="border-b border-border bg-bg-surface px-3 py-3">
-          {!templatePack ? (
+          {!preset ? (
             <div className="grid grid-cols-2 gap-2">
-              {getTemplatePacks().map((p) => (
+              {getPresets().map((p: DeckPreset) => (
                 <button
                   key={p.id}
                   onClick={() => handleTemplateSelect(p)}
@@ -448,10 +446,10 @@ export function ChatPanel() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-text-primary">
-                  {templatePack.name}
+                  {preset.name}
                 </span>
                 <button
-                  onClick={() => setTemplatePack(null)}
+                  onClick={() => setPreset(null)}
                   className="text-[11px] text-text-muted hover:text-accent"
                 >
                   返回
