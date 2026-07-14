@@ -30,7 +30,11 @@ const DEFAULT_COLORS: ThemeColors = {
 };
 
 export function PalettePicker({ value, onChange }: Props) {
-  const palettes = getPalettes();
+  const customPalettes = useCustomPalettes((s) => s.palettes);
+  const palettes = [
+    ...getPalettes().filter((p) => !p.id.startsWith("custom-")),
+    ...customPalettes,
+  ];
   const create = useCustomPalettes((s) => s.create);
   const remove = useCustomPalettes((s) => s.remove);
 
