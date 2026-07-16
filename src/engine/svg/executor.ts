@@ -40,14 +40,33 @@ export async function generateSlideSvg(
           { role: "user", content: userContent },
         ],
         temperature: 0.7,
+        maxTokens: 16000,
         signal: opts.signal,
       },
       "svg",
     );
-    return res.content.match(/<svg[\s\S]*<\/svg>/i)?.[0] ?? res.content;
+    // 剥离可能的 ```svg 代码块包裹，再提取 <svg>…</svg> 根元素
+    const stripped = res.content
+      .replace(/^```(?:svg|xml)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    return stripped.match(/<svg[\s\S]*<\/svg>/i)?.[0] ?? stripped;
   };
 
   let svg = (await rawGenerate(prompt)).trim();
+
+  const hasSvgRoot =
+    /^<svg[\s\S]*<\/svg>$/i.test(svg) || /<svg[\s\S]*<\/svg>/i.test(svg);
+
+  // 首轮若被截断（无完整 <svg> 根元素），先尝试让模型续写闭合，而不是直接判失败
+  if (!hasSvgRoot) {
+    svg = (
+      await rawGenerate(
+        prompt +
+          "\n\n你上一次的输出被截断了，缺少完整的 <svg>…</svg>。请仅输出从 <svg 开始到 </svg> 结束的完整 SVG，不要任何解释或代码块包裹。",
+      )
+    ).trim();
+  }
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const issues = checkSvg(svg, opts.specLock).filter(
