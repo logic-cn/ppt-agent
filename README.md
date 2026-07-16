@@ -41,12 +41,12 @@ pnpm tauri:build
 
 前往设置页填写 LLM API Key：
 
-| Provider | Base URL | 模型 |
-|---|---|---|
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
-| Anthropic | `https://api.anthropic.com/v1` | `claude-sonnet-4-20250514` |
-| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-max` |
-| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-plus` |
+| Provider  | Base URL                                            | 模型                       |
+| --------- | --------------------------------------------------- | -------------------------- |
+| OpenAI    | `https://api.openai.com/v1`                         | `gpt-4o`                   |
+| Anthropic | `https://api.anthropic.com/v1`                      | `claude-sonnet-4-20250514` |
+| 通义千问  | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-max`                 |
+| 智谱 GLM  | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4-plus`               |
 
 ## 技术栈
 
@@ -79,6 +79,27 @@ pnpm typecheck        # 类型检查
 pnpm format           # 格式化
 pnpm build            # 前端构建
 ```
+
+## X1 架构：SVG 设计真相管线
+
+X1 将渲染架构从「几何坐标程序化绘制」重构为「SVG 页面设计真相 + 原生 PPTX 翻译」，使生成的 PPT 美观、预览导出一致、导出完全可编辑。
+
+### 管线流程
+
+1. **设计锁（specLock）**：由 `visualStyles` / `palettes` 硬化出画布（1280×720 像素 viewBox）、配色、字体等设计契约。
+2. **页面规划（pagePlan）**：`generatePagePlan` 调用 LLM 产出每页语义角色（cover / content / metrics / …）与内容规划，不含像素坐标。
+3. **逐页串行生成 SVG（executor）**：`generateDeckSvgs` 按页顺序（禁止并行）调用 LLM，注入 specLock + pagePlan 产出单页 `<svg viewBox="0 0 1280 720">` 设计真相。
+4. **质量闸门（checkSvg + 重画）**：`generateSlideSvg` 集成 `checkSvg` 越界/溢出校验，首轮若报 error 则回喂问题重画，最多 2 轮；末道 `validateSvgContract` 契约兜底，非法则抛错。
+5. **SvgViewer 预览**：预览原生内联渲染 `slide.svg`，预览即导出结果。
+6. **SVG → PPTX 原生翻译（svgToPptx）**：`translateSvgToSlide` 逐元素翻译为 pptxgenjs 原生 `addText` / `addShape` / `addChart`，**导出为可编辑对象而非图片**。
+7. **单页重画**：预览底部「重画此页」按钮调用 `regenerateSlide` 重新生成该页 SVG，作为稳定性兜底。
+
+### 技术边界
+
+- **渐变降级为 solid**：`linearGradient` / `radialGradient` 因 pptxgenjs 限制，翻译时取首末 stop 平均色（见 `gradient.ts` 的 `resolveFill`）。
+- **path 降级为包围盒矩形**：闭合带 fill 的 `<path>` 翻译为覆盖其 bounding box 的 `rect`，保证不丢失形状占位。
+- **图表约定**：SVG 内图表使用 `<g data-chart-type="bar|pie|line" data-chart-data='[...]'>`，翻译器读取 `data-chart-data` 生成 pptxgenjs 原生可编辑图表。
+- **固定像素 viewBox**：所有 SVG 强制 `viewBox="0 0 1280 720"`，坐标换算为 `/1280*13.333`、 `/720*7.5` 映射到 13.333×7.5 英寸幻灯片。
 
 ## 许可
 

@@ -6,6 +6,7 @@ import { buildRenderSlideCached } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
 import { SvgViewer } from "@/components/SvgViewer";
+import { SlideRedrawButton } from "@/components/slide-redraw";
 
 interface Props {
   deck: Deck;
@@ -117,6 +118,7 @@ export const SlidePreview = memo(function SlidePreview({
         >
           下一页
         </button>
+        {currentSlide.svg && <SlideRedrawButton slideId={currentSlide.id} />}
       </div>
     </div>
   );
