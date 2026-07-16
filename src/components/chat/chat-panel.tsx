@@ -11,7 +11,7 @@ import {
 import { useDeckStore } from "@/store/deck";
 import { useJobStore } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
-import { generateOutline } from "@/services/outline";
+import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
 import { generateDeckPatches } from "@/services/deck-patch/ai";
 import { applyDeckPatches } from "@/services/deck-patch/apply";
@@ -215,12 +215,19 @@ export function ChatPanel() {
 
           let slides;
           try {
-            slides = await generateOutline({
-              topic: text,
-              pageCount: deck?.slides.length ? undefined : 8,
-              design: deck?.design ?? DEFAULT_DESIGN,
-              signal: job.signal,
-            });
+            // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
+            const targetDeck =
+              deck ?? (await useDeckStore.getState().createDeck());
+            const newDeck = await buildDeckSvgs(
+              targetDeck,
+              deck?.design ?? DEFAULT_DESIGN,
+              {
+                topic: text,
+                pageCount: deck?.slides.length ? undefined : 8,
+                signal: job.signal,
+              },
+            );
+            slides = newDeck.slides;
             job.succeed("大纲生成完成");
           } catch (e) {
             if (job.signal.aborted) job.cancel();
@@ -261,9 +268,9 @@ export function ChatPanel() {
           addMessage(
             "assistant",
             `已生成 **${slides.length} 页大纲**！你可以：
-1. 在左侧大纲面板拖拽调整顺序
-2. 点击每页展开修改标题和布局
-3. 告诉我想进一步调整哪里`,
+ 1. 在左侧大纲面板拖拽调整顺序
+ 2. 点击每页展开修改标题和布局
+ 3. 告诉我想进一步调整哪里`,
           );
         } else if (deck && deck.slides.length > 0) {
           // 已有 deck，优先 AI DeckPatch 编辑；失败/无 Key 时回退本地 intent-parser

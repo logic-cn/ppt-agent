@@ -1,6 +1,7 @@
 import type PptxGenJS from "pptxgenjs";
 import { collectDefs, resolveFill } from "./gradient";
 import { translateChart } from "./chart";
+import type { SpecLock } from "@/design/spec-lock";
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
@@ -44,6 +45,7 @@ function textAnchorToAlign(
 export function translateSvgToSlide(
   svg: string,
   pptxSlide: PptxGenJS.Slide,
+  specLock?: SpecLock,
 ): void {
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   const root = doc.documentElement;
@@ -60,7 +62,7 @@ export function translateSvgToSlide(
     // 不再按普通 group 处理其 children，避免重复绘制。
     if (tag === "g") {
       if (el.getAttribute("data-chart-type")) {
-        translateChart(el, pptxSlide);
+        translateChart(el, pptxSlide, specLock);
       }
       return;
     }

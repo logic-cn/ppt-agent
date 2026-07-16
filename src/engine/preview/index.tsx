@@ -154,12 +154,18 @@ export const SlideThumbnail = memo(function SlideThumbnail({
       className="relative overflow-hidden rounded-md ring-1 ring-black/10"
       style={{ width, height }}
     >
-      <RenderSlideViewer
-        renderSlide={renderSlide}
-        slide={slide}
-        theme={theme}
-        width={width}
-      />
+      {slide.svg ? (
+        <SvgViewer svg={slide.svg} className="h-full w-full" />
+      ) : (
+        renderSlide && (
+          <RenderSlideViewer
+            renderSlide={renderSlide}
+            slide={slide}
+            theme={theme}
+            width={width}
+          />
+        )
+      )}
     </div>
   );
 });

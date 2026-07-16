@@ -1,4 +1,5 @@
 import type PptxGenJS from "pptxgenjs";
+import type { SpecLock } from "@/design/spec-lock";
 
 /*
  * 图表标记约定（供 SVG 生成端 svg-gen prompt 同步）：
@@ -50,7 +51,11 @@ interface ChartPoint {
   value: number;
 }
 
-export function translateChart(gEl: Element, pptxSlide: PptxGenJS.Slide): void {
+export function translateChart(
+  gEl: Element,
+  pptxSlide: PptxGenJS.Slide,
+  specLock?: SpecLock,
+): void {
   const typeAttr = gEl.getAttribute("data-chart-type");
   const dataAttr = gEl.getAttribute("data-chart-data");
   if (!typeAttr || !dataAttr) return;
@@ -85,6 +90,18 @@ export function translateChart(gEl: Element, pptxSlide: PptxGenJS.Slide): void {
     },
   ];
 
+  // 优先使用 specLock 设计契约配色（前几色作为图表系列色），无 specLock 时回退默认调色板。
+  const chartColors =
+    specLock && specLock.colors
+      ? [
+          specLock.colors.primary,
+          specLock.colors.secondary,
+          specLock.colors.accent,
+          specLock.colors.text,
+          specLock.colors.textMuted,
+        ].filter(Boolean)
+      : DEFAULT_PALETTE;
+
   const chartOpts = {
     x: (x / SVG_W) * SLIDE_W,
     y: (y / SVG_H) * SLIDE_H,
@@ -92,7 +109,7 @@ export function translateChart(gEl: Element, pptxSlide: PptxGenJS.Slide): void {
     h: (h / SVG_H) * SLIDE_H,
     showLegend: true,
     showTitle: false,
-    chartColors: DEFAULT_PALETTE,
+    chartColors,
   };
 
   pptxSlide.addChart(type, chartData, chartOpts);

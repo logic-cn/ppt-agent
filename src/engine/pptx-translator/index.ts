@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
+import { buildSpecLock } from "@/design/spec-lock";
 import { translateSvgToSlide } from "./elements";
 
 const SLIDE_W = 13.333;
@@ -13,10 +14,10 @@ function initPptx(pptx: PptxGenJS): void {
 
 export async function svgToPptx(
   slides: Slide[],
-  _design: DesignLock,
+  design: DesignLock,
 ): Promise<Blob> {
-  // _design 当前未参与翻译逻辑，预留给后续 4.2/4.3 配色注入使用
-  void _design;
+  // 由 design 构建 specLock 设计契约，注入图表配色等（无 design 时退化为默认调色板）。
+  const specLock = design ? buildSpecLock(design) : undefined;
 
   const pptx = new PptxGenJS();
   initPptx(pptx);
@@ -24,7 +25,7 @@ export async function svgToPptx(
   for (const slide of slides) {
     if (!slide.svg) continue;
     const pptxSlide = pptx.addSlide();
-    translateSvgToSlide(slide.svg, pptxSlide);
+    translateSvgToSlide(slide.svg, pptxSlide, specLock);
   }
 
   return (await pptx.write({ outputType: "blob" })) as Blob;

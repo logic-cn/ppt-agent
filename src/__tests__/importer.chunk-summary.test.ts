@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock LLM 与 outline 生成，避免真实网络与 LLM 调用
+// Mock LLM 与 X1 生成管线，避免真实网络与 LLM 调用
 vi.mock("@/services/llm", () => ({ chat: vi.fn() }));
-vi.mock("@/services/outline", () => ({ generateOutline: vi.fn() }));
+vi.mock("@/engine/svg/pipeline", () => ({
+  buildDeckSvgs: vi.fn().mockResolvedValue({
+    id: "import-temp",
+    title: "测试文档",
+    design: {},
+    slides: [{ id: "s1", layout: "cover", title: "封面" }],
+    version: 2,
+    createdAt: 0,
+    updatedAt: 0,
+  }),
+}));
 
 import { chat } from "@/services/llm";
-import { generateOutline } from "@/services/outline";
+import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import {
   parseDocument,
   chunkDocument,
@@ -77,9 +87,6 @@ describe("summarizeChunks", () => {
 describe("generateOutlineFromDocument 分块摘要与章节过滤", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (generateOutline as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: "s1", layout: "cover", title: "封面" },
-    ]);
   });
 
   it("使用预填摘要而非原文作为生成内容", async () => {
@@ -96,8 +103,8 @@ describe("generateOutlineFromDocument 分块摘要与章节过滤", () => {
       keyFacts: [],
     };
     await generateOutlineFromDocument(ctx);
-    const callArg = (generateOutline as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0];
+    const callArg = (buildDeckSvgs as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][2] as { docContent?: string };
     expect(callArg.docContent).toContain("摘要0");
     expect(callArg.docContent).toContain("摘要1");
     expect(callArg.docContent).not.toContain("片段一的内容");
@@ -117,8 +124,8 @@ describe("generateOutlineFromDocument 分块摘要与章节过滤", () => {
       keyFacts: [],
     };
     await generateOutlineFromDocument(ctx);
-    const callArg = (generateOutline as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0];
+    const callArg = (buildDeckSvgs as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][2] as { docContent?: string };
     expect(callArg.docContent).toContain("摘要0");
     expect(callArg.docContent).not.toContain("摘要1");
   });
@@ -152,8 +159,8 @@ describe("generateOutlineFromDocument 分块摘要与章节过滤", () => {
     };
     await generateOutlineFromDocument(ctx);
     expect(chat).toHaveBeenCalled();
-    const callArg = (generateOutline as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0];
+    const callArg = (buildDeckSvgs as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][2] as { docContent?: string };
     expect(callArg.docContent).toContain("长文档摘要0");
   });
 });

@@ -1,11 +1,11 @@
 import { runJob } from "@/store/job";
-import { generateOutline } from "@/services/outline";
 import { generateImage } from "@/services/image";
 import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import type { Deck, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import type { ImageGenRequest } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { buildDeckSvgs } from "@/engine/svg/pipeline";
 
 export function runOutlineGeneration(params: {
   topic: string;
@@ -20,9 +20,29 @@ export function runOutlineGeneration(params: {
     { type: "outline.generate", title: "生成大纲", canCancel: true },
     async (job) => {
       job.update({ progress: 0.2, message: "正在请求 AI…" });
-      const slides = await generateOutline({ ...params, signal: job.signal });
+      // X1 管线：用 buildDeckSvgs 生成 svg 设计真相（构造临时 deck 供对齐页数）
+      const tempDeck: Deck = {
+        id: "x1-temp",
+        title: params.topic,
+        design: params.design ?? DEFAULT_DESIGN,
+        slides: [],
+        version: 2,
+        createdAt: 0,
+        updatedAt: 0,
+      };
+      const newDeck = await buildDeckSvgs(
+        tempDeck,
+        params.design ?? DEFAULT_DESIGN,
+        {
+          topic: params.topic,
+          audience: params.audience,
+          pageCount: params.pageCount,
+          docContent: params.docContent,
+          signal: job.signal,
+        },
+      );
       job.update({ progress: 0.8, message: "校验完成" });
-      return slides;
+      return newDeck.slides;
     },
   );
 }

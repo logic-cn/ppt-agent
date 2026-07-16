@@ -12,7 +12,14 @@ export function buildSvgGenPrompt(opts: {
   totalPages: number;
 }): string {
   const { specLock, plan, pageIndex, totalPages } = opts;
-  return `你是 PPT 视觉设计师。基于以下设计契约，产出第 ${pageIndex + 1}/${totalPages} 页（角色 ${plan.role}，标题：${plan.title}，意图：${plan.intent}）的 SVG。
+  // 图表约定：当 pagePlan 指定了图表类型，要求用结构化 <g data-chart-type> 标记，
+  // 翻译器会将其转为原生可编辑图表，避免用零散 rect 模拟。
+  const chartRule = plan.chartType
+    ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。`
+    : "";
+  return `你是 PPT 视觉设计师。基于以下设计契约，产出第 ${pageIndex + 1}/${totalPages} 页（角色 ${plan.role}，标题：${plan.title}，意图：${plan.intent}${
+    plan.chartType ? `，建议图表类型：${plan.chartType}` : ""
+  }）的 SVG。
 
 画布：viewBox="0 0 1280 720"，像素坐标系，单页。
 
@@ -35,7 +42,7 @@ export function buildSvgGenPrompt(opts: {
 3. 绝对禁止 foreignObject、script、use、a 以及任何外部资源引用（除 # 锚点与 data: 内嵌）。
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
-6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。
+6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。${chartRule}
 
-只输出 <svg>...</svg>。`;
+ 只输出 <svg>...</svg>。`;
 }

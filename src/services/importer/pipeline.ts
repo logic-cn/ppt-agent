@@ -9,9 +9,9 @@ import type {
   DocumentPrepareOptions,
   KeyFact,
 } from "./types";
-import type { Slide, SlideSourceRef } from "@/types/deck";
+import type { Slide, SlideSourceRef, Deck } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
-import { generateOutline } from "@/services/outline";
+import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { chat } from "@/services/llm";
 
 const CHUNK_MAX_CHARS = 3000;
@@ -285,13 +285,24 @@ export async function generateOutlineFromDocument(
 
   const docContent = chunks.map((c) => c.summary || c.text).join("\n\n");
 
-  const slides = await generateOutline({
-    topic: context.source.title,
+  // X1 管线：用 buildDeckSvgs 生成 svg 设计真相（先构造一个空 deck 供其对齐页数与 title）
+  const baseDeck: Deck = {
+    id: "import-temp",
+    title: context.source.title,
     design: DEFAULT_DESIGN,
+    slides: [],
+    version: 2,
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const newDeck = await buildDeckSvgs(baseDeck, DEFAULT_DESIGN, {
+    topic: context.source.title,
     docContent: docContent.slice(0, 12000),
     pageCount: options?.pageCount,
     signal: options?.signal,
   });
+
+  const slides = newDeck.slides;
 
   const slidesWithRefs: Slide[] = slides.map((slide) => {
     const quote = slide.bullets?.length

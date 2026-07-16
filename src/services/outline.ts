@@ -204,8 +204,11 @@ export async function generatePagePlan(params: {
 }
 
 /**
- * 生成 PPT 大纲。
+ * 生成 PPT 大纲（旧链路）。
  * 输入主题/文档 → LLM JSON mode → 校验 → 附加 id → 返回 Slide[]
+ *
+ * @deprecated 已被 X1 管线的 buildDeckSvgs（SVG 设计真相中间层）取代。
+ * 新代码请改用 buildDeckSvgs 以获得带 svg 的 Slide；此函数仅保留作兼容与测试。
  */
 export async function generateOutline(params: {
   topic: string;
