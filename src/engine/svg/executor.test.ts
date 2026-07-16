@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generateSlideSvg, generateDeckSvgs } from "./executor";
+import { buildSpecLock } from "@/design/spec-lock";
+import { DEFAULT_DESIGN } from "@/types/design";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
+
+const builtSpec: SpecLock = buildSpecLock(DEFAULT_DESIGN);
 
 const spec: SpecLock = {
   canvas: { w: 1280, h: 720 },
@@ -36,7 +40,7 @@ vi.mock("@/services/llm", () => ({
 import { chat } from "@/services/llm";
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("generateSlideSvg", () => {
@@ -64,6 +68,27 @@ describe("generateSlideSvg", () => {
         totalPages: 1,
       }),
     ).rejects.toThrow(/契约校验未通过/);
+  });
+
+  it("首轮 checkSvg 报 error 时回喂重画，第二次合规后返回合规 svg", async () => {
+    const outOfBounds = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="-50" y="0" width="200" height="200" fill="#FFFFFF"/></svg>`;
+    vi.mocked(chat)
+      .mockResolvedValueOnce({ content: outOfBounds })
+      .mockResolvedValueOnce({ content: VALID_SVG });
+
+    const svg = await generateSlideSvg({
+      specLock: builtSpec,
+      plan: makePlan(1)[0],
+      pageIndex: 0,
+      totalPages: 1,
+    });
+
+    expect(chat).toHaveBeenCalledTimes(2);
+    expect(svg).toBe(VALID_SVG.trim());
+    const secondCallArgs = vi.mocked(chat).mock.calls[1][0] as {
+      messages: { content: string }[];
+    };
+    expect(secondCallArgs.messages[1].content).toContain("你的 SVG 有以下问题");
   });
 });
 
