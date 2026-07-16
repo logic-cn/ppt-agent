@@ -14,6 +14,7 @@ const ALLOWED = new Set([
   "linearGradient",
   "radialGradient",
   "stop",
+  "defs",
 ]);
 
 const FORBIDDEN = new Set(["script", "foreignObject", "use", "a"]);
@@ -27,6 +28,9 @@ export const SVG_CONTRACT = {
 
 const REQUIRED_VIEWBOX = "0 0 1280 720";
 
+// 注意：当前实现使用正则解析而非 DOMParser，已知边界——注释内文本、
+// 以及 `<text>10 < 5</text>` 这类含 `<` 的文本节点可能被误匹配为标签。
+// 仅作说明，不需改动现有逻辑。
 export function validateSvgContract(svg: string): string[] {
   const errors: string[] = [];
 
