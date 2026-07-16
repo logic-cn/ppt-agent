@@ -4,10 +4,69 @@ import {
   buildOutlineSystemPrompt,
   buildOutlineUserPrompt,
 } from "./llm/prompts/outline";
+import {
+  buildPagePlanSystemPrompt,
+  buildPagePlanUserPrompt,
+} from "./llm/prompts/pageplan";
 import type { BulletNode, Slide, SlideLayout } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
+import { isDesignLock } from "@/types/design";
+import { PagePlanItem, SEMANTIC_ROLES, SemanticRole } from "@/types/page-plan";
 import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
+
+// ---- pagePlan（页面结构规划）相关 schema ----
+
+const pagePlanItemSchema = z.object({
+  role: z.enum(SEMANTIC_ROLES as [SemanticRole, ...SemanticRole[]]),
+  title: z.string(),
+  intent: z.string(),
+  bullets: z.array(z.string()).optional(),
+  chartType: z.enum(["bar", "pie", "line", "doughnut"]).optional(),
+  quote: z.string().optional(),
+  attribution: z.string().optional(),
+});
+
+/**
+ * 解析 LLM 返回的 JSON（兼容裸数组、{"pages":[...]}、markdown 代码块）。
+ * 返回规整后的未知对象数组，交由调用方用 zod 逐项校验。
+ */
+function parsePlanJson(content: string): unknown {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (match) {
+      try {
+        parsed = JSON.parse(match[1]);
+      } catch {
+        throw new Error(`LLM 返回的 JSON 无法解析：${content.slice(0, 200)}`);
+      }
+    } else {
+      throw new Error(`LLM 返回的 JSON 无法解析：${content.slice(0, 200)}`);
+    }
+  }
+
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    if (Array.isArray(obj.pages)) return obj.pages;
+    // 退化：找到首个角色数组
+    const candidate = Object.values(obj).find(
+      (v) =>
+        Array.isArray(v) &&
+        v.length > 0 &&
+        typeof v[0] === "object" &&
+        v[0] !== null &&
+        typeof (v[0] as Record<string, unknown>).role === "string",
+    );
+    if (candidate) return candidate;
+    // 单个对象
+    if (typeof obj.role === "string") return [obj];
+  }
+  throw new Error(`页面结构规划返回格式无法识别：${content.slice(0, 200)}`);
+}
 
 /** 递归为 bullet 节点添加 id（支持任意层级） */
 function addBulletIds(
@@ -84,6 +143,65 @@ const slideSchema = z.object({
   quote: z.string().optional(),
   attribution: z.string().optional(),
 });
+
+/**
+ * 生成页面结构规划（pagePlan）。
+ * 输入主题/文档/设计锁 → LLM JSON mode → 校验 → 返回 PagePlanItem[]。
+ * 仅产出「每页语义角色与内容规划」，不含像素坐标（后续 executor 负责）。
+ * 复用现有 chat 调用范式与设计锁注入方式。
+ */
+export async function generatePagePlan(params: {
+  topic: string;
+  design: DesignLock;
+  audience?: string;
+  pageCount?: number;
+  docContent?: string;
+  signal?: AbortSignal;
+}): Promise<PagePlanItem[]> {
+  const design = params.design;
+  if (!isDesignLock(design)) {
+    throw new Error("generatePagePlan 需要合法的 DesignLock");
+  }
+
+  const systemPrompt = buildPagePlanSystemPrompt({
+    design,
+    fewShot: buildFewShotPrompt(selectFewShot(design)),
+  });
+  const userPrompt = buildPagePlanUserPrompt(params);
+
+  const res = await chat(
+    {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.6,
+      responseFormat: "json",
+      signal: params.signal,
+    },
+    "outline",
+  );
+
+  const raw = parsePlanJson(res.content);
+  const rawArray = Array.isArray(raw) ? raw : [];
+
+  const valid: PagePlanItem[] = [];
+  for (const item of rawArray) {
+    const result = pagePlanItemSchema.safeParse(item);
+    if (result.success) valid.push(result.data);
+  }
+
+  if (valid.length === 0) {
+    throw new Error("页面结构规划校验失败：所有页格式均不正确，请重试");
+  }
+  if (valid.length < rawArray.length * 0.5) {
+    throw new Error(
+      `页面结构规划校验失败：${rawArray.length} 页中有 ${valid.length} 页格式正确，正确率不足 50%`,
+    );
+  }
+
+  return valid;
+}
 
 /**
  * 生成 PPT 大纲。
