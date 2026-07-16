@@ -21,7 +21,7 @@ export const SvgViewer = memo(function SvgViewer({
       data-svg-viewer=""
       className={`relative w-full overflow-hidden ${className ?? ""}`}
       style={{ aspectRatio: "16 / 9", background: "#fff" }}
-      dangerouslySetInnerHTML={{ __html: svg }}
+      dangerouslySetInnerHTML={{ __html: svg ?? "" }}
     />
   );
 });
