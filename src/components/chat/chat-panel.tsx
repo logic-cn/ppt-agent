@@ -25,7 +25,8 @@ import {
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import type { DeckPreset } from "@/types/preset";
-import { getPresets } from "@/presets";
+import type { Slide } from "@/types/deck";
+import { PresetPickerDialog } from "@/components/preset/PresetPickerDialog";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 
@@ -50,10 +51,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [preset, setPreset] = useState<DeckPreset | null>(null);
-  const [templateTopic, setTemplateTopic] = useState("");
-  const [templateGenerating, setTemplateGenerating] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [firstPageGateMsg, setFirstPageGateMsg] = useState<string | null>(null);
   const qualityReport = useQualityStore((s) => s.report);
@@ -360,47 +358,32 @@ export function ChatPanel() {
     }
   };
 
-  const handleTemplateSelect = (p: DeckPreset) => {
-    setPreset(p);
-    const deck = useDeckStore.getState().deck;
-    setTemplateTopic(deck && deck.title !== "未命名项目" ? deck.title : "");
-  };
-
-  const handleTemplateGenerate = async () => {
-    if (!preset || !templateTopic.trim() || templateGenerating) return;
-    setTemplateGenerating(true);
+  const handlePresetGenerate = async (
+    preset: DeckPreset,
+    topic: string,
+    slides: Slide[],
+  ) => {
     const jobStore = useJobStore.getState();
     const job = jobStore.startJob({
       type: "outline.generate",
       title: `按模板生成：${preset.name}`,
-      canCancel: true,
+      canCancel: false,
     });
     try {
-      const slides = await generateOutline({
-        topic: templateTopic.trim(),
-        pageCount: preset.slides.length,
-        design: preset.design,
-        signal: job.signal,
-      });
-      job.succeed("大纲生成完成");
       useDeckStore.getState().setDesign(preset.design);
       await replaceSlides(slides);
       useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
       runQualityCheck();
       const deck = useDeckStore.getState().deck;
-      if (deck && deck.title === "未命名项目") setTitle(templateTopic.trim());
+      if (deck && deck.title === "未命名项目") setTitle(topic);
+      job.succeed("大纲生成完成");
       addMessage(
         "assistant",
         `已按模板「${preset.name}」重新生成 **${slides.length} 页大纲**！`,
       );
-      setTemplateOpen(false);
-      setPreset(null);
     } catch (e) {
-      if (job.signal.aborted) job.cancel();
-      else job.fail(e);
+      job.fail(e);
       addMessage("assistant", `模板生成失败：${(e as Error).message}`);
-    } finally {
-      setTemplateGenerating(false);
     }
   };
 
@@ -409,12 +392,9 @@ export function ChatPanel() {
       <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
         <span>AI 助手</span>
         <button
-          onClick={() => {
-            setTemplateOpen((v) => !v);
-            setPreset(null);
-          }}
+          onClick={() => setPresetOpen(true)}
           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-bg-hover hover:text-accent ${
-            templateOpen ? "text-accent" : "text-text-muted"
+            presetOpen ? "text-accent" : "text-text-muted"
           }`}
           title="用模板生成"
         >
@@ -423,65 +403,13 @@ export function ChatPanel() {
         </button>
       </div>
 
-      {/* 模板选择面板 */}
-      {templateOpen && (
-        <div className="border-b border-border bg-bg-surface px-3 py-3">
-          {!preset ? (
-            <div className="grid grid-cols-2 gap-2">
-              {getPresets().map((p: DeckPreset) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleTemplateSelect(p)}
-                  className="flex flex-col items-start rounded-lg border border-border bg-bg-surface px-2.5 py-2 text-left transition hover:border-accent"
-                >
-                  <span className="text-xs font-medium text-text-primary">
-                    {p.name}
-                  </span>
-                  <span className="mt-0.5 line-clamp-1 text-[11px] text-text-muted">
-                    {p.description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-text-primary">
-                  {preset.name}
-                </span>
-                <button
-                  onClick={() => setPreset(null)}
-                  className="text-[11px] text-text-muted hover:text-accent"
-                >
-                  返回
-                </button>
-              </div>
-              <input
-                type="text"
-                value={templateTopic}
-                onChange={(e) => setTemplateTopic(e.target.value)}
-                placeholder="输入主题，如：Q3 业务复盘"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-              />
-              <button
-                onClick={handleTemplateGenerate}
-                disabled={!templateTopic.trim() || templateGenerating}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {templateGenerating ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 生成中…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" /> 按模板生成
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <PresetPickerDialog
+        open={presetOpen}
+        onClose={() => setPresetOpen(false)}
+        onGenerate={(params) =>
+          handlePresetGenerate(params.preset, params.topic, params.slides)
+        }
+      />
 
       <div className="flex-1 overflow-auto px-4 py-2 text-sm">
         <div className="space-y-3">

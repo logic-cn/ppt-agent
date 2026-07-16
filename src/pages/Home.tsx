@@ -15,6 +15,7 @@ import { deleteDeck } from "@/services/storage";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresetLibraryDialog } from "@/components/preset/PresetLibraryDialog";
 import type { DeckPreset } from "@/types/preset";
+import type { Slide } from "@/types/deck";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -39,11 +40,18 @@ export default function Home() {
     navigate(`/editor/${deck.id}?new=1`);
   };
 
-  const handlePresetPick = async (preset: DeckPreset) => {
+  const handlePresetGenerate = async (
+    preset: DeckPreset,
+    topic: string,
+    slides: Slide[],
+  ) => {
     const deck = await createDeck();
     useDeckStore.getState().setDesign(preset.design);
-    useDeckStore.getState().replaceSlides(preset.slides);
     useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
+    await useDeckStore.getState().replaceSlides(slides);
+    if (deck.title === "未命名项目") {
+      useDeckStore.getState().setTitle(topic);
+    }
     navigate(`/editor/${deck.id}?new=1`);
   };
 
@@ -223,7 +231,9 @@ export default function Home() {
           <PresetLibraryDialog
             open={presetOpen}
             onClose={() => setPresetOpen(false)}
-            onPick={handlePresetPick}
+            onGenerate={(params) =>
+              handlePresetGenerate(params.preset, params.topic, params.slides)
+            }
           />
         </div>
       </main>
