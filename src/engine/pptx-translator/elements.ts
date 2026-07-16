@@ -1,4 +1,5 @@
 import type PptxGenJS from "pptxgenjs";
+import { collectDefs, resolveFill } from "./gradient";
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
@@ -47,18 +48,20 @@ export function translateSvgToSlide(
   const root = doc.documentElement;
   if (!root || root.nodeName.toLowerCase() !== "svg") return;
 
+  const defsById = collectDefs(svg);
+
   const elements = root.querySelectorAll(
-    "rect, circle, ellipse, line, text, tspan",
+    "rect, circle, ellipse, line, text, tspan, path",
   );
   elements.forEach((el) => {
     const tag = el.nodeName.toLowerCase();
     switch (tag) {
       case "rect":
-        translateRect(el, pptxSlide);
+        translateRect(el, pptxSlide, defsById);
         break;
       case "circle":
       case "ellipse":
-        translateEllipse(el, tag, pptxSlide);
+        translateEllipse(el, tag, pptxSlide, defsById);
         break;
       case "line":
         translateLine(el, pptxSlide);
@@ -67,22 +70,29 @@ export function translateSvgToSlide(
         // 若 text 含 tspan 子元素，则其直接文本已由各 tspan 分支渲染，
         // 此处仅处理不含 tspan 的纯文本，避免同一段文本被渲染两次。
         if (el.querySelector("tspan")) break;
-        translateText(el, pptxSlide);
+        translateText(el, pptxSlide, defsById);
         break;
       case "tspan":
-        translateTspan(el, pptxSlide);
+        translateTspan(el, pptxSlide, defsById);
+        break;
+      case "path":
+        translatePath(el, pptxSlide, defsById);
         break;
     }
   });
 }
 
-function translateRect(el: Element, slide: PptxGenJS.Slide): void {
+function translateRect(
+  el: Element,
+  slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+): void {
   const x = toX(num(el.getAttribute("x")));
   const y = toY(num(el.getAttribute("y")));
   const w = toW(num(el.getAttribute("width")));
   const h = toH(num(el.getAttribute("height")));
   const rx = el.getAttribute("rx");
-  const fill = { color: hexColor(el.getAttribute("fill")) };
+  const fill = resolveFill({ fill: el.getAttribute("fill") }, defsById);
   if (rx != null && num(rx) > 0) {
     slide.addShape("roundRect", {
       x,
@@ -102,8 +112,9 @@ function translateEllipse(
   el: Element,
   tag: string,
   slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
 ): void {
-  const fill = { color: hexColor(el.getAttribute("fill")) };
+  const fill = resolveFill({ fill: el.getAttribute("fill") }, defsById);
   if (tag === "circle") {
     const cx = num(el.getAttribute("cx"));
     const cy = num(el.getAttribute("cy"));
@@ -148,7 +159,11 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   });
 }
 
-function translateText(el: Element, slide: PptxGenJS.Slide): void {
+function translateText(
+  el: Element,
+  slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+): void {
   const text = el.textContent ?? "";
   if (!text.trim()) return;
   const x = num(el.getAttribute("x"));
@@ -157,14 +172,18 @@ function translateText(el: Element, slide: PptxGenJS.Slide): void {
     x: toX(x),
     y: toY(y),
     fontSize: num(el.getAttribute("font-size"), 18),
-    color: hexColor(el.getAttribute("fill")),
+    color: resolveFill({ fill: el.getAttribute("fill") }, defsById).color,
     fontFace: el.getAttribute("font-family") ?? "sans-serif",
     align: textAnchorToAlign(el.getAttribute("text-anchor")),
     valign: "top",
   });
 }
 
-function translateTspan(el: Element, slide: PptxGenJS.Slide): void {
+function translateTspan(
+  el: Element,
+  slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+): void {
   const text = el.textContent ?? "";
   if (!text.trim()) return;
   const x = el.getAttribute("x");
@@ -173,9 +192,36 @@ function translateTspan(el: Element, slide: PptxGenJS.Slide): void {
     x: toX(num(x)),
     y: toY(num(y)),
     fontSize: num(el.getAttribute("font-size"), 18),
-    color: hexColor(el.getAttribute("fill")),
+    color: resolveFill({ fill: el.getAttribute("fill") }, defsById).color,
     fontFace: el.getAttribute("font-family") ?? "sans-serif",
     align: textAnchorToAlign(el.getAttribute("text-anchor")),
     valign: "top",
+  });
+}
+
+// pptxgenjs 无原生 path 形状（无 custGeom/custom geometry API）。
+// 降级策略：若 path 带 fill（视为闭合填充形状），则用其 x/y/width/height 属性
+// 降级为一个覆盖其 bounding box 的 rect；若无这些几何属性或仅作装饰/开放路径，
+// 则跳过该 path，避免崩溃或产生错误几何。
+function translatePath(
+  el: Element,
+  slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+): void {
+  const fillAttr = el.getAttribute("fill");
+  if (!fillAttr || fillAttr === "none") return;
+  const x = num(el.getAttribute("x"));
+  const y = num(el.getAttribute("y"));
+  const w = num(el.getAttribute("width"));
+  const h = num(el.getAttribute("height"));
+  if (w <= 0 || h <= 0) return;
+  const fill = resolveFill({ fill: fillAttr }, defsById);
+  slide.addShape("rect", {
+    x: toX(x),
+    y: toY(y),
+    w: toW(w),
+    h: toH(h),
+    fill,
+    line: { width: 0 },
   });
 }
