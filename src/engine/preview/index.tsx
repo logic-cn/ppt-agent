@@ -5,6 +5,7 @@ import { DEFAULT_DESIGN } from "@/types/design";
 import { buildRenderSlideCached } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
+import { SvgViewer } from "@/components/SvgViewer";
 
 interface Props {
   deck: Deck;
@@ -81,14 +82,18 @@ export const SlidePreview = memo(function SlidePreview({
           className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10"
           style={{ width: slideWidth, height: slideHeight }}
         >
-          {currentRenderSlide && (
-            <RenderSlideViewer
-              renderSlide={currentRenderSlide}
-              slide={currentSlide}
-              theme={theme}
-              width={slideWidth}
-              onGenerateImage={onGenerateImage}
-            />
+          {currentSlide.svg ? (
+            <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+          ) : (
+            currentRenderSlide && (
+              <RenderSlideViewer
+                renderSlide={currentRenderSlide}
+                slide={currentSlide}
+                theme={theme}
+                width={slideWidth}
+                onGenerateImage={onGenerateImage}
+              />
+            )
           )}
         </div>
       </div>
