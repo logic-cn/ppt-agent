@@ -1,4 +1,4 @@
-export type FailureKind = "outline" | "content" | "image" | "export";
+export type FailureKind = "outline" | "content" | "image" | "export" | "svg";
 export type RecoveryAction = "retry" | "degrade-rulebased" | "ask-user";
 
 const MAX_RETRY = 2;

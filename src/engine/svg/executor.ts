@@ -38,7 +38,7 @@ export async function generateSlideSvg(
       temperature: 0.7,
       signal: opts.signal,
     },
-    "outline",
+    "svg",
   );
 
   const svg = res.content.match(/<svg[\s\S]*<\/svg>/i)?.[0] ?? res.content;
