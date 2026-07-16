@@ -18,7 +18,7 @@ const MOCK_PLAN = [
 vi.mock("@/services/llm", () => ({
   chat: vi.fn(
     async (
-      req: { messages: { content: string }[] },
+      _req: { messages: { content: string }[] },
       kind: string = "outline",
     ) => {
       // 基于 chat 第二参数 kind 分流：pagePlan 用 "outline"，svg 生成用 "svg"
