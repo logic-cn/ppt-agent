@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { PresetLibrary } from "./PresetLibrary";
-import { generateOutline } from "@/services/outline";
+import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import type { DeckPreset } from "@/types/preset";
-import type { Slide } from "@/types/deck";
+import type { Deck, Slide } from "@/types/deck";
 
 interface Props {
   open: boolean;
@@ -43,12 +43,22 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const slides = await generateOutline({
+      // X1 管线：用 buildDeckSvgs 生成 svg 设计真相（构造临时 deck 供对齐页数）
+      const tempDeck = {
+        id: "x1-temp",
+        title: topic.trim(),
+        design: preset.design,
+        slides: [],
+        version: 2,
+        createdAt: 0,
+        updatedAt: 0,
+      } as unknown as Deck;
+      const newDeck = await buildDeckSvgs(tempDeck, preset.design, {
         topic: topic.trim(),
         pageCount: Math.max(preset.slides.length, 1),
-        design: preset.design,
         signal: controller.signal,
       });
+      const slides = newDeck.slides;
       await onGenerate({ preset, topic: topic.trim(), slides });
       setPreset(null);
       onClose();
