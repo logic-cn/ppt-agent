@@ -209,4 +209,22 @@ describe("svgToPptx", () => {
     expect(blob).toBeInstanceOf(Blob);
     expect(blob.size).toBeGreaterThan(0);
   });
+
+  it("端到端：含 svg 的 deck 导出真实 pptx Blob（size>1000 且含 xml/ppt 标记）", async () => {
+    const E2E_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <rect x="100" y="50" width="300" height="120" rx="8" fill="#1A56DB"/>
+      <text x="120" y="100" font-size="32" fill="#FFFFFF" text-anchor="start" font-family="sans-serif">端到端测试</text>
+    </svg>`;
+    const slides: Slide[] = [
+      { id: "s1", layout: "content", title: "t", svg: E2E_SVG },
+    ];
+    const blob = await svgToPptx(slides, DEFAULT_DESIGN);
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(1000);
+
+    // pptx 本质是 zip/xml，解出的字节应含 xml 声明或 ppt 目录标记
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    const text = new TextDecoder().decode(buf);
+    expect(text.includes("<?xml") || text.includes("ppt")).toBe(true);
+  });
 });

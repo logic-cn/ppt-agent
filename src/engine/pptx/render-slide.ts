@@ -4,6 +4,9 @@ import type { RenderSlide, RenderNode } from "@/engine/render-ir/types";
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
 
+/**
+ * @deprecated 仅作无 svg 时的 fallback 使用。存在 slide.svg 的新链路请改用 svgToPptx。
+ */
 export function renderRenderSlide(
   pptxSlide: PptxGenJS.Slide,
   renderSlide: RenderSlide,
@@ -244,6 +247,9 @@ function renderChartNode(
 
 // ---- Async wrapper for image nodes ----
 
+/**
+ * @deprecated 仅作无 svg 时的 fallback 使用。存在 slide.svg 的新链路请改用 svgToPptx。
+ */
 export async function renderRenderSlideAsync(
   pptxSlide: PptxGenJS.Slide,
   renderSlide: RenderSlide,
