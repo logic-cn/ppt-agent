@@ -64,6 +64,22 @@ describe("translateSvgToSlide", () => {
     expect(opts.color).toBe("FFFFFF");
     expect(opts.align).toBe("left");
   });
+
+  it("text 含 tspan 时不重复渲染 text 自身（addText 调用次数等于 tspan 数）", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="120" y="100" font-size="32" fill="#FFFFFF" font-family="sans-serif">
+        <tspan x="120" y="100">子</tspan>
+        <tspan x="160" y="100">段</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+
+    const textCalls = slide._calls.filter((c) => c.kind === "text");
+    expect(textCalls.length).toBe(2);
+    const texts = textCalls.map((c) => (c.args as [string, unknown])[0]);
+    expect(texts).toEqual(["子", "段"]);
+  });
 });
 
 describe("svgToPptx", () => {

@@ -15,6 +15,9 @@ export async function svgToPptx(
   slides: Slide[],
   _design: DesignLock,
 ): Promise<Blob> {
+  // _design 当前未参与翻译逻辑，预留给后续 4.2/4.3 配色注入使用
+  void _design;
+
   const pptx = new PptxGenJS();
   initPptx(pptx);
 

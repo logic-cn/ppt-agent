@@ -64,6 +64,9 @@ export function translateSvgToSlide(
         translateLine(el, pptxSlide);
         break;
       case "text":
+        // 若 text 含 tspan 子元素，则其直接文本已由各 tspan 分支渲染，
+        // 此处仅处理不含 tspan 的纯文本，避免同一段文本被渲染两次。
+        if (el.querySelector("tspan")) break;
         translateText(el, pptxSlide);
         break;
       case "tspan":
