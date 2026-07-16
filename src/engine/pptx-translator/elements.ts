@@ -1,5 +1,6 @@
 import type PptxGenJS from "pptxgenjs";
 import { collectDefs, resolveFill } from "./gradient";
+import { translateChart } from "./chart";
 
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
@@ -51,10 +52,18 @@ export function translateSvgToSlide(
   const defsById = collectDefs(svg);
 
   const elements = root.querySelectorAll(
-    "rect, circle, ellipse, line, text, tspan, path",
+    "rect, circle, ellipse, line, text, tspan, path, g",
   );
   elements.forEach((el) => {
     const tag = el.nodeName.toLowerCase();
+    // 含 data-chart-type 的 group 视为原生图表标记，走图表翻译，
+    // 不再按普通 group 处理其 children，避免重复绘制。
+    if (tag === "g") {
+      if (el.getAttribute("data-chart-type")) {
+        translateChart(el, pptxSlide);
+      }
+      return;
+    }
     switch (tag) {
       case "rect":
         translateRect(el, pptxSlide, defsById);

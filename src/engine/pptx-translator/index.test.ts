@@ -24,6 +24,9 @@ function createMockSlide(): MockSlide {
       calls.push({ kind: "shape", args }),
     ),
     addText: vi.fn((...args: unknown[]) => calls.push({ kind: "text", args })),
+    addChart: vi.fn((...args: unknown[]) =>
+      calls.push({ kind: "chart", args }),
+    ),
     _calls: calls,
   } as unknown as MockSlide;
   return slide;
@@ -160,6 +163,39 @@ describe("translateSvgToSlide 渐变与路径", () => {
     ];
     expect(type).toBe("rect");
     expect(opts.fill.color.toLowerCase()).toBe("00ff00");
+  });
+});
+
+describe("translateSvgToSlide 原生图表", () => {
+  it("含 data-chart-type 的 g 调用 addChart 渲染原生图表", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <g data-chart-type="bar" data-chart-data='[{"label":"A","value":10},{"label":"B","value":20}]' x="100" y="100" width="600" height="400"></g>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+
+    const chartCall = slide._calls.find((c) => c.kind === "chart");
+    expect(chartCall).toBeDefined();
+    const [type, data, opts] = (chartCall as { args: unknown[] }).args as [
+      string,
+      { name: string; labels: string[]; values: number[] }[],
+      { x: number; y: number; w: number; h: number },
+    ];
+    expect(type).toContain("bar");
+    expect(data[0].labels).toEqual(["A", "B"]);
+    expect(data[0].values).toEqual([10, 20]);
+    // 100/1280*13.333 ≈ 1.0416; 100/720*7.5 ≈ 1.0417
+    expect(opts.x).toBeCloseTo(1.0416, 3);
+    expect(opts.y).toBeCloseTo(1.0417, 3);
+  });
+
+  it("非法 data-chart-type 不调用 addChart", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <g data-chart-type="unknown" data-chart-data='[{"label":"A","value":10}]' x="100" y="100" width="600" height="400"></g>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    expect(slide._calls.find((c) => c.kind === "chart")).toBeUndefined();
   });
 });
 
