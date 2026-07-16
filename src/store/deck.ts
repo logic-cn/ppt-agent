@@ -1,8 +1,11 @@
 import { create } from "zustand";
-import type { Deck } from "@/types/deck";
+import type { Deck, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
 import { clearRenderCache } from "@/engine/render-ir/build";
+import { buildSpecLock } from "@/design/spec-lock";
+import { generateSlideSvg } from "@/engine/svg/executor";
+import type { PagePlanItem } from "@/types/page-plan";
 
 interface HistoryEntry {
   deck: Deck;
@@ -29,6 +32,8 @@ interface DeckStore {
   removeSlide: (id: string) => void;
   moveSlide: (from: number, to: number) => void;
   replaceSlides: (slides: Deck["slides"]) => Promise<void>;
+  // 单页重画：基于当前 deck.design 重新生成该页 SVG 并写回
+  regenerateSlide: (slideId: string, signal?: AbortSignal) => Promise<void>;
 
   // Undo/Redo
   undo: () => void;
@@ -51,6 +56,47 @@ function debouncedPersist(get: () => DeckStore) {
     autoSaveTimer = null;
     get().persist();
   }, 2000);
+}
+
+// 把旧 SlideLayout 映射到 pagePlan 的语义角色（取交集，缺省归为 content）
+const SEMANTIC_ROLE_SET = new Set([
+  "cover",
+  "section",
+  "content",
+  "metrics",
+  "quote",
+  "timeline",
+  "comparison",
+  "process",
+  "closing",
+]);
+
+function toSemanticRole(layout: string): PagePlanItem["role"] {
+  return SEMANTIC_ROLE_SET.has(layout)
+    ? (layout as PagePlanItem["role"])
+    : "content";
+}
+
+// 从 slide 收集要点文本（兼容 bullets / items 结构）
+function collectBullets(slide: Slide): string[] {
+  const out: string[] = [];
+  if (Array.isArray(slide.bullets)) {
+    const walk = (nodes: Slide["bullets"]): void => {
+      for (const n of nodes ?? []) {
+        if (n.text) out.push(n.text);
+        if (n.children?.length) walk(n.children);
+      }
+    };
+    walk(slide.bullets);
+  }
+  if (Array.isArray(slide.items)) {
+    for (const it of slide.items) {
+      if (it.title) out.push(it.title);
+      if (it.body) out.push(it.body);
+      if (Array.isArray(it.bullets)) out.push(...it.bullets);
+    }
+  }
+  return out;
 }
 
 export const useDeckStore = create<DeckStore>((set, get) => ({
@@ -228,6 +274,41 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       };
     });
     await get().persist();
+  },
+
+  // 由 slide 自身信息派生一个最小合理的 PagePlanItem，供 executor 重画使用
+  regenerateSlide: async (slideId, signal) => {
+    const deck = get().deck;
+    if (!deck) return;
+    const slideIndex = deck.slides.findIndex((s) => s.id === slideId);
+    if (slideIndex < 0) return;
+    const slide = deck.slides[slideIndex];
+
+    // 构建 specLock（复用既有设计契约构建器）
+    const specLock = buildSpecLock(deck.design);
+
+    // 从 slide 派生 pagePlan：role 取 layout（落到语义角色集合内），
+    // 否则回退为 content；bullets 尽量取 slide 要点
+    const role = toSemanticRole(slide.layout);
+    const bullets = collectBullets(slide);
+    const plan: PagePlanItem = {
+      role,
+      title: slide.title || `${deck.title}（第 ${slideIndex + 1} 页）`,
+      intent: slide.title || slide.subtitle || "重画该页内容",
+      bullets,
+    };
+
+    // 真实调用 LLM（测试时由 vi.mock 的 executor 替代）
+    const newSvg = await generateSlideSvg({
+      specLock,
+      plan,
+      pageIndex: slideIndex,
+      totalPages: deck.slides.length,
+      signal,
+    });
+
+    // 复用既有 updateSlide 写回，保持历史/持久化一致
+    get().updateSlide(slideId, { svg: newSvg });
   },
 
   undo: () => {
