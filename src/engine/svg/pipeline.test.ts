@@ -127,6 +127,27 @@ describe("buildDeckSvgs", () => {
     svgMock.mockRestore();
   });
 
+  it("未传 topic 时从 deck.title 派生", async () => {
+    const deck = makeDeck([makeSlide("a")]);
+
+    const planMock = vi
+      .spyOn(await import("@/services/outline"), "generatePagePlan")
+      .mockImplementation(async (args) => {
+        expect(args.topic).toBe(deck.title);
+        return [{ role: "content", title: "T", intent: "i" }];
+      });
+    const svgMock = vi
+      .spyOn(await import("./executor"), "generateDeckSvgs")
+      .mockResolvedValue([{ index: 0, role: "content", svg: SVG }]);
+
+    await buildDeckSvgs(deck, DESIGN, {} as never);
+
+    expect(planMock).toHaveBeenCalled();
+
+    planMock.mockRestore();
+    svgMock.mockRestore();
+  });
+
   it("传递 onProgress 回调给 executor", async () => {
     const deck = makeDeck([makeSlide("a")]);
     const onProgress = vi.fn();

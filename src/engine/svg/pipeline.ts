@@ -34,7 +34,7 @@ export async function buildDeckSvgs(
 ): Promise<Deck> {
   const spec = buildSpecLock(design);
   const plan = await generatePagePlan({
-    topic: options.topic,
+    topic: options.topic ?? deck.title,
     design,
     audience: options.audience,
     pageCount: options.pageCount,
