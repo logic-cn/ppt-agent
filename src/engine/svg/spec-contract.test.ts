@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest";
+import { validateSvgContract, SVG_CONTRACT } from "./spec-contract";
+
+describe("validateSvgContract", () => {
+  it("拒绝无 viewBox 的 svg", () => {
+    const errs = validateSvgContract(`<svg><rect/></svg>`);
+    expect(errs.length).toBeGreaterThan(0);
+  });
+
+  it("接受合规 svg", () => {
+    const ok = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="10" y="10" width="100" height="50" fill="#111"/></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
+  it("拒绝缺少 svg 根元素", () => {
+    const errs = validateSvgContract(`<rect/>`);
+    expect(errs.some((e) => e.includes("svg"))).toBe(true);
+  });
+
+  it("拒绝 viewBox 非 0 0 1280 720", () => {
+    const errs = validateSvgContract(
+      `<svg viewBox="0 0 800 600"><rect/></svg>`,
+    );
+    expect(errs.some((e) => e.includes("viewBox"))).toBe(true);
+  });
+
+  it("拒绝禁用元素 foreignObject", () => {
+    const errs = validateSvgContract(
+      `<svg viewBox="0 0 1280 720"><foreignObject/></svg>`,
+    );
+    expect(errs.some((e) => e.includes("foreignObject"))).toBe(true);
+  });
+
+  it("拒绝 script 元素", () => {
+    const errs = validateSvgContract(
+      `<svg viewBox="0 0 1280 720"><script>alert(1)</script></svg>`,
+    );
+    expect(errs.some((e) => e.includes("script"))).toBe(true);
+  });
+
+  it("拒绝外部引用 image href 非 data URI", () => {
+    const errs = validateSvgContract(
+      `<svg viewBox="0 0 1280 720"><image href="https://example.com/a.png"/></svg>`,
+    );
+    expect(errs.some((e) => e.includes("外部") || e.includes("href"))).toBe(
+      true,
+    );
+  });
+
+  it("接受 data URI 的 image", () => {
+    const ok = `<svg viewBox="0 0 1280 720"><image href="data:image/png;base64,AAAA"/></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
+  it("拒绝未知元素", () => {
+    const errs = validateSvgContract(
+      `<svg viewBox="0 0 1280 720"><foo/></svg>`,
+    );
+    expect(errs.some((e) => e.includes("foo"))).toBe(true);
+  });
+
+  it("SVG_CONTRACT 暴露白名单与尺寸", () => {
+    expect(SVG_CONTRACT.width).toBe(1280);
+    expect(SVG_CONTRACT.height).toBe(720);
+    expect(SVG_CONTRACT.allowedElements.has("rect")).toBe(true);
+  });
+});
