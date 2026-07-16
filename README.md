@@ -88,7 +88,7 @@ X1 将渲染架构从「几何坐标程序化绘制」重构为「SVG 页面设�
 
 1. **设计锁（specLock）**：由 `visualStyles` / `palettes` 硬化出画布（1280×720 像素 viewBox）、配色、字体等设计契约。
 2. **页面规划（pagePlan）**：`generatePagePlan` 调用 LLM 产出每页语义角色（cover / content / metrics / …）与内容规划，不含像素坐标。
-3. **逐页串行生成 SVG（executor）**：`generateDeckSvgs` 按页顺序（禁止并行）调用 LLM，注入 specLock + pagePlan 产出单页 `<svg viewBox="0 0 1280 720">` 设计真相。
+3. **逐页串行生成 SVG（executor）**：编排入口 `buildDeckSvgs`（pipeline.ts）先产出 pagePlan，其内部的 `generateDeckSvgs` 按页顺序（禁止并行）调用 `generateSlideSvg`，注入 specLock + pagePlan 产出单页 `<svg viewBox="0 0 1280 720">` 设计真相。
 4. **质量闸门（checkSvg + 重画）**：`generateSlideSvg` 集成 `checkSvg` 越界/溢出校验，首轮若报 error 则回喂问题重画，最多 2 轮；末道 `validateSvgContract` 契约兜底，非法则抛错。
 5. **SvgViewer 预览**：预览原生内联渲染 `slide.svg`，预览即导出结果。
 6. **SVG → PPTX 原生翻译（svgToPptx）**：`translateSvgToSlide` 逐元素翻译为 pptxgenjs 原生 `addText` / `addShape` / `addChart`，**导出为可编辑对象而非图片**。

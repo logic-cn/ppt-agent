@@ -16,10 +16,15 @@ const MOCK_PLAN = [
 ];
 
 vi.mock("@/services/llm", () => ({
-  chat: vi.fn(async (req: { messages: { content: string }[] }) => {
-    const content = req.messages[req.messages.length - 1]?.content ?? "";
-    // pagePlan 请求返回固定 JSON 数组；svg 生成请求返回合法 SVG
-    if (content.includes("pagePlan") || content.includes("页面结构")) {
+  chat: vi.fn(
+    async (
+      req: { messages: { content: string }[] },
+      kind: string = "outline",
+    ) => {
+      // 基于 chat 第二参数 kind 分流：pagePlan 用 "outline"，svg 生成用 "svg"
+      if (kind === "svg") {
+        return { content: MOCK_SVG };
+      }
       return {
         content: JSON.stringify({
           pages: [
@@ -28,9 +33,8 @@ vi.mock("@/services/llm", () => ({
           ],
         }),
       };
-    }
-    return { content: MOCK_SVG };
-  }),
+    },
+  ),
 }));
 
 describe("X1 管线端到端联调", () => {
