@@ -4,7 +4,7 @@ import {
   buildOutlineSystemPrompt,
   buildOutlineUserPrompt,
 } from "./llm/prompts/outline";
-import type { BulletNode, Slide } from "@/types/deck";
+import type { BulletNode, Slide, SlideLayout } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
@@ -59,6 +59,9 @@ const slideSchema = z.object({
     "cols-4",
     "cols-5",
     "cols-6",
+    "metrics",
+    "quote",
+    "timeline",
   ]),
   subtitle: z.string().optional(),
   bullets: z.array(bulletNodeSchema).optional(),
@@ -70,6 +73,16 @@ const slideSchema = z.object({
       data: z.array(z.object({ label: z.string(), value: z.number() })),
     })
     .optional(),
+  metric: z
+    .object({
+      value: z.string(),
+      unit: z.string().optional(),
+      label: z.string(),
+      kicker: z.string().optional(),
+    })
+    .optional(),
+  quote: z.string().optional(),
+  attribution: z.string().optional(),
 });
 
 /**
@@ -175,8 +188,17 @@ export async function generateOutline(params: {
     );
   }
 
+  // 预算后处理：软截断超限文案，避免渲染溢出
+  const budgeted = validSlides.map((slide) => enforceBudget(slide));
+  const truncatedCount = budgeted.filter((b) => b.truncated).length;
+  if (truncatedCount > 0) {
+    console.warn(
+      `按文案预算软截断 ${truncatedCount} 页超限内容，以保证排版不溢出`,
+    );
+  }
+
   // 附加 id
-  return validSlides.map((slide) => ({
+  return budgeted.map(({ slide }) => ({
     ...slide,
     id: nanoid(),
     bullets: slide.bullets ? addBulletIds(slide.bullets) : undefined,
@@ -187,4 +209,148 @@ export async function generateOutline(params: {
         }))
       : undefined,
   }));
+}
+
+/**
+ * 各布局的文案预算。超出部分做软截断，保证渲染不溢出。
+ */
+interface BudgetEntry {
+  title?: number;
+  subtitle?: number;
+  bulletMax?: number;
+  bulletCount?: number;
+  childMax?: number;
+  itemBulletMax?: number;
+  itemBulletCount?: number;
+  /** 语义化布局的专属字段预算 */
+  metricMax?: number;
+  quoteMax?: number;
+  timelineNodeMax?: number;
+  timelineNodeTextMax?: number;
+}
+
+const BUDGET: Partial<Record<SlideLayout, BudgetEntry>> = {
+  cover: { title: 16, subtitle: 30 },
+  closing: { title: 16 },
+  section: { subtitle: 40 },
+  content: { bulletMax: 28, bulletCount: 6, childMax: 24 },
+  "two-column": { itemBulletMax: 20, itemBulletCount: 3, bulletMax: 26 },
+  chart: {},
+  image: { bulletMax: 24, bulletCount: 4 },
+  "cols-2": { itemBulletMax: 20, itemBulletCount: 3 },
+  "cols-3": { itemBulletMax: 20, itemBulletCount: 3 },
+  "cols-4": { itemBulletMax: 18, itemBulletCount: 3 },
+  "cols-5": { itemBulletMax: 16, itemBulletCount: 3 },
+  "cols-6": { itemBulletMax: 14, itemBulletCount: 3 },
+  metrics: { metricMax: 12 },
+  quote: { quoteMax: 40 },
+  timeline: { timelineNodeMax: 5, timelineNodeTextMax: 18 },
+};
+
+function truncate(text: string, max: number): string {
+  if (!max || text.length <= max) return text;
+  return text.slice(0, max);
+}
+
+/**
+ * 软截断超限文案，避免渲染溢出。返回截断后的 slide 与是否发生截断的标记。
+ */
+function enforceBudget(slide: z.infer<typeof slideSchema>): {
+  slide: z.infer<typeof slideSchema>;
+  truncated: boolean;
+} {
+  const b = BUDGET[slide.layout];
+  if (!b) return { slide, truncated: false };
+
+  let truncated = false;
+  const mark = (cond: boolean) => {
+    if (cond) truncated = true;
+  };
+
+  const next: typeof slide = { ...slide };
+
+  if (b.title && next.title && next.title.length > b.title) {
+    mark(true);
+    next.title = truncate(next.title, b.title);
+  }
+  if (b.subtitle && next.subtitle && next.subtitle.length > b.subtitle) {
+    mark(true);
+    next.subtitle = truncate(next.subtitle, b.subtitle);
+  }
+
+  if (next.bullets && (b.bulletMax || b.bulletCount)) {
+    const over =
+      (b.bulletCount && next.bullets.length > b.bulletCount) ||
+      next.bullets.some((bn) => bn.text.length > (b.bulletMax ?? 999));
+    if (over) mark(true);
+    let bullets = next.bullets;
+    if (b.bulletCount) bullets = bullets.slice(0, b.bulletCount);
+    bullets = bullets.map((bn) => ({
+      ...bn,
+      text: truncate(bn.text, b.bulletMax ?? 999),
+      children: bn.children
+        ? bn.children
+            .slice(0, b.bulletCount ?? 999)
+            .map((c) => ({ ...c, text: truncate(c.text, b.childMax ?? 999) }))
+        : undefined,
+    }));
+    next.bullets = bullets;
+  }
+
+  if (next.items && (b.itemBulletMax || b.itemBulletCount)) {
+    const over =
+      (b.itemBulletCount && next.items.length > b.itemBulletCount) ||
+      next.items.some((it) =>
+        (it.bullets ?? []).some((t) => t.length > (b.itemBulletMax ?? 999)),
+      );
+    if (over) mark(true);
+    next.items = next.items
+      .slice(0, b.itemBulletCount ?? next.items.length)
+      .map((item) => {
+        const it = { ...item };
+        if (it.title) it.title = truncate(it.title, 12);
+        if (it.bullets) {
+          let bs = it.bullets;
+          if (b.itemBulletCount) bs = bs.slice(0, b.itemBulletCount);
+          it.bullets = bs.map((t) => truncate(t, b.itemBulletMax ?? 999));
+        }
+        return it;
+      });
+  }
+
+  if (next.chart?.data && next.chart.data.length > 8) {
+    mark(next.chart.data.length > 8);
+    next.chart = { ...next.chart, data: next.chart.data.slice(0, 8) };
+  }
+
+  if (next.metric && b.metricMax) {
+    const full = `${next.metric.value}${next.metric.unit ?? ""}`;
+    if (full.length > b.metricMax) {
+      mark(true);
+      next.metric = {
+        ...next.metric,
+        value: truncate(next.metric.value, b.metricMax),
+      };
+    }
+  }
+
+  if (next.quote && b.quoteMax && next.quote.length > b.quoteMax) {
+    mark(true);
+    next.quote = truncate(next.quote, b.quoteMax);
+  }
+
+  if (next.items && b.timelineNodeMax && slide.layout === "timeline") {
+    if (next.items.length > b.timelineNodeMax) {
+      mark(true);
+      next.items = next.items.slice(0, b.timelineNodeMax);
+    }
+    const over = next.items.some(
+      (it) =>
+        (it.body ?? it.bullets?.join("；") ?? "").length >
+        (b.timelineNodeTextMax ?? 999),
+    );
+    if (over) mark(true);
+  }
+
+  return { slide: next, truncated };
 }

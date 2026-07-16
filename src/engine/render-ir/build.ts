@@ -1,5 +1,5 @@
 import type { Deck, Slide } from "@/types/deck";
-import type { Theme } from "@/types/theme";
+import type { Theme, LayoutSpec } from "@/types/theme";
 import type {
   RenderSlide,
   RenderNode,
@@ -53,18 +53,32 @@ export function buildRenderSlide(
     };
   }
 
+  // 语义化专用布局：独立渲染分支
+  if (slide.layout === "metrics") {
+    return buildMetricsSlide(slide, theme, layout);
+  }
+  if (slide.layout === "quote") {
+    return buildQuoteSlide(slide, theme, layout);
+  }
+  if (slide.layout === "timeline") {
+    return buildTimelineSlide(slide, theme, layout);
+  }
+
   // 背景
   const background = theme.colors.background;
 
-  // 装饰色带
+  // 背景网格（科技/工程风）
+  nodes.push(...buildGridBackground(theme));
+
+  // 装饰：封面/章节/结尾用 coverAccent，正文用 bodyAccent
   if (
     slide.layout === "cover" ||
     slide.layout === "section" ||
     slide.layout === "closing"
   ) {
-    nodes.push(buildTopBar(theme));
+    nodes.push(...buildCoverDecor(theme));
   } else {
-    nodes.push(buildSideBar(theme));
+    nodes.push(...buildBodyDecor(theme));
   }
 
   // 标题
@@ -208,20 +222,87 @@ function buildSideBar(theme: Theme): RenderShapeNode {
     shape: "rect",
     rect: { x: 0, y: 0.1, w: 0.005, h: 0.8 },
     fill: theme.colors.primary,
-    radius: 0.002,
+    radius: theme.decor?.accentRadius ?? 0.002,
     zIndex: 10,
   };
 }
 
-function buildSeparator(rect: Rect, y: number, theme: Theme): RenderShapeNode {
-  return {
-    type: "shape",
-    id: `sep-${rect.x}-${y}`,
-    shape: "line",
-    rect: { x: rect.x, y, w: rect.w, h: 0 },
-    stroke: theme.colors.secondary,
-    zIndex: 1,
-  };
+/** 封面/章节/结尾页的强调装饰，按主题 decor.coverAccent 分发 */
+function buildCoverDecor(theme: Theme): RenderShapeNode[] {
+  const accent = theme.decor?.coverAccent ?? "top-bar";
+  const radius = theme.decor?.accentRadius ?? 0.002;
+  switch (accent) {
+    case "side-bar":
+      return [
+        {
+          ...buildSideBar(theme),
+          id: "deco-cover-side",
+          rect: { x: 0.06, y: 0.18, w: 0.008, h: 0.64 },
+        },
+      ];
+    case "corner":
+      return [
+        {
+          type: "shape",
+          id: "deco-cover-corner",
+          shape: "rect",
+          rect: { x: 0.08, y: 0.28, w: 0.09, h: 0.014 },
+          fill: theme.colors.accent,
+          radius,
+          zIndex: 10,
+        },
+      ];
+    case "none":
+      return [];
+    case "top-bar":
+    default:
+      return [buildTopBar(theme)];
+  }
+}
+
+/** 正文页左侧栏目装饰，按主题 decor.bodyAccent 分发 */
+function buildBodyDecor(theme: Theme): RenderShapeNode[] {
+  const accent = theme.decor?.bodyAccent ?? "side-bar";
+  if (accent === "none") return [];
+  return [buildSideBar(theme)];
+}
+
+/** 科技/工程风的背景网格点阵 */
+function buildGridBackground(theme: Theme): RenderShapeNode[] {
+  if (!theme.decor?.grid) return [];
+  const nodes: RenderShapeNode[] = [];
+  const step = 0.05;
+  for (let y = step; y < 1; y += step) {
+    for (let x = step; x < 1; x += step) {
+      nodes.push({
+        type: "shape",
+        id: `grid-${x.toFixed(2)}-${y.toFixed(2)}`,
+        shape: "circle",
+        rect: { x: x - 0.0015, y: y - 0.0015, w: 0.003, h: 0.003 },
+        fill: theme.colors.secondary,
+        zIndex: 0,
+      });
+    }
+  }
+  return nodes;
+}
+
+function buildSeparator(
+  rect: Rect,
+  y: number,
+  theme: Theme,
+): RenderShapeNode[] {
+  if (theme.decor?.separator === "none") return [];
+  return [
+    {
+      type: "shape",
+      id: `sep-${rect.x}-${y}`,
+      shape: "line",
+      rect: { x: rect.x, y, w: rect.w, h: 0 },
+      stroke: theme.colors.secondary,
+      zIndex: 1,
+    },
+  ];
 }
 
 function buildColumns(
@@ -250,7 +331,9 @@ function buildColumns(
           "body",
         ),
       );
-      nodes.push(buildSeparator(col, titleRect.y + titleRect.h + 0.005, theme));
+      nodes.push(
+        ...buildSeparator(col, titleRect.y + titleRect.h + 0.005, theme),
+      );
     }
     const bulletArea: Rect = {
       x: col.x,
@@ -290,7 +373,7 @@ function buildTextNode(
   text: string,
   rect: Rect,
   style: ReturnType<typeof resolveTextStyle>,
-  role: "title" | "subtitle" | "body",
+  role: "title" | "subtitle" | "body" | "caption",
 ): RenderTextNode {
   return {
     type: "text",
@@ -324,5 +407,235 @@ function buildBulletTextNode(
     }),
     overflow: "fit",
     zIndex: 5,
+  };
+}
+
+// ── 语义化专用布局 ──────────────────────────────────────────
+
+function buildMetricsSlide(
+  slide: Slide,
+  theme: Theme,
+  layout: LayoutSpec,
+): RenderSlide {
+  const nodes: RenderNode[] = [
+    ...buildGridBackground(theme),
+    ...buildCoverDecor(theme),
+  ];
+  if (layout.title && slide.title) {
+    nodes.push(
+      buildTextNode(
+        "slide-title",
+        slide.title,
+        layout.title,
+        resolveTextStyle({
+          fontSize: theme.fontSize.h2,
+          fontFamily: theme.fonts.title,
+          color: theme.colors.textMuted,
+          bold: true,
+          align: "center",
+        }),
+        "subtitle",
+      ),
+    );
+  }
+  if (layout.metric && slide.metric) {
+    const m = slide.metric;
+    const metricText =
+      (m.kicker ? `${m.kicker}\n` : "") +
+      `${m.value}${m.unit ? " " + m.unit : ""}`;
+    nodes.push(
+      buildTextNode(
+        "slide-metric",
+        metricText,
+        layout.metric,
+        resolveTextStyle({
+          fontSize: Math.round(theme.fontSize.h1 * 2.4),
+          fontFamily: theme.fonts.title,
+          color: theme.colors.primary,
+          bold: true,
+          align: "center",
+        }),
+        "caption",
+      ),
+    );
+  }
+  if (layout.body && slide.metric?.label) {
+    nodes.push(
+      buildTextNode(
+        "slide-metric-label",
+        slide.metric.label,
+        layout.body,
+        resolveTextStyle({
+          fontSize: theme.fontSize.body + 2,
+          fontFamily: theme.fonts.body,
+          color: theme.colors.text,
+          align: "center",
+        }),
+        "body",
+      ),
+    );
+  }
+  return {
+    id: slide.id,
+    background: theme.colors.background,
+    nodes,
+    notes: slide.notes,
+  };
+}
+
+function buildQuoteSlide(
+  slide: Slide,
+  theme: Theme,
+  layout: LayoutSpec,
+): RenderSlide {
+  const nodes: RenderNode[] = [
+    ...buildGridBackground(theme),
+    ...buildCoverDecor(theme),
+  ];
+  if (layout.quote && slide.quote) {
+    nodes.push(
+      buildTextNode(
+        "slide-quote",
+        slide.quote,
+        layout.quote,
+        resolveTextStyle({
+          fontSize: Math.round(theme.fontSize.h1 * 1.1),
+          fontFamily: theme.fonts.title,
+          color: theme.colors.text,
+          bold: true,
+          align: "center",
+        }),
+        "caption",
+      ),
+    );
+  }
+  if (layout.attribution && slide.attribution) {
+    nodes.push(
+      buildTextNode(
+        "slide-attribution",
+        slide.attribution,
+        layout.attribution,
+        resolveTextStyle({
+          fontSize: theme.fontSize.caption,
+          fontFamily: theme.fonts.body,
+          color: theme.colors.textMuted,
+          align: "center",
+        }),
+        "caption",
+      ),
+    );
+  }
+  return {
+    id: slide.id,
+    background: theme.colors.background,
+    nodes,
+    notes: slide.notes,
+  };
+}
+
+function buildTimelineSlide(
+  slide: Slide,
+  theme: Theme,
+  layout: LayoutSpec,
+): RenderSlide {
+  const nodes: RenderNode[] = [
+    ...buildGridBackground(theme),
+    ...buildBodyDecor(theme),
+  ];
+  if (layout.title && slide.title) {
+    nodes.push(
+      buildTextNode(
+        "slide-title",
+        slide.title,
+        layout.title,
+        resolveTextStyle({
+          fontSize: theme.fontSize.h1,
+          fontFamily: theme.fonts.title,
+          color: theme.colors.primary,
+          bold: true,
+        }),
+        "title",
+      ),
+    );
+  }
+  // 时间轴基线
+  if (layout.timeline) {
+    nodes.push({
+      type: "shape",
+      id: "timeline-axis",
+      shape: "line",
+      rect: layout.timeline,
+      stroke: theme.colors.secondary,
+      zIndex: 2,
+    });
+  }
+  // 节点：取 items（最多 5 个），沿轴线均分
+  const items = (slide.items ?? []).slice(0, 5);
+  const n = items.length;
+  if (layout.timeline && n > 0) {
+    const axis = layout.timeline;
+    const step = axis.w / n;
+    items.forEach((item, i) => {
+      const cx = axis.x + step * (i + 0.5);
+      // 节点圆点
+      nodes.push({
+        type: "shape",
+        id: `timeline-dot-${i}`,
+        shape: "circle",
+        rect: { x: cx - 0.012, y: axis.y - 0.008, w: 0.024, h: 0.024 },
+        fill: theme.colors.accent,
+        zIndex: 3,
+      });
+      // 节点标题（轴上方，预留与轴线的间距）
+      nodes.push(
+        buildTextNode(
+          `timeline-title-${i}`,
+          item.title ?? "",
+          {
+            x: cx - step / 2 + 0.01,
+            y: axis.y - 0.135,
+            w: step - 0.02,
+            h: 0.1,
+          },
+          resolveTextStyle({
+            fontSize: theme.fontSize.h2 - 4,
+            fontFamily: theme.fonts.title,
+            color: theme.colors.primary,
+            bold: true,
+            align: "center",
+          }),
+          "body",
+        ),
+      );
+      // 节点描述（轴下方，限高避免与底部 body 区重叠）
+      const desc = item.body ?? (item.bullets ? item.bullets.join("；") : "");
+      if (desc) {
+        nodes.push(
+          buildTextNode(
+            `timeline-desc-${i}`,
+            desc,
+            {
+              x: cx - step / 2 + 0.01,
+              y: axis.y + 0.02,
+              w: step - 0.02,
+              h: 0.12,
+            },
+            resolveTextStyle({
+              fontSize: theme.fontSize.caption,
+              fontFamily: theme.fonts.body,
+              color: theme.colors.text,
+              align: "center",
+            }),
+            "caption",
+          ),
+        );
+      }
+    });
+  }
+  return {
+    id: slide.id,
+    background: theme.colors.background,
+    nodes,
+    notes: slide.notes,
   };
 }

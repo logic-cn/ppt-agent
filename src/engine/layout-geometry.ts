@@ -32,6 +32,20 @@ const image: LayoutSpec = {
   title: { x: 0.08, y: 0.08, w: 0.84, h: 0.12 },
   visual: { x: 0.08, y: 0.22, w: 0.84, h: 0.7 },
 };
+const metrics: LayoutSpec = {
+  title: { x: 0.08, y: 0.12, w: 0.84, h: 0.1 },
+  metric: { x: 0.1, y: 0.3, w: 0.8, h: 0.34 },
+  body: { x: 0.1, y: 0.68, w: 0.8, h: 0.18 },
+};
+const quote: LayoutSpec = {
+  quote: { x: 0.12, y: 0.26, w: 0.76, h: 0.42 },
+  attribution: { x: 0.12, y: 0.72, w: 0.76, h: 0.08 },
+};
+const timeline: LayoutSpec = {
+  title: { x: 0.08, y: 0.1, w: 0.84, h: 0.1 },
+  timeline: { x: 0.08, y: 0.5, w: 0.84, h: 0.04 },
+  body: { x: 0.08, y: 0.62, w: 0.84, h: 0.26 },
+};
 
 export const LAYOUT_GEOMETRY: Record<SlideLayout, LayoutSpec> = {
   cover,
@@ -46,6 +60,9 @@ export const LAYOUT_GEOMETRY: Record<SlideLayout, LayoutSpec> = {
   "cols-5": cols(5),
   "cols-6": cols(6),
   image,
+  metrics,
+  quote,
+  timeline,
 };
 
 export function getLayoutRects(layout: SlideLayout): LayoutSpec {

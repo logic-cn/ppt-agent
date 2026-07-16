@@ -55,6 +55,9 @@ export function buildOutlineSystemPrompt(opts: {
 | "cols-4" | **四项并列展示，如4个象限/要素/案例** | items 数组 |
 | "cols-5" | **五项并列展示** | items 数组（简洁内容） |
 | "cols-6" | **六项并列展示** | items 数组（每项简洁） |
+| "metrics" | **核心数字海报**：用大数字突出一个关键指标 | metric: {value, unit?, label, kicker?} |
+| "quote" | **金句 / 核心论点**：用一句话表达最核心的判断 | quote（≤40字）+ attribution?（出处） |
+| "timeline" | **时间线 / 阶段走势**：按时间或阶段展示演进 | items 数组（每项 title+body，≤5 个节点） |
 | "closing" | 结尾页（最后一页） | 无 |
 
 ## 布局选择指南（重要）
@@ -63,6 +66,11 @@ export function buildOutlineSystemPrompt(opts: {
 - 每个 items 条目包含标题(title)和要点列表(bullets)，bullet 内容要充实具体。
 - items 的 bullets 是字符串数组（无嵌套），每项建议 2-4 条要点。
 - 不要在 cols-N 中使用顶层的 bullets 字段，用 items 替代。
+- **语义化布局优先**：当一页内容契合以下语义时，优先选用专属布局而非通用布局，能显著提升设计感：
+  - 突出一个关键数字/指标（如市场规模、增长率、用户量）→ 用 "metrics"（配 metric 字段），不要塞进 content 的 bullet。
+  - 表达一个核心判断、金句、结论性观点 → 用 "quote"（配 quote + 可选 attribution），不要塞进 content 的 bullet。
+  - 按时间/阶段/里程碑展示演进（如发展沿革、路线图）→ 用 "timeline"（配 items，每项 title+body，≤5 节点）。
+- 每套 deck 应尽量混合使用多种布局（cover / section / content / cols-N / chart / metrics / quote / timeline / image / closing），避免连续多页都用同一种布局。
 - 如果一页内容只是单一叙述，没有多个并列维度，使用 "content" 即可。
 - **图表优先**：涉及销售额、增长率、市场占比、趋势对比等内容，必须在 chart 字段中提供结构化数据，不要只在 bullets 里用文字描述数据。
 - **配图增强**：产品展示、架构图、流程图、对比示意图等内容，使用 "two-column" 或 "image" 布局，让视觉区承载配图。
@@ -77,7 +85,10 @@ export function buildOutlineSystemPrompt(opts: {
       "subtitle"?: string,
       "bullets"?: { text: string, level: 0 | 1 | 2, children?: { text: string, level: 1 | 2 }[] }[],
       "items"?: { title?: string, bullets?: string[], body?: string }[],
-      "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] }
+      "chart"?: { type: "bar" | "pie" | "line" | "doughnut", title?: string, data: { label: string, value: number }[] },
+      "metric"?: { value: string, unit?: string, label: string, kicker?: string },
+      "quote"?: string,
+      "attribution"?: string
     }
   ]
 }`;
@@ -92,6 +103,19 @@ ${opts.templateCtx}`;
   if (opts.fewShot) {
     prompt += `\n\n${opts.fewShot}`;
   }
+
+  prompt += `
+
+## 文案预算约束（必须遵守，超限会被截断）
+为保证排版不溢出，每页文案长度严格受限：
+- "cover" / "closing"：标题 ≤ 16 字，副标题 ≤ 30 字
+- "section"：subtitle ≤ 40 字
+- "content"：bullets ≤ 6 条，每条 ≤ 28 字；层级 children 每条 ≤ 24 字
+- "two-column"：bullets ≤ 5 条，每条 ≤ 26 字；图片侧不写正文
+- "chart"：data ≤ 8 项，label ≤ 10 字
+- "image"：bullets ≤ 4 条，每条 ≤ 24 字
+- "cols-N"：每 item 的 bullets ≤ 3 条、每条 ≤ 20 字；N 越大单条越短（cols-6 每条 ≤ 14 字）；item.title ≤ 12 字
+- "metrics" / "quote" / "timeline"（若使用）：metric 数值+单位 ≤ 12 字，quote ≤ 40 字，timeline 节点 ≤ 5 个、每节点 ≤ 18 字`;
 
   return prompt;
 }

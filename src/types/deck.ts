@@ -13,7 +13,11 @@ export type SlideLayout =
   | "cols-3"
   | "cols-4"
   | "cols-5"
-  | "cols-6";
+  | "cols-6"
+  // 语义化专用布局（参考 dashi-ppt layout-roles）
+  | "metrics" // 核心数字海报
+  | "quote" // 金句 / 核心论点
+  | "timeline"; // 时间线 / 阶段走势
 
 export type ChartType = "bar" | "pie" | "line" | "doughnut";
 
@@ -70,6 +74,17 @@ export interface SlideSourceRef {
   quote?: string;
 }
 
+export interface MetricSpec {
+  /** 主数值，如 "970" 或 "98.6" */
+  value: string;
+  /** 单位，如 "亿美元" "%" */
+  unit?: string;
+  /** 数值下方说明文案 */
+  label: string;
+  /** 可选强调前缀，如 "突破" */
+  kicker?: string;
+}
+
 export interface Slide {
   id: string;
   layout: SlideLayout;
@@ -81,6 +96,9 @@ export interface Slide {
   elements?: SlideElement[];
   chart?: ChartSpec;
   image?: ImageSpec;
+  metric?: MetricSpec;
+  quote?: string;
+  attribution?: string;
   notes?: string;
   sourceRefs?: SlideSourceRef[];
 }

@@ -27,8 +27,9 @@ describe("golden deck: simple-business-review", () => {
     expect(slides[1].nodes).toHaveLength(3);
     // chart: side-bar(1) + title(1) + chart(1) = 3
     expect(slides[2].nodes).toHaveLength(3);
-    // two-column with items: side-bar(1) + title(1) + 2 列(每列标题+分隔线+要点) = 8
-    expect(slides[3].nodes).toHaveLength(8);
+    // two-column with items: side-bar(1) + title(1) + 2 列(每列标题+要点)
+    // soft-rounded 风格 separator:none，故每列无分隔线节点
+    expect(slides[3].nodes).toHaveLength(6);
     expect(slides[3].nodes[2]).toMatchObject({
       type: "text",
       text: expect.stringContaining("亮点"),
