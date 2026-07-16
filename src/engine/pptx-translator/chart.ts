@@ -10,7 +10,8 @@ import type { SpecLock } from "@/design/spec-lock";
  *   - data-chart-data: JSON 数组，每项形如 {"label":"A","value":10}，
  *       翻译为单一 series 的 labels / values。
  *   - 可选 x / y / width / height（SVG 像素）：定义图表在画布中的位置与尺寸；
- *       缺省时使用默认区域 x=100,y=100,w=1080,h=520（SVG 像素）。
+ *       也可用 transform="translate(x,y)" 平移定位（二者缺省时回退默认区域
+ *       x=100,y=100,w=1080,h=520，SVG 像素）。
  */
 
 const VALID_CHART_TYPES: PptxGenJS.CHART_NAME[] = [
@@ -42,8 +43,19 @@ const SLIDE_H = 7.5;
 
 // 读取 SVG 像素属性，NaN/缺失时用 fallback（保留合法的 0 坐标）。
 function numAttr(el: Element, name: string, fallback: number): number {
-  const n = Number(el.getAttribute(name));
+  const raw = el.getAttribute(name);
+  if (raw == null) return fallback;
+  const n = Number(raw);
   return Number.isNaN(n) ? fallback : n;
+}
+
+// 解析 transform="translate(x, y)" 的平移偏移（兼容 translate(x y) 与带单位写法）。
+// 仅取第一组 translate，其余变换（rotate/scale）不影响图表定位，忽略。
+function parseTranslate(el: Element): { dx: number; dy: number } {
+  const t = el.getAttribute("transform") ?? "";
+  const m = t.match(/translate\(\s*([-0-9.]+)[ ,]+([-0-9.]+)\s*\)/);
+  if (!m) return { dx: 0, dy: 0 };
+  return { dx: Number(m[1]) || 0, dy: Number(m[2]) || 0 };
 }
 
 interface ChartPoint {
@@ -77,8 +89,10 @@ export function translateChart(
   }
   if (points.length === 0) return;
 
-  const x = numAttr(gEl, "x", 100);
-  const y = numAttr(gEl, "y", 100);
+  const { dx, dy } = parseTranslate(gEl);
+  // 坐标优先取 x/y 属性，缺省时回退到 transform 的平移偏移，再回退默认区域。
+  const x = numAttr(gEl, "x", dx) || 100;
+  const y = numAttr(gEl, "y", dy) || 100;
   const w = numAttr(gEl, "width", 1080);
   const h = numAttr(gEl, "height", 520);
 

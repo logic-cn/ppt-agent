@@ -15,7 +15,7 @@ export function buildSvgGenPrompt(opts: {
   // 图表约定：当 pagePlan 指定了图表类型，要求用结构化 <g data-chart-type> 标记，
   // 翻译器会将其转为原生可编辑图表，避免用零散 rect 模拟。
   const chartRule = plan.chartType
-    ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。`
+    ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。图表 <g> 的坐标请用 x / y / width / height 属性直接标注（也可用 transform="translate(x,y)" 平移），确保翻译器能正确定位。`
     : "";
   return `你是 PPT 视觉设计师。基于以下设计契约，产出第 ${pageIndex + 1}/${totalPages} 页（角色 ${plan.role}，标题：${plan.title}，意图：${plan.intent}${
     plan.chartType ? `，建议图表类型：${plan.chartType}` : ""
@@ -37,7 +37,7 @@ export function buildSvgGenPrompt(opts: {
 - 正文 font-family="${specLock.fonts.body}"
 
 硬性要求：
-1. 只输出一个根元素 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">...</svg>，不要任何解释文字。
+ 1. 只输出一个根元素 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">...</svg>，不要任何解释文字，绝对禁止用 \`\`\` 代码块或任何标记语言包裹，必须以 <svg 开头、以 </svg> 结尾。
 2. 只使用白名单元素：svg、g、defs、rect、circle、ellipse、path、text、tspan、line、polygon、polyline、image、linearGradient、radialGradient、stop。
 3. 绝对禁止 foreignObject、script、use、a 以及任何外部资源引用（除 # 锚点与 data: 内嵌）。
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。

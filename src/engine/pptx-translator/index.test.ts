@@ -197,6 +197,24 @@ describe("translateSvgToSlide 原生图表", () => {
     translateSvgToSlide(svg, slide);
     expect(slide._calls.find((c) => c.kind === "chart")).toBeUndefined();
   });
+
+  it("图表 g 用 transform=translate 定位时正确取偏移坐标", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <g data-chart-type="bar" data-chart-data='[{"label":"A","value":10},{"label":"B","value":20}]' transform="translate(120, 470)" width="1040" height="190"></g>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+
+    const chartCall = slide._calls.find((c) => c.kind === "chart");
+    expect(chartCall).toBeDefined();
+    const opts = (chartCall as { args: unknown[] }).args[2] as {
+      x: number;
+      y: number;
+    };
+    // 120/1280*13.333 ≈ 1.25; 470/720*7.5 ≈ 4.8958
+    expect(opts.x).toBeCloseTo(1.25, 3);
+    expect(opts.y).toBeCloseTo(4.8958, 3);
+  });
 });
 
 describe("svgToPptx", () => {
