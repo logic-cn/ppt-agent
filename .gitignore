@@ -32,3 +32,6 @@ pnpm-debug.log*
 
 # 运行时草稿（brainstorm 会话状态，非源码）
 .superpowers/brainstorm/
+
+# opencode 本地配置
+.opencode/
