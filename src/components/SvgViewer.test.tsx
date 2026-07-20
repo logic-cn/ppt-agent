@@ -30,4 +30,26 @@ describe("SvgViewer", () => {
     const wrapper = container.querySelector("[data-svg-viewer]")!;
     expect(wrapper.className).toContain("my-class");
   });
+
+  it("status=loading 显示生成中", () => {
+    const { container } = render(<SvgViewer svg="" status="loading" />);
+    expect(container.textContent).toContain("生成中");
+  });
+
+  it("status=error 显示错误信息", () => {
+    const { container } = render(
+      <SvgViewer svg="" status="error" errorMessage="网络超时" />,
+    );
+    expect(container.textContent).toContain("网络超时");
+  });
+
+  it("status=empty 显示暂无内容", () => {
+    const { container } = render(<SvgViewer svg="" status="empty" />);
+    expect(container.textContent).toContain("暂无内容");
+  });
+
+  it("空 svg 自动推断为 empty 状态", () => {
+    const { container } = render(<SvgViewer svg="" />);
+    expect(container.textContent).toContain("暂无内容");
+  });
 });

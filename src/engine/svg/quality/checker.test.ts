@@ -39,4 +39,41 @@ describe("checkSvg", () => {
     const errors = issues.filter((i) => i.severity === "error");
     expect(errors).toHaveLength(0);
   });
+
+  it("circle 超出右边界报 error", () => {
+    const svg = wrap(`<circle cx="1240" cy="360" r="50" fill="#f00"/>`);
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => /超出右边界/.test(e.message))).toBe(true);
+  });
+
+  it("ellipse 超出下边界报 error", () => {
+    const svg = wrap(
+      `<ellipse cx="640" cy="700" rx="100" ry="50" fill="#0f0"/>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => /超出下边界/.test(e.message))).toBe(true);
+  });
+
+  it("line 超出左边界报 error", () => {
+    const svg = wrap(
+      `<line x1="-50" y1="100" x2="200" y2="100" stroke="#00f"/>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => /左边界/.test(e.message))).toBe(true);
+  });
+
+  it("多个越界同时报出", () => {
+    const svg = wrap(
+      `<rect x="-10" y="-10" width="50" height="50" fill="#111"/><circle cx="1300" cy="360" r="30" fill="#f00"/>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThanOrEqual(2);
+  });
 });

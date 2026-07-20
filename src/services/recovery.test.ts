@@ -6,8 +6,8 @@ describe("decideRecovery", () => {
     expect(decideRecovery("outline", 0)).toBe("retry");
   });
 
-  it("outline: 达到重试上限应当上报用户", () => {
-    expect(decideRecovery("outline", 2)).toBe("ask-user");
+  it("outline: 达到重试上限应当降级", () => {
+    expect(decideRecovery("outline", 2)).toBe("degrade-rulebased");
   });
 
   it("content: 第 2 次尝试应当重试", () => {

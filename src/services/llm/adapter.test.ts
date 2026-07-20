@@ -53,9 +53,7 @@ function errResponse(status: number, text: string): Response {
 }
 
 describe("OpenAICompatProvider.chat 传输层重试", () => {
-  it(
-    "网络瞬态错误（连接失败）重试后成功，不抛错",
-    async () => {
+  it("网络瞬态错误（连接失败）重试后成功，不抛错", async () => {
     const fetchMock = vi.fn();
     fetchMock
       .mockRejectedValueOnce(new Error("fail1"))
@@ -69,12 +67,12 @@ describe("OpenAICompatProvider.chat 传输层重试", () => {
     const res = await p.chat(makeReq());
     expect(res.content).toBe("<svg>ok</svg>");
     expect(fetchMock.mock.calls.length).toBe(5);
-  },
-    20000,
-  );
+  }, 20000);
 
   it("4xx 业务错误直接抛出，不重试", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(errResponse(401, "Unauthorized"));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(errResponse(401, "Unauthorized"));
     globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 
     const p = new OpenAICompatProvider(baseConfig);

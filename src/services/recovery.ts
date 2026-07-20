@@ -1,15 +1,13 @@
 export type FailureKind = "outline" | "content" | "image" | "export" | "svg";
-export type RecoveryAction = "retry" | "degrade-rulebased" | "ask-user";
+export type RecoveryAction = "retry" | "degrade-rulebased";
 
 const MAX_RETRY = 2;
 
 export function decideRecovery(
-  kind: FailureKind,
+  _kind: FailureKind,
   attempt: number,
   _err?: unknown,
 ): RecoveryAction {
-  if (kind === "image")
-    return attempt < MAX_RETRY ? "retry" : "degrade-rulebased";
-  if (attempt >= MAX_RETRY) return "ask-user";
+  if (attempt >= MAX_RETRY) return "degrade-rulebased";
   return "retry";
 }

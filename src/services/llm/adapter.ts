@@ -162,57 +162,82 @@ export class OpenAICompatProvider {
       throw lastError ?? new Error("LLM 流式调用重试失败");
     }
 
-    // 浏览器环境：用原生 fetch 流式，带 120s 超时
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120_000);
-    if (req.signal) {
-      req.signal.addEventListener("abort", () => controller.abort());
-    }
-    const res = await fetch(`${this.config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const err = await res.text().catch(() => "未知错误");
-      throw new Error(`LLM 流式调用失败 (${res.status}): ${err}`);
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) return;
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data")) continue;
-        const raw = line.startsWith("data: ") ? line.slice(6) : line.slice(5);
-        const payload = raw.trim();
-        if (payload === "[DONE]") return;
-        try {
-          const parsed = JSON.parse(payload);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) yield delta;
-        } catch {
-          // skip
+    // 浏览器环境：用原生 fetch 流式，带 120s 超时，带传输层重试
+    const MAX_TRANSPORT_RETRY = 4;
+    let lastError: Error | null = null;
+    for (let transport = 0; transport <= MAX_TRANSPORT_RETRY; transport++) {
+      if (transport > 0) {
+        const delay = Math.min(1000 * 2 ** transport, 8000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120_000);
+        if (req.signal) {
+          req.signal.addEventListener("abort", () => controller.abort());
         }
+        const res = await fetch(`${this.config.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.config.apiKey}`,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          const err = await res.text().catch(() => "未知错误");
+          if (res.status >= 400 && res.status < 500) {
+            throw new NonRetryableError(
+              `LLM 流式调用失败 (${res.status}): ${err}`,
+            );
+          }
+          lastError = new Error(`LLM 流式调用失败 (${res.status}): ${err}`);
+          continue;
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) return;
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data")) continue;
+            const raw = line.startsWith("data: ")
+              ? line.slice(6)
+              : line.slice(5);
+            const payload = raw.trim();
+            if (payload === "[DONE]") return;
+            try {
+              const parsed = JSON.parse(payload);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) yield delta;
+            } catch {
+              // skip
+            }
+          }
+        }
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") throw e;
+        if (e instanceof NonRetryableError) throw e;
+        lastError = e instanceof Error ? e : new Error(String(e));
+        continue;
       }
     }
+    throw lastError ?? new Error("LLM 流式调用重试失败");
   }
 }
 
