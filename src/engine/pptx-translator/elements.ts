@@ -132,18 +132,11 @@ export function translateSvgToSlide(
         if (el.querySelector("tspan")) break;
         translateTextLike(el, pptxSlide, defsById);
         break;
-      case "tspan": {
-        const parent = el.parentElement;
-        translateTextLike(
-          el,
-          pptxSlide,
-          defsById,
-          parent && parent.nodeName.toLowerCase() === "text"
-            ? parent
-            : undefined,
-        );
+      case "tspan":
+        // 含嵌套 tspan 时其直接文本已由内层 tspan 渲染，避免同一文本渲染两次
+        if (el.querySelector("tspan")) break;
+        translateTextLike(el, pptxSlide, defsById);
         break;
-      }
       case "path":
         translatePath(el, pptxSlide, defsById);
         break;
@@ -259,8 +252,8 @@ function estimateTextWidthPx(text: string, fontSizePx: number): number {
 }
 
 // 解析 font-size：仅接受裸数字或 px 单位，em/% 等其他单位按规范无法换算，回退默认
-function fontSizePxOf(el: Element, inheritFrom?: Element): number {
-  const raw = attrInherit(el, inheritFrom, "font-size");
+function fontSizePxOf(el: Element): number {
+  const raw = attrFromChain(el, "font-size");
   if (raw == null) return 18;
   const m = raw.trim().match(/^(-?\d+(?:\.\d+)?)\s*(px)?$/i);
   if (!m) return 18;
@@ -268,37 +261,81 @@ function fontSizePxOf(el: Element, inheritFrom?: Element): number {
   return Number.isFinite(n) && n > 0 ? n : 18;
 }
 
-function attrInherit(
-  el: Element,
-  inheritFrom: Element | undefined,
-  name: string,
-): string | null {
-  return el.getAttribute(name) ?? inheritFrom?.getAttribute(name) ?? null;
+// text / tspan 属性链：自身 + 沿 tspan/text 祖先（嵌套 tspan 也能继承），到 <text> 为止
+function textChain(el: Element): Element[] {
+  const chain: Element[] = [];
+  let cur: Element | null = el;
+  while (cur) {
+    const tag = cur.nodeName.toLowerCase();
+    if (tag !== "text" && tag !== "tspan") break;
+    chain.push(cur);
+    if (tag === "text") break;
+    cur = cur.parentElement;
+  }
+  return chain;
 }
 
-// text / tspan 共用翻译：tspan 从父 <text> 继承缺失属性。
+function attrFromChain(el: Element, name: string): string | null {
+  for (const node of textChain(el)) {
+    const v = node.getAttribute(name);
+    if (v != null) return v;
+  }
+  return null;
+}
+
+// 透明度沿链查找：opacity / fill-opacity 显式出现（含 1）即终止，不再继承上层
+function transparencyFromChain(el: Element): number | undefined {
+  for (const node of textChain(el)) {
+    if (node.hasAttribute("opacity")) return transparencyOf(node);
+    if (node.hasAttribute("fill-opacity")) return transparencyOf(node);
+  }
+  return undefined;
+}
+
+// tspan 绝对位置：dx/dy 累计到两轴各自最近的显式 x/y 基准为止（含基准自身的 dx/dy）；
+// 基准之上的 dx/dy 只作用于其自身文本起点，不影响带绝对坐标的后代。
+// 注：dx/dy 多值列表（如 "10,20,30" 逐字符偏移）仅取首值作整体平移，属务实近似。
+function resolveTextOrigin(el: Element): { x: number; y: number } {
+  let dx = 0;
+  let dy = 0;
+  let baseX: number | null = null;
+  let baseY: number | null = null;
+  for (const node of textChain(el)) {
+    if (baseX == null) {
+      dx += num(node.getAttribute("dx"));
+      if (node.getAttribute("x") != null) baseX = num(node.getAttribute("x"));
+    }
+    if (baseY == null) {
+      dy += num(node.getAttribute("dy"));
+      if (node.getAttribute("y") != null) baseY = num(node.getAttribute("y"));
+    }
+    if (baseX != null && baseY != null) break;
+  }
+  return { x: (baseX ?? 0) + dx, y: (baseY ?? 0) + dy };
+}
+
+// text / tspan 共用翻译：缺失属性沿 <text> 祖先链继承。
 // 显式给出文本框 w/h，避免 pptxgenjs 默认换行与浏览器排版不一致。
 function translateTextLike(
   el: Element,
   slide: PptxGenJS.Slide,
   defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
-  inheritFrom?: Element,
 ): void {
   const text = el.textContent ?? "";
   if (!text.trim()) return;
-  const attr = (name: string): string | null =>
-    attrInherit(el, inheritFrom, name);
+  const attr = (name: string): string | null => attrFromChain(el, name);
 
-  const fontSizePx = fontSizePxOf(el, inheritFrom);
+  const fontSizePx = fontSizePxOf(el);
   const anchor = textAnchorToAlign(attr("text-anchor"));
   const wPx = estimateTextWidthPx(text, fontSizePx);
   const hPx = fontSizePx * 1.4;
 
   // SVG x/y 是锚点基线：按 anchor 反推文本框左上角，并把基线换算为框顶
-  let xBox = num(attr("x"));
+  const origin = resolveTextOrigin(el);
+  let xBox = origin.x;
   if (anchor === "center") xBox -= wPx / 2;
   else if (anchor === "right") xBox -= wPx;
-  const yBox = num(attr("y")) - fontSizePx * BASELINE_ASCENT;
+  const yBox = origin.y - fontSizePx * BASELINE_ASCENT;
 
   const fill = resolveFill({ fill: attr("fill") ?? undefined }, defsById);
   slide.addText(text, {
@@ -308,7 +345,7 @@ function translateTextLike(
     h: toH(hPx),
     fontSize: toPt(fontSizePx),
     color: fill.color,
-    transparency: transparencyOf(el) ?? transparencyOf(inheritFrom),
+    transparency: transparencyFromChain(el),
     fontFace: attr("font-family") ?? "Arial",
     bold: isBold(attr("font-weight")),
     align: anchor,

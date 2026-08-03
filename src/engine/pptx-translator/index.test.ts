@@ -340,6 +340,81 @@ describe("translateSvgToSlide 元素覆盖与备注", () => {
     expect(opts.color.toLowerCase()).toBe("222222");
   });
 
+  it("嵌套 tspan 沿链继承祖先的 font-size 与 fill 且只渲染一次", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="24" fill="#333333">
+        <tspan>
+          <tspan>深层继承</tspan>
+        </tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCalls = slide._calls.filter((c) => c.kind === "text");
+    // 外层 tspan 含内层 tspan，其直接文本由内层渲染，不得重复 addText
+    expect(textCalls).toHaveLength(1);
+    const [, opts] = textCalls[0].args as [
+      string,
+      { fontSize: number; color: string },
+    ];
+    expect(opts.fontSize).toBeCloseTo(18, 2);
+    expect(opts.color.toLowerCase()).toBe("333333");
+  });
+
+  it("tspan 无 x/y 时继承父 text 定位", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">
+        <tspan>定位继承</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number },
+    ];
+    // x=100 与 y=200 均来自父 text
+    expect(opts.x).toBeCloseTo((100 / 1280) * 13.333, 3);
+    expect(opts.y).toBeCloseTo(((200 - 20 * 0.78) / 720) * 7.5, 3);
+  });
+
+  it("tspan 的 dx/dy 相对偏移叠加到继承位置", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222" dx="10">
+        <tspan dx="20" dy="30">偏移叠加</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number },
+    ];
+    // x = 100 + 10(text.dx) + 20(tspan.dx) = 130；y = 200 + 30(tspan.dy)
+    expect(opts.x).toBeCloseTo((130 / 1280) * 13.333, 3);
+    expect(opts.y).toBeCloseTo(((230 - 20 * 0.78) / 720) * 7.5, 3);
+  });
+
+  it("tspan 带显式 x/y 时不累计祖先的 dx/dy（绝对坐标优先）", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222" dx="50">
+        <tspan x="300" y="100">绝对定位</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number },
+    ];
+    // 位置取 tspan 显式 x/y，父 text 的 dx=50 不参与
+    expect(opts.x).toBeCloseTo((300 / 1280) * 13.333, 3);
+    expect(opts.y).toBeCloseTo(((100 - 20 * 0.78) / 720) * 7.5, 3);
+  });
+
   it("传入 notes 时调用 addNotes", () => {
     const slide = createMockSlide();
     translateSvgToSlide(SAMPLE_SVG, slide, undefined, "这是演讲备注");
