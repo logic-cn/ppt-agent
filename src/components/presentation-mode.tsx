@@ -4,6 +4,7 @@ import type { Deck, Slide } from "@/types/deck";
 import type { Theme } from "@/types/theme";
 import { buildRenderSlides } from "@/engine/render-ir/build";
 import { RenderSlideViewer } from "@/engine/preview/render-slide-viewer";
+import { SvgViewer } from "@/components/SvgViewer";
 
 interface Props {
   deck: Deck;
@@ -123,12 +124,16 @@ export function PresentationMode({
           className="relative overflow-hidden rounded-xl shadow-2xl"
           style={{ width: slideW, height: slideH }}
         >
-          <RenderSlideViewer
-            renderSlide={currentRenderSlide}
-            slide={currentSlide}
-            theme={theme}
-            width={slideW}
-          />
+          {currentSlide.svg ? (
+            <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+          ) : (
+            <RenderSlideViewer
+              renderSlide={currentRenderSlide}
+              slide={currentSlide}
+              theme={theme}
+              width={slideW}
+            />
+          )}
         </div>
       ) : (
         <div className="text-white/60">暂无幻灯片</div>

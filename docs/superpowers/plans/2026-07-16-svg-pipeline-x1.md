@@ -73,7 +73,7 @@ src/types/
 - Produces: `function buildSpecLock(design: DesignLock): SpecLock`
 - Consumes: `getVisualStyle`（visual-styles.ts）、`getPalette`（palettes.ts）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 // src/design/spec-lock.test.ts
@@ -91,9 +91,9 @@ describe("buildSpecLock", () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试验证失败** `npx vitest run src/design/spec-lock.test.ts` → FAIL（模块不存在）
+- [x] **Step 2: 运行测试验证失败** `npx vitest run src/design/spec-lock.test.ts` → FAIL（模块不存在）
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 ```ts
 // src/design/spec-lock.ts
@@ -131,9 +131,9 @@ export function buildSpecLock(design: DesignLock): SpecLock {
 }
 ```
 
-- [ ] **Step 4: 运行测试通过** `npx vitest run src/design/spec-lock.test.ts` → PASS
+- [x] **Step 4: 运行测试通过** `npx vitest run src/design/spec-lock.test.ts` → PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 ```bash
 git add src/design/spec-lock.ts src/design/spec-lock.test.ts
 git commit -m "feat: 新增 specLock 设计契约类型与构建器"
@@ -149,7 +149,7 @@ git commit -m "feat: 新增 specLock 设计契约类型与构建器"
 - Produces: `export const SVG_CONTRACT` 常量（允许的 SVG 元素、属性、viewBox 要求、文本溢出预算）
 - Produces: `export function validateSvgContract(svg: string): string[]`（返回错误列表）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -167,8 +167,8 @@ describe("validateSvgContract", () => {
 });
 ```
 
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现**（解析 SVG 根，检查 viewBox 存在且为 1280×720；检查根元素为 svg；收集未知元素名到错误）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现**（解析 SVG 根，检查 viewBox 存在且为 1280×720；检查根元素为 svg；收集未知元素名到错误）
 
 ```ts
 // src/engine/svg/spec-contract.ts
@@ -200,8 +200,8 @@ export function validateSvgContract(svg: string): string[] {
 }
 ```
 
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增 SVG 兼容契约与基础校验"`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增 SVG 兼容契约与基础校验"`
 
 ---
 
@@ -221,9 +221,9 @@ export function validateSvgContract(svg: string): string[] {
 - Produces: `async function generatePagePlan(params): Promise<PagePlanItem[]>`
 - Consumes: `chat`（src/services/llm）、`buildSpecLock`
 
-- [ ] **Step 1: 写失败测试**（pagePlan 返回语义角色数组，至少含 cover/closing）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 generatePagePlan**
+- [x] **Step 1: 写失败测试**（pagePlan 返回语义角色数组，至少含 cover/closing）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 generatePagePlan**
 
 ```ts
 // src/types/page-plan.ts
@@ -257,8 +257,8 @@ export async function generatePagePlan(params: {
 }
 ```
 
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增 pagePlan 语义角色页面结构规划"`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增 pagePlan 语义角色页面结构规划"`
 
 ---
 
@@ -277,9 +277,9 @@ export async function generatePagePlan(params: {
 - Produces: `async function generateSlideSvg(opts:{ specLock: SpecLock; plan: PagePlanItem; pageIndex: number; totalPages: number; prevSvg?: string; signal?: AbortSignal }): Promise<string>`（返回单页 SVG 字符串）
 - Consumes: `chat`、`buildSpecLock`、`validateSvgContract`（先做软校验，Phase 3 硬化）
 
-- [ ] **Step 1: 写失败测试**（mock chat 返回合规 SVG，executor 返回该 SVG 字符串且含 viewBox 1280×720）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 generateSlideSvg**
+- [x] **Step 1: 写失败测试**（mock chat 返回合规 SVG，executor 返回该 SVG 字符串且含 viewBox 1280×720）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 generateSlideSvg**
 
 ```ts
 // src/services/llm/prompts/svg-gen.ts
@@ -313,8 +313,8 @@ export async function generateSlideSvg(opts: {
 }
 ```
 
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增 L2 Executor 逐页生成 SVG"`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增 L2 Executor 逐页生成 SVG"`
 
 ### Task 2.2: Slide 增加 svg 字段并串联 pagePlan→executor
 
@@ -328,9 +328,9 @@ export async function generateSlideSvg(opts: {
 - Produces: `async function buildDeckSvg(params): Promise<Slide[]>`（每个 Slide 带 svg 字段）
 - Consumes: `generatePagePlan`、`generateSlideSvg`、`buildSpecLock`
 
-- [ ] **Step 1: 写失败测试**（mock 两函数，buildDeckSvg 产出 N 页 Slide，每页 svg 非空且含 viewBox）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 buildDeckSvg（逐页串行 for 循环，禁止并行）**
+- [x] **Step 1: 写失败测试**（mock 两函数，buildDeckSvg 产出 N 页 Slide，每页 svg 非空且含 viewBox）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 buildDeckSvg（逐页串行 for 循环，禁止并行）**
 
 ```ts
 // src/services/deck-build.ts
@@ -354,8 +354,8 @@ export async function buildDeckSvg(params: {
 }
 ```
 
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 串联 pagePlan 与 executor 生成带 svg 的 Slide"`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 串联 pagePlan 与 executor 生成带 svg 的 Slide"`
 
 ### Task 2.3: SvgViewer 预览组件接入
 
@@ -366,7 +366,7 @@ export async function buildDeckSvg(params: {
 **Interfaces:**
 - Produces: `SvgViewer({ svg: string; width: number })` 组件（用 `dangerouslySetInnerHTML` 或解析后渲染 svg 字符串，保留可编辑文本选择）
 
-- [ ] **Step 1: 写组件**
+- [x] **Step 1: 写组件**
 ```tsx
 // src/preview/SvgViewer.tsx
 import { memo } from "react";
@@ -379,9 +379,9 @@ export const SvgViewer = memo(function SvgViewer({ svg, width }: { svg: string; 
 });
 ```
 
-- [ ] **Step 2: 在 presentation-mode.tsx 中，当 slide.svg 存在时用 SvgViewer，否则回退旧渲染**
-- [ ] **Step 3: 手动/单元测试验证能渲染一份含 svg 的 fixture**
-- [ ] **Step 4: 提交** `git commit -m "feat: 新增 SvgViewer 原生 SVG 预览并接入演示模式"`
+- [x] **Step 2: 在 presentation-mode.tsx 中，当 slide.svg 存在时用 SvgViewer，否则回退旧渲染**
+- [x] **Step 3: 手动/单元测试验证能渲染一份含 svg 的 fixture**
+- [x] **Step 4: 提交** `git commit -m "feat: 新增 SvgViewer 原生 SVG 预览并接入演示模式"`
 
 ---
 
@@ -403,11 +403,11 @@ export const SvgViewer = memo(function SvgViewer({ svg, width }: { svg: string; 
 3. `<text>` 字号 × 估算字数不超出所在容器（基于字号像素粗略预算）
 4. 图表元素（如有 `<rect>` 表示柱）高度在画布内
 
-- [ ] **Step 1: 写失败测试**（一个 rect 超出右边界 1280 → 报 error；一个越界 text → error）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 checkSvg**（用正则/简单 XML 解析提取几何属性，做边界判断）
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增 SVG 质量校验器（越界/溢出/几何）"`
+- [x] **Step 1: 写失败测试**（一个 rect 超出右边界 1280 → 报 error；一个越界 text → error）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 checkSvg**（用正则/简单 XML 解析提取几何属性，做边界判断）
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增 SVG 质量校验器（越界/溢出/几何）"`
 
 ### Task 3.2: 失败重画重试编排
 
@@ -415,9 +415,9 @@ export const SvgViewer = memo(function SvgViewer({ svg, width }: { svg: string; 
 - Modify: `src/engine/svg/executor.ts`（generateSlideSvg 内集成 checkSvg，失败回喂重画，≤2 轮）
 - Test: `src/engine/svg/executor.test.ts`（扩充：mock chat 首次越界、二次合规 → 最终返回合规）
 
-- [ ] **Step 1: 写失败测试**（断言重试逻辑：当首轮 checkSvg 有 error，调用第二次 chat 并传入错误反馈）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现重试**
+- [x] **Step 1: 写失败测试**（断言重试逻辑：当首轮 checkSvg 有 error，调用第二次 chat 并传入错误反馈）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现重试**
 
 ```ts
 // 在 generateSlideSvg 内
@@ -431,8 +431,8 @@ for (let attempt = 1; attempt <= 2; attempt++) {
 return svg; // 仍可能含 warn，但不再重试
 ```
 
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: SVG 生成集成质量闸门与失败重画重试"`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: SVG 生成集成质量闸门与失败重画重试"`
 
 ---
 
@@ -457,11 +457,11 @@ return svg; // 仍可能含 warn，但不再重试
 - `<text>`/`<tspan>` → `addText`（保留 x/y、font-size、fill、font-family、text-anchor→align）
 - 坐标换算：SVG 像素 / 1280 * SLIDE_W(13.333)、/720*SLIDE_H(7.5)
 
-- [ ] **Step 1: 写失败测试**（输入含 rect+text 的 SVG，翻译后 pptx 含对应 shape 与 text；用内存 pptxgenjs 验证元素数）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 elements.ts（SVG 字符串解析 + 逐元素翻译）**
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增 SVG→PPTX 翻译器（基础元素）"`
+- [x] **Step 1: 写失败测试**（输入含 rect+text 的 SVG，翻译后 pptx 含对应 shape 与 text；用内存 pptxgenjs 验证元素数）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 elements.ts（SVG 字符串解析 + 逐元素翻译）**
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增 SVG→PPTX 翻译器（基础元素）"`
 
 ### Task 4.2: 渐变与路径翻译
 
@@ -470,11 +470,11 @@ return svg; // 仍可能含 warn，但不再重试
 - Create: `src/engine/pptx-translator/gradient.ts`
 - Test: `src/engine/pptx-translator/index.test.ts`（扩充）
 
-- [ ] **Step 1: 写失败测试**（含 linearGradient 的 rect 翻译后保留渐变填充）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 gradient 翻译（linearGradient→pptx genFill/gradient；path→custGeom 或降级为自由形状）**
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 翻译器支持渐变与路径"`
+- [x] **Step 1: 写失败测试**（含 linearGradient 的 rect 翻译后保留渐变填充）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 gradient 翻译（linearGradient→pptx genFill/gradient；path→custGeom 或降级为自由形状）**
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 翻译器支持渐变与路径"`
 
 ### Task 4.3: 图表翻译（bars/pie/line 原生图表）
 
@@ -482,11 +482,11 @@ return svg; // 仍可能含 warn，但不再重试
 - Create: `src/engine/pptx-translator/chart.ts`
 - Test: `src/engine/pptx-translator/index.test.ts`（扩充）
 
-- [ ] **Step 1: 写失败测试**（SVG 中若含结构化图表标记如 `data-chart="bar"` 的 group，翻译为 pptxgenjs addChart 原生图表）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 chart 翻译（约定 SVG 内图表用 `<g data-chart-type="bar" data-chart-data='[...]'>`，翻译器读 data 生成原生 chart）**
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 翻译器支持原生图表"`
+- [x] **Step 1: 写失败测试**（SVG 中若含结构化图表标记如 `data-chart="bar"` 的 group，翻译为 pptxgenjs addChart 原生图表）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 chart 翻译（约定 SVG 内图表用 `<g data-chart-type="bar" data-chart-data='[...]'>`，翻译器读 data 生成原生 chart）**
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 翻译器支持原生图表"`
 
 ### Task 4.4: 接入导出入口并废弃旧 render-slide.ts
 
@@ -494,9 +494,9 @@ return svg; // 仍可能含 warn，但不再重试
 - Modify: `src/engine/pptx/exporter.ts`（当 Slide 含 svg 时走 svgToPptx，否则回退旧路径）
 - Deprecate: `src/engine/pptx/render-slide.ts`（保留旧函数作 fallback，标记 deprecated）
 
-- [ ] **Step 1: 在 exporter 中优先调用 svgToPptx（slide.svg 存在时）**
-- [ ] **Step 2: 端到端测试：生成带 svg 的 deck → 导出 blob → 断言 blob.size>1000 且含文本**
-- [ ] **Step 3: 提交** `git commit -m "feat: 导出入口接入 SVG 翻译器，保留旧路径 fallback"`
+- [x] **Step 1: 在 exporter 中优先调用 svgToPptx（slide.svg 存在时）**
+- [x] **Step 2: 端到端测试：生成带 svg 的 deck → 导出 blob → 断言 blob.size>1000 且含文本**
+- [x] **Step 3: 提交** `git commit -m "feat: 导出入口接入 SVG 翻译器，保留旧路径 fallback"`
 
 ---
 
@@ -509,11 +509,11 @@ return svg; // 仍可能含 warn，但不再重试
 - Create: `src/components/slide-redraw.tsx`（预览页上的「重画此页」按钮）
 - Test: `src/store/deck.test.ts`（扩充）
 
-- [ ] **Step 1: 写失败测试**（regenerateSlide 调用 executor 并更新 store 中该 slide.svg）
-- [ ] **Step 2: 运行失败**
-- [ ] **Step 3: 实现 action + UI 按钮（调用 buildSpecLock + generateSlideSvg，替换 svg）**
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `git commit -m "feat: 新增单页重画动作与 UI 按钮"`
+- [x] **Step 1: 写失败测试**（regenerateSlide 调用 executor 并更新 store 中该 slide.svg）
+- [x] **Step 2: 运行失败**
+- [x] **Step 3: 实现 action + UI 按钮（调用 buildSpecLock + generateSlideSvg，替换 svg）**
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `git commit -m "feat: 新增单页重画动作与 UI 按钮"`
 
 ### Task 5.2: 端到端联调与文档
 
@@ -521,10 +521,10 @@ return svg; // 仍可能含 warn，但不再重试
 - Modify: `README.md`（新增 X1 架构使用说明）
 - Test: 手动生成一份 8–10 页 deck，验证预览=导出、可编辑
 
-- [ ] **Step 1: 端到端跑通（mock 或真实 LLM）生成→预览→导出**
-- [ ] **Step 2: 打开导出 PPTX 确认文本/形状可编辑**
-- [ ] **Step 3: 更新 README**
-- [ ] **Step 4: 提交** `git commit -m "docs: 补充 X1 架构使用说明并端到端联调"`
+- [x] **Step 1: 端到端跑通（mock 或真实 LLM）生成→预览→导出**
+- [x] **Step 2: 打开导出 PPTX 确认文本/形状可编辑**
+- [x] **Step 3: 更新 README**
+- [x] **Step 4: 提交** `git commit -m "docs: 补充 X1 架构使用说明并端到端联调"`
 
 ---
 
