@@ -15,6 +15,12 @@ export interface GenerateSlideSvgOptions {
   pageIndex: number;
   totalPages: number;
   signal?: AbortSignal;
+  /** 该页必须完整呈现的内容素材（结构化编辑后的内容防丢失） */
+  contentBrief?: string;
+  /** 用户的定向修改指令（如「把主色改成蓝色」） */
+  instruction?: string;
+  /** 现有 SVG 底稿：提供时在其基础上修改而非从零重画 */
+  baseSvg?: string;
 }
 
 /**
@@ -27,6 +33,11 @@ export async function generateSlideSvg(
   opts: GenerateSlideSvgOptions,
 ): Promise<string> {
   const prompt = buildSvgGenPrompt(opts);
+  // 有底稿的定向修改用低温度保证稳定；从零生成保持多样性
+  const temperature = opts.baseSvg ? 0.4 : 0.7;
+  const baseBlock = opts.baseSvg
+    ? `\n\n以下是该页当前的 SVG 设计稿，请在其基础上修改（保持整体版式、元素结构与风格不变，仅落实上述要求），输出修改后的完整 SVG：\n${opts.baseSvg}`
+    : "";
 
   const rawGenerate = async (userContent: string): Promise<string> => {
     const res = await chat(
@@ -39,7 +50,7 @@ export async function generateSlideSvg(
           },
           { role: "user", content: userContent },
         ],
-        temperature: 0.7,
+        temperature,
         maxTokens: 16000,
         signal: opts.signal,
       },
@@ -53,7 +64,7 @@ export async function generateSlideSvg(
     return stripped.match(/<svg[\s\S]*<\/svg>/i)?.[0] ?? stripped;
   };
 
-  let svg = (await rawGenerate(prompt)).trim();
+  let svg = (await rawGenerate(prompt + baseBlock)).trim();
 
   const hasSvgRoot =
     /^<svg[\s\S]*<\/svg>$/i.test(svg) || /<svg[\s\S]*<\/svg>/i.test(svg);
@@ -63,6 +74,7 @@ export async function generateSlideSvg(
     svg = (
       await rawGenerate(
         prompt +
+          baseBlock +
           "\n\n你上一次的输出被截断了，缺少完整的 <svg>…</svg>。请仅输出从 <svg 开始到 </svg> 结束的完整 SVG，不要任何解释或代码块包裹。",
       )
     ).trim();
@@ -76,7 +88,7 @@ export async function generateSlideSvg(
     const feedback =
       "你的 SVG 有以下问题，请修正后重新输出完整 SVG：\n" +
       issues.map((i) => "- " + i.message).join("\n");
-    svg = (await rawGenerate(prompt + "\n\n" + feedback)).trim();
+    svg = (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim();
   }
 
   const errors = validateSvgContract(svg);

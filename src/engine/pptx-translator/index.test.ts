@@ -27,6 +27,12 @@ function createMockSlide(): MockSlide {
     addChart: vi.fn((...args: unknown[]) =>
       calls.push({ kind: "chart", args }),
     ),
+    addImage: vi.fn((...args: unknown[]) =>
+      calls.push({ kind: "image", args }),
+    ),
+    addNotes: vi.fn((...args: unknown[]) =>
+      calls.push({ kind: "notes", args }),
+    ),
     _calls: calls,
   } as unknown as MockSlide;
   return slide;
@@ -64,7 +70,8 @@ describe("translateSvgToSlide", () => {
     ];
     expect(text).toBe("Hello SVG");
     expect(opts.x).toBeCloseTo(1.25, 3);
-    expect(opts.fontSize).toBe(32);
+    // 32 viewBox px × 0.75 = 24pt
+    expect(opts.fontSize).toBeCloseTo(24, 2);
     expect(opts.color).toBe("FFFFFF");
     expect(opts.align).toBe("left");
   });
@@ -214,6 +221,180 @@ describe("translateSvgToSlide 原生图表", () => {
     // 120/1280*13.333 ≈ 1.25; 470/720*7.5 ≈ 4.8958
     expect(opts.x).toBeCloseTo(1.25, 3);
     expect(opts.y).toBeCloseTo(4.8958, 3);
+  });
+
+  it("data-chart-title 导出为原生图表标题", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <g data-chart-type="pie" data-chart-title="季度占比" data-chart-data='[{"label":"A","value":10}]' x="100" y="100" width="600" height="400"></g>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const chartCall = slide._calls.find((c) => c.kind === "chart");
+    const opts = (chartCall as { args: unknown[] }).args[2] as {
+      showTitle: boolean;
+      title?: string;
+    };
+    expect(opts.showTitle).toBe(true);
+    expect(opts.title).toBe("季度占比");
+  });
+});
+
+describe("translateSvgToSlide 元素覆盖与备注", () => {
+  it("标准 path（无 x/y/width/height）从 d 解析包围盒降级为 rect", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <path d="M100 200 L300 200 L300 400 L100 400 Z" fill="#00ff00"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    expect(shapeCall).toBeDefined();
+    const [type, opts] = (shapeCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number; w: number; h: number },
+    ];
+    expect(type).toBe("rect");
+    // 100/1280*13.333 ≈ 1.0416; 200/720*7.5 ≈ 2.0833
+    expect(opts.x).toBeCloseTo(1.0416, 3);
+    expect(opts.y).toBeCloseTo(2.0833, 3);
+    expect(opts.w).toBeCloseTo((200 / 1280) * 13.333, 3);
+    expect(opts.h).toBeCloseTo((200 / 720) * 7.5, 3);
+  });
+
+  it("polygon 翻译为包围盒矩形", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <polygon points="100,100 200,100 150,200" fill="#ff0000"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    expect(shapeCall).toBeDefined();
+    const [type, opts] = (shapeCall as { args: unknown[] }).args as [
+      string,
+      { fill: { color: string } },
+    ];
+    expect(type).toBe("rect");
+    expect(opts.fill.color.toLowerCase()).toBe("ff0000");
+  });
+
+  it("polyline 翻译为 line 形状", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <polyline points="100,100 300,150 500,120" stroke="#0000ff" fill="none"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    expect(shapeCall).toBeDefined();
+    const [type] = (shapeCall as { args: unknown[] }).args as [string];
+    expect(type).toBe("line");
+  });
+
+  it("data: 内嵌 image 翻译为 addImage", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <image href="data:image/png;base64,AAA" x="10" y="20" width="100" height="80"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const imgCall = slide._calls.find((c) => c.kind === "image");
+    expect(imgCall).toBeDefined();
+    const opts = (imgCall as { args: unknown[] }).args[0] as {
+      data: string;
+      x: number;
+    };
+    expect(opts.data.startsWith("image/png;base64,")).toBe(true);
+    expect(opts.x).toBeCloseTo((10 / 1280) * 13.333, 3);
+  });
+
+  it("text-anchor=middle 时文本框居中定位且 y 按基线上移", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="640" y="360" font-size="40" fill="#111111" text-anchor="middle">居中标题</text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number; w: number; align: string; fontSize: number },
+    ];
+    expect(opts.align).toBe("center");
+    // 框中心 ≈ 640px：x + w/2 ≈ 640/1280*13.333 = 6.6665
+    expect(opts.x + opts.w / 2).toBeCloseTo(6.6665, 2);
+    // y = (360 - 40*0.78)/720*7.5 ≈ 3.425
+    expect(opts.y).toBeCloseTo(((360 - 40 * 0.78) / 720) * 7.5, 2);
+    expect(opts.fontSize).toBeCloseTo(30, 2);
+  });
+
+  it("tspan 继承父 text 的 font-size 与 fill", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="28" fill="#222222">
+        <tspan x="100" y="200">继承</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { fontSize: number; color: string },
+    ];
+    expect(opts.fontSize).toBeCloseTo(21, 2);
+    expect(opts.color.toLowerCase()).toBe("222222");
+  });
+
+  it("传入 notes 时调用 addNotes", () => {
+    const slide = createMockSlide();
+    translateSvgToSlide(SAMPLE_SVG, slide, undefined, "这是演讲备注");
+    const notesCall = slide._calls.find((c) => c.kind === "notes");
+    expect(notesCall).toBeDefined();
+    expect((notesCall as { args: unknown[] }).args[0]).toBe("这是演讲备注");
+  });
+
+  it("arc 命令的 rx/x-rot/flag 参数不污染包围盒", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <path d="M100 100 A 999 999 90 0 1 300 300 Z" fill="#00ff00"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    const [type, opts] = (shapeCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number; w: number; h: number },
+    ];
+    expect(type).toBe("rect");
+    // 仅起点 (100,100) 与终点 (300,300) 参与包围盒；rx=999 / rot=90 / flag 不得混入
+    expect(opts.x).toBeCloseTo((100 / 1280) * 13.333, 3);
+    expect(opts.y).toBeCloseTo((100 / 720) * 7.5, 3);
+    expect(opts.w).toBeCloseTo((200 / 1280) * 13.333, 3);
+    expect(opts.h).toBeCloseTo((200 / 720) * 7.5, 3);
+  });
+
+  it("非法 stroke（url 渐变引用）回退为无描边", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/></linearGradient></defs>
+      <rect x="100" y="100" width="200" height="100" fill="#ff0000" stroke="url(#g)" stroke-width="4"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    const [, opts] = (shapeCall as { args: unknown[] }).args as [
+      string,
+      { line: { width: number } },
+    ];
+    expect(opts.line.width).toBe(0);
+  });
+
+  it("font-size 带非 px 单位时回退默认字号", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="100" font-size="2em" fill="#111111">带单位字号</text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCall = slide._calls.find((c) => c.kind === "text");
+    const [, opts] = (textCall as { args: unknown[] }).args as [
+      string,
+      { fontSize: number },
+    ];
+    // 默认 18px × 0.75 = 13.5pt
+    expect(opts.fontSize).toBeCloseTo(13.5, 2);
   });
 });
 

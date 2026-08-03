@@ -103,6 +103,8 @@ export interface Slide {
   sourceRefs?: SlideSourceRef[];
   /** X1 链路：由 executor 逐页生成的设计真相 SVG（viewBox="0 0 1280 720"） */
   svg?: string;
+  /** 结构化内容已变更、SVG 待重画 */
+  svgStale?: boolean;
 }
 
 export type DeckSource = "topic" | "doc" | "url";

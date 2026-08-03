@@ -4,18 +4,27 @@ import type { PagePlanItem } from "@/types/page-plan";
 /**
  * 构造单页 SVG 生成 prompt。
  * 将 specLock 的画布/配色/字体约束注入给 LLM，并强制白名单元素与固定 viewBox。
+ * 可选注入：contentBrief（该页必须完整呈现的内容素材）、instruction（用户的定向修改要求）。
  */
 export function buildSvgGenPrompt(opts: {
   specLock: SpecLock;
   plan: PagePlanItem;
   pageIndex: number;
   totalPages: number;
+  contentBrief?: string;
+  instruction?: string;
 }): string {
   const { specLock, plan, pageIndex, totalPages } = opts;
   // 图表约定：当 pagePlan 指定了图表类型，要求用结构化 <g data-chart-type> 标记，
   // 翻译器会将其转为原生可编辑图表，避免用零散 rect 模拟。
   const chartRule = plan.chartType
-    ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。图表 <g> 的坐标请用 x / y / width / height 属性直接标注（也可用 transform="translate(x,y)" 平移），确保翻译器能正确定位。`
+    ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。图表 <g> 的坐标请用 x / y / width / height 属性直接标注（也可用 transform="translate(x,y)" 平移），确保翻译器能正确定位。图表若有标题，请在 <g> 上加 data-chart-title="标题文字"。`
+    : "";
+  const briefBlock = opts.contentBrief
+    ? `\n\n本页内容素材（必须完整、原样呈现以下全部文字与数据，不得遗漏、改写或编造）：\n${opts.contentBrief}`
+    : "";
+  const instructionBlock = opts.instruction
+    ? `\n\n用户对本页的定向修改要求（优先级最高，必须满足；未提及的部分保持原有设计）：${opts.instruction}`
     : "";
   return `你是 PPT 视觉设计师。基于以下设计契约，产出第 ${pageIndex + 1}/${totalPages} 页（角色 ${plan.role}，标题：${plan.title}，意图：${plan.intent}${
     plan.chartType ? `，建议图表类型：${plan.chartType}` : ""
@@ -42,7 +51,7 @@ export function buildSvgGenPrompt(opts: {
 3. 绝对禁止 foreignObject、script、use、a 以及任何外部资源引用（除 # 锚点与 data: 内嵌）。
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
-6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。${chartRule}
+6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。${chartRule}${briefBlock}${instructionBlock}
 
  只输出 <svg>...</svg>。`;
 }

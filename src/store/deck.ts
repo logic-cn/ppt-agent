@@ -298,6 +298,22 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       bullets,
     };
 
+    // 内容素材：重画时保证结构化编辑后的内容不丢失
+    const briefParts: string[] = [];
+    if (slide.subtitle) briefParts.push(`副标题：${slide.subtitle}`);
+    if (slide.body) briefParts.push(`正文：${slide.body}`);
+    if (slide.metric) {
+      briefParts.push(
+        `核心指标：${slide.metric.value}${slide.metric.unit ?? ""}` +
+          (slide.metric.kicker ? `（${slide.metric.kicker}）` : "") +
+          `，说明：${slide.metric.label}`,
+      );
+    }
+    if (slide.quote) briefParts.push(`引言：${slide.quote}`);
+    if (bullets.length) {
+      briefParts.push(`要点列表：\n${bullets.map((b) => `- ${b}`).join("\n")}`);
+    }
+
     // 真实调用 LLM（测试时由 vi.mock 的 executor 替代）
     const newSvg = await generateSlideSvg({
       specLock,
@@ -305,10 +321,13 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       pageIndex: slideIndex,
       totalPages: deck.slides.length,
       signal,
+      // 有旧 SVG 时在其基础上修改，保持版式与风格稳定
+      baseSvg: slide.svg,
+      contentBrief: briefParts.join("\n") || undefined,
     });
 
-    // 复用既有 updateSlide 写回，保持历史/持久化一致
-    get().updateSlide(slideId, { svg: newSvg });
+    // 复用既有 updateSlide 写回，保持历史/持久化一致；重画完成清除 stale 标记
+    get().updateSlide(slideId, { svg: newSvg, svgStale: false });
   },
 
   undo: () => {

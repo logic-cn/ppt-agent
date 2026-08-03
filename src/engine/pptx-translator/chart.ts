@@ -104,8 +104,8 @@ export function translateChart(
     },
   ];
 
-  // 优先使用 specLock 设计契约配色（前几色作为图表系列色），无 specLock 时回退默认调色板。
-  const chartColors =
+  // 优先使用 specLock 设计契约配色作为图表系列色，无 specLock 时回退默认调色板
+  const palette =
     specLock && specLock.colors
       ? [
           specLock.colors.primary,
@@ -115,6 +115,13 @@ export function translateChart(
           specLock.colors.textMuted,
         ].filter(Boolean)
       : DEFAULT_PALETTE;
+  const effectivePalette = palette.length > 0 ? palette : DEFAULT_PALETTE;
+  const chartColors = points.map(
+    (_, i) => effectivePalette[i % effectivePalette.length],
+  );
+
+  // 可选图表标题：SVG 生成端用 data-chart-title 标注
+  const chartTitle = gEl.getAttribute("data-chart-title") ?? undefined;
 
   const chartOpts = {
     x: (x / SVG_W) * SLIDE_W,
@@ -122,7 +129,8 @@ export function translateChart(
     w: (w / SVG_W) * SLIDE_W,
     h: (h / SVG_H) * SLIDE_H,
     showLegend: true,
-    showTitle: false,
+    showTitle: !!chartTitle,
+    title: chartTitle,
     chartColors,
   };
 

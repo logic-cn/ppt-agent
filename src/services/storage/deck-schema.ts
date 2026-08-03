@@ -65,6 +65,13 @@ const slideSourceRefSchema = z.object({
   quote: z.string().optional(),
 });
 
+const metricSpecSchema = z.object({
+  value: z.string(),
+  unit: z.string().optional(),
+  label: z.string(),
+  kicker: z.string().optional(),
+});
+
 export const slideSchema = z.object({
   id: z.string(),
   layout: z.enum([
@@ -80,6 +87,9 @@ export const slideSchema = z.object({
     "cols-4",
     "cols-5",
     "cols-6",
+    "metrics",
+    "quote",
+    "timeline",
   ]),
   title: z.string(),
   subtitle: z.string().optional(),
@@ -89,8 +99,14 @@ export const slideSchema = z.object({
   elements: z.array(slideElementSchema).optional(),
   chart: chartSpecSchema.optional(),
   image: imageSpecSchema.optional(),
+  metric: metricSpecSchema.optional(),
+  quote: z.string().optional(),
+  attribution: z.string().optional(),
   notes: z.string().optional(),
   sourceRefs: z.array(slideSourceRefSchema).optional(),
+  // X1 链路：设计真相 SVG 与「内容已改、SVG 待重画」标记，必须持久化
+  svg: z.string().optional(),
+  svgStale: z.boolean().optional(),
 });
 
 export const deckSchema = z.object({
