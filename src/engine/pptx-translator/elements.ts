@@ -102,6 +102,10 @@ export function translateSvgToSlide(
 
   const defsById = collectDefs(svg);
 
+  // 混合内容流模型：为每个含直接文本的 text/tspan 预计算渲染起点补偿
+  // （start，相对自身 origin.x）与流终点补偿（end，供其后缀文本定位）
+  const place = buildTspanFlow(doc);
+
   const elements = root.querySelectorAll(
     "rect, circle, ellipse, line, text, tspan, path, g, polygon, polyline, image",
   );
@@ -126,17 +130,42 @@ export function translateSvgToSlide(
       case "line":
         translateLine(el, pptxSlide);
         break;
-      case "text":
-        // 若 text 含 tspan 子元素，则其直接文本已由各 tspan 分支渲染，
-        // 此处仅处理不含 tspan 的纯文本，避免同一段文本被渲染两次。
-        if (el.querySelector("tspan")) break;
+      case "text": {
+        // 含 tspan 时拆分自身直接文本：前缀按自身位置渲染，后缀跟随流终点；
+        // 由各 tspan 分支渲染各自内容，避免同一段文本被渲染两次。
+        if (el.querySelector("tspan")) {
+          const { prefix, suffix } = splitDirectText(el);
+          const p = place.get(el);
+          if (prefix)
+            translateTextLike(el, pptxSlide, defsById, prefix, p?.start ?? 0);
+          if (suffix)
+            translateTextLike(el, pptxSlide, defsById, suffix, p?.suffix ?? 0);
+          break;
+        }
         translateTextLike(el, pptxSlide, defsById);
         break;
-      case "tspan":
-        // 含嵌套 tspan 时其直接文本已由内层 tspan 渲染，避免同一文本渲染两次
-        if (el.querySelector("tspan")) break;
-        translateTextLike(el, pptxSlide, defsById);
+      }
+      case "tspan": {
+        const p = place.get(el);
+        const start = p?.start ?? 0;
+        // 含嵌套 tspan 时拆分外层直接文本：前缀按自身位置、后缀跟随其流终点；
+        // 内层 tspan 由各自分支渲染，避免同一段文本被渲染两次。
+        if (el.querySelector("tspan")) {
+          const { prefix, suffix } = splitDirectText(el);
+          if (prefix) translateTextLike(el, pptxSlide, defsById, prefix, start);
+          if (suffix)
+            translateTextLike(
+              el,
+              pptxSlide,
+              defsById,
+              suffix,
+              p?.suffix ?? start,
+            );
+          break;
+        }
+        translateTextLike(el, pptxSlide, defsById, undefined, start);
         break;
+      }
       case "path":
         translatePath(el, pptxSlide, defsById);
         break;
@@ -242,13 +271,21 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   });
 }
 
-// 估算文本宽度（viewBox 像素）：CJK 全角按字号，其余按 0.55 倍字号近似
-function estimateTextWidthPx(text: string, fontSizePx: number): number {
+// 纯字形宽度（viewBox 像素）：CJK 全角按字号，其余按 0.55 倍字号近似
+function glyphWidthPx(text: string, fontSizePx: number): number {
   let w = 0;
   for (const ch of text) {
     w += ch.charCodeAt(0) > 0x2e80 ? fontSizePx : fontSizePx * 0.55;
   }
-  return Math.max(w + fontSizePx * 0.4, fontSizePx);
+  return w;
+}
+
+// 估算文本框宽度（viewBox 像素）：字形宽 + 0.4em 尾距（防贴边裁切），最小一字符
+function estimateTextWidthPx(text: string, fontSizePx: number): number {
+  return Math.max(
+    glyphWidthPx(text, fontSizePx) + fontSizePx * 0.4,
+    fontSizePx,
+  );
 }
 
 // 解析 font-size：仅接受裸数字或 px 单位，em/% 等其他单位按规范无法换算，回退默认
@@ -314,15 +351,113 @@ function resolveTextOrigin(el: Element): { x: number; y: number } {
   return { x: (baseX ?? 0) + dx, y: (baseY ?? 0) + dy };
 }
 
+// 拆分 text 的直接文本为前缀/后缀：第一个 tspan 之前的为前缀，之后的为后缀。
+// 注：tspan 之间的中段文本并入后缀（跟随后续 tspan 流终点），属务实近似。
+function splitDirectText(el: Element): { prefix: string; suffix: string } {
+  let prefix = "";
+  let suffix = "";
+  let inSuffix = false;
+  for (const node of el.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const seg = node.textContent ?? "";
+      if (inSuffix) suffix += seg;
+      else prefix += seg;
+    } else if (node.nodeName.toLowerCase() === "tspan") {
+      inSuffix = true;
+    }
+  }
+  return { prefix, suffix };
+}
+
+// 连续空白折叠为单空格（与 SVG 默认 white-space 渲染一致）
+function collapseSpace(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+// xml:space="preserve" 时保留原样空白（沿链查找，text 与 tspan 均可设置）
+function hasPreserveSpace(el: Element): boolean {
+  for (const node of textChain(el)) {
+    const v = node.getAttribute("xml:space");
+    if (v === "preserve") return true;
+    if (v === "default") return false;
+  }
+  return false;
+}
+
+// 混合内容流模型：按文档序模拟 SVG 文本流（含嵌套 tspan），输出各节点的
+// 渲染起点补偿（start）与后缀文本起点补偿（suffix），均相对该节点自身 origin.x：
+// - 流位置为绝对坐标：text 渲染起点 = x + dx，前缀占位后依次排布各 tspan
+// - 相邻块推进量 = 前一块纯字形宽（与 anchor 无关）：首块锚定在 textX，
+//   其后每块锚点前进一个字形宽，字形才能首尾相接不重叠（用含 0.4em 尾距的
+//   框宽推进会错位：middle 下相邻字形重叠、left 下留缝）
+// - 显式 x 的 tspan：起点为绝对 x + 自身 dx；其后兄弟跟随其右缘
+// - 无定位 tspan：起点为当前流位置 + 自身 dx；补偿 = 流位置 - origin.x，
+//   resolveTextOrigin 中的祖先 dx 累计在此差中自动抵消
+// - 含嵌套的 tspan：前缀占位 → 内层排布 → 后缀（suffix 起点 = 内层流终点）
+// 文本宽度仅按直接文本估算（preserve 不折叠、空文本不占位），内层由递归推进。
+// 返回：place（text/tspan → { start, suffix }）。
+function buildTspanFlow(
+  doc: Document,
+): Map<Element, { start: number; suffix: number }> {
+  const place = new Map<Element, { start: number; suffix: number }>();
+  for (const text of doc.querySelectorAll("text")) {
+    const textX = num(text.getAttribute("x"));
+    const { prefix } = splitDirectText(text);
+    const prefixW = advanceTextWidth(text, prefix);
+    // 绝对流位置：text 渲染起点（x + dx）+ 前缀占位推进
+    let flow = textX + num(text.getAttribute("dx")) + prefixW;
+    const originX = resolveTextOrigin(text).x;
+    const walk = (node: Element, flowStart: number): number => {
+      for (const child of [...node.children]) {
+        if (child.nodeName.toLowerCase() !== "tspan") continue;
+        const { prefix: childPrefix, suffix: childSuffix } =
+          splitDirectText(child);
+        const prefixW = advanceTextWidth(child, childPrefix);
+        const suffixW = advanceTextWidth(child, childSuffix);
+        const hasX = child.getAttribute("x") != null;
+        const dx = num(child.getAttribute("dx"));
+        const childOrigin = resolveTextOrigin(child).x;
+        const svgPos = hasX
+          ? num(child.getAttribute("x")) + dx
+          : flowStart + dx;
+        // 前缀占位 → 内层 tspan 排布 → 后缀
+        let next = svgPos + prefixW;
+        next = walk(child, next);
+        place.set(child, {
+          start: svgPos - childOrigin,
+          suffix: next - childOrigin,
+        });
+        flowStart = next + suffixW;
+      }
+      return flowStart;
+    };
+    flow = walk(text, flow);
+    place.set(text, { start: 0, suffix: flow - originX });
+  }
+  return place;
+}
+
+// 流推进宽度：仅纯字形宽（不含尾距/下限），与文本框宽 estimateTextWidthPx 区分。
+// preserve 不折叠；空文本不占位
+function advanceTextWidth(el: Element, rawText: string): number {
+  const text = hasPreserveSpace(el) ? rawText.trim() : collapseSpace(rawText);
+  return text ? glyphWidthPx(text, fontSizePxOf(el)) : 0;
+}
+
 // text / tspan 共用翻译：缺失属性沿 <text> 祖先链继承。
 // 显式给出文本框 w/h，避免 pptxgenjs 默认换行与浏览器排版不一致。
+// textOnly：渲染指定文本而非 textContent（text 混合内容时只取直接文本）；
+// extraDxPx：x 方向额外偏移（tspan 前缀补偿）。
 function translateTextLike(
   el: Element,
   slide: PptxGenJS.Slide,
   defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+  textOnly?: string,
+  extraDxPx = 0,
 ): void {
-  const text = el.textContent ?? "";
-  if (!text.trim()) return;
+  const raw = textOnly ?? el.textContent ?? "";
+  const text = hasPreserveSpace(el) ? raw.trim() : collapseSpace(raw);
+  if (!text) return;
   const attr = (name: string): string | null => attrFromChain(el, name);
 
   const fontSizePx = fontSizePxOf(el);
@@ -332,7 +467,7 @@ function translateTextLike(
 
   // SVG x/y 是锚点基线：按 anchor 反推文本框左上角，并把基线换算为框顶
   const origin = resolveTextOrigin(el);
-  let xBox = origin.x;
+  let xBox = origin.x + extraDxPx;
   if (anchor === "center") xBox -= wPx / 2;
   else if (anchor === "right") xBox -= wPx;
   const yBox = origin.y - fontSizePx * BASELINE_ASCENT;

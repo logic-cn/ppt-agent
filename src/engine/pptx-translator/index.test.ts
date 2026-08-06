@@ -415,6 +415,176 @@ describe("translateSvgToSlide 元素覆盖与备注", () => {
     expect(opts.y).toBeCloseTo(((100 - 20 * 0.78) / 720) * 7.5, 3);
   });
 
+  it("text 混合内容：前缀/后缀/tspan 各自渲染且互不重复", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">前缀
+        <tspan x="260" y="200">子段</tspan>后缀
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const calls = slide._calls.filter((c) => c.kind === "text");
+    // 前缀/后缀/tspan 各渲染一次，无重复
+    expect(calls).toHaveLength(3);
+    expect(calls.map((c) => (c.args as [string])[0])).toEqual([
+      "前缀",
+      "后缀",
+      "子段",
+    ]);
+    const [, suffixOpts] = calls[1].args as [string, { x: number; y: number }];
+    // 后缀跟随 tspan 流终点：tspan 显式 x=260 字形宽 40（2 CJK × 20），终点 300
+    expect(suffixOpts.x).toBeCloseTo((300 / 1280) * 13.333, 3);
+    expect(suffixOpts.y).toBeCloseTo(((200 - 20 * 0.78) / 720) * 7.5, 3);
+  });
+
+  it("tspan 无显式 x 时起点补偿父 text 前缀文本宽度", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">前缀
+        <tspan>子段</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCalls = slide._calls.filter((c) => c.kind === "text");
+    expect(textCalls).toHaveLength(2);
+    const [, prefixOpts] = textCalls[0].args as [string, { x: number }];
+    const [, tspanOpts] = textCalls[1].args as [string, { x: number }];
+    // 前缀 "前缀" 2 个 CJK × 20px = 40px 字形宽，tspan 起点右移该宽度
+    const prefixW = 2 * 20;
+    expect(prefixOpts.x).toBeCloseTo((100 / 1280) * 13.333, 3);
+    expect(tspanOpts.x).toBeCloseTo(((100 + prefixW) / 1280) * 13.333, 3);
+  });
+
+  it("连续无定位 tspan 流式排布，后续起点累计前序字形宽", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">前
+        <tspan>一</tspan>
+        <tspan>二</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const tspanCalls = slide._calls.filter((c) => c.kind === "text").slice(1);
+    const [, firstOpts] = tspanCalls[0].args as [string, { x: number }];
+    const [, secondOpts] = tspanCalls[1].args as [string, { x: number }];
+    // 前缀 "前" 字形宽 20；tspan1 起点 120，tspan2 起点 = 120 + 20（tspan1 宽）
+    expect(firstOpts.x).toBeCloseTo((120 / 1280) * 13.333, 3);
+    expect(secondOpts.x).toBeCloseTo((140 / 1280) * 13.333, 3);
+  });
+
+  it("text-anchor=middle 时相邻块字形首尾相接不重叠", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="640" y="200" font-size="20" fill="#222222" text-anchor="middle">前
+        <tspan>一</tspan>
+        <tspan>二</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const tspanCalls = slide._calls.filter((c) => c.kind === "text").slice(1);
+    const [, firstOpts] = tspanCalls[0].args as [
+      string,
+      { x: number; w: number },
+    ];
+    const [, secondOpts] = tspanCalls[1].args as [
+      string,
+      { x: number; w: number },
+    ];
+    // middle 下每块字形居中于 xBox + w/2：前缀 "前" 字形宽 20 推进 20，
+    // tspan1 中心 660、tspan2 中心 680；相邻字形区间 [640,660]/[660,680]
+    // 恰好首尾相接，无重叠无间隙
+    const fs = 20;
+    expect(firstOpts.x + firstOpts.w / 2).toBeCloseTo((660 / 1280) * 13.333, 3);
+    expect(secondOpts.x + secondOpts.w / 2).toBeCloseTo(
+      (680 / 1280) * 13.333,
+      3,
+    );
+    const center1 = (660 / 1280) * 13.333;
+    const center2 = (680 / 1280) * 13.333;
+    const glyphHalf = (fs / 2 / 1280) * 13.333;
+    // 字形区间 [center-fs/2, center+fs/2] 互不重叠
+    expect(center1 + glyphHalf).toBeCloseTo(center2 - glyphHalf, 3);
+  });
+
+  it("嵌套 tspan：外层显式 x 后内层沿用其右缘，外层直接文本不丢失", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">
+        <tspan x="260">外<tspan>内</tspan>尾</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const calls = slide._calls
+      .filter((c) => c.kind === "text")
+      .map((c) => c.args as [string, { x: number }]);
+    // 外层前缀 "外" 渲染于显式 x=260；内层 "内" 跟随外层右缘 260+20=280；
+    // 外层后缀 "尾" 跟随内层右缘 280+20=300
+    const byText = new Map(calls.map(([t, o]) => [t, o]));
+    expect(byText.get("外")!.x).toBeCloseTo((260 / 1280) * 13.333, 3);
+    expect(byText.get("内")!.x).toBeCloseTo((280 / 1280) * 13.333, 3);
+    expect(byText.get("尾")!.x).toBeCloseTo((300 / 1280) * 13.333, 3);
+  });
+
+  it("text-anchor=end 时流从右缘继续，无定位 tspan 不叠回锚点", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="200" y="200" font-size="20" fill="#222222" text-anchor="end">前
+        <tspan>一</tspan>
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const [, tspanOpts] = slide._calls
+      .filter((c) => c.kind === "text")
+      .slice(1)[0].args as [string, { x: number; w: number }];
+    // 前缀 "前" 字形 [180,200]（右缘贴锚点 200）；tspan 流位置 220，
+    // 右对齐渲染时框右缘 = 220（字形 [200,220] 与前缀首尾相接）
+    expect(tspanOpts.x + tspanOpts.w).toBeCloseTo((220 / 1280) * 13.333, 3);
+  });
+
+  it("仅后缀无前缀：text 直接文本跟随首个 tspan 流终点", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">
+        <tspan>子段</tspan>后缀
+      </text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+    const textCalls = slide._calls.filter((c) => c.kind === "text");
+    expect(textCalls).toHaveLength(2);
+    // 渲染顺序为文档序：text 分支先渲染后缀，tspan 分支随后渲染
+    const [, suffixOpts] = textCalls[0].args as [string, { x: number }];
+    const [, tspanOpts] = textCalls[1].args as [string, { x: number }];
+    // 首个 tspan 无显式 x：起点 = text x=100；后缀跟随其右缘 100+40=140
+    expect(tspanOpts.x).toBeCloseTo((100 / 1280) * 13.333, 3);
+    expect(suffixOpts.x).toBeCloseTo((140 / 1280) * 13.333, 3);
+  });
+
+  it("多行纯文本按 SVG 默认折叠为单行，xml:space=preserve 保留原样", () => {
+    const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222">第一行
+第二行</text>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(collapseSvg, slide);
+    const [collapseText] = slide._calls
+      .filter((c) => c.kind === "text")
+      .map((c) => c.args as [string]);
+    // 换行折叠为单空格（SVG 默认 white-space 语义）
+    expect(collapseText[0]).toBe("第一行 第二行");
+
+    const preserveSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <text x="100" y="200" font-size="20" fill="#222222" xml:space="preserve">第一行
+第二行</text>
+    </svg>`;
+    const slide2 = createMockSlide();
+    translateSvgToSlide(preserveSvg, slide2);
+    const [preserveText] = slide2._calls
+      .filter((c) => c.kind === "text")
+      .map((c) => c.args as [string]);
+    // preserve 保留换行
+    expect(preserveText[0]).toBe("第一行\n第二行");
+  });
+
   it("传入 notes 时调用 addNotes", () => {
     const slide = createMockSlide();
     translateSvgToSlide(SAMPLE_SVG, slide, undefined, "这是演讲备注");
