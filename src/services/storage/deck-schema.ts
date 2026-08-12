@@ -89,9 +89,8 @@ export const slideSchema = z.object({
   attribution: z.string().optional(),
   notes: z.string().optional(),
   sourceRefs: z.array(slideSourceRefSchema).optional(),
-  // X1 链路：设计真相 SVG 与「内容已改、SVG 待重画」标记，必须持久化
+  // X1 链路：设计真相 SVG，必须持久化
   svg: z.string().optional(),
-  svgStale: z.boolean().optional(),
 });
 
 export const deckSchema = z.object({

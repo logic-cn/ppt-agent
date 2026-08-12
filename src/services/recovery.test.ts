@@ -6,8 +6,8 @@ describe("decideRecovery", () => {
     expect(decideRecovery("outline", 0)).toBe("retry");
   });
 
-  it("outline: 达到重试上限应当降级", () => {
-    expect(decideRecovery("outline", 2)).toBe("degrade-rulebased");
+  it("outline: 达到重试上限应当停止重试", () => {
+    expect(decideRecovery("outline", 2)).toBe("stop");
   });
 
   it("content: 第 2 次尝试应当重试", () => {
@@ -18,7 +18,7 @@ describe("decideRecovery", () => {
     expect(decideRecovery("image", 0)).toBe("retry");
   });
 
-  it("image: 达到重试上限应当降级为规则占位", () => {
-    expect(decideRecovery("image", 2)).toBe("degrade-rulebased");
+  it("image: 达到重试上限应当停止重试", () => {
+    expect(decideRecovery("image", 2)).toBe("stop");
   });
 });

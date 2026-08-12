@@ -326,8 +326,8 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       contentBrief: briefParts.join("\n") || undefined,
     });
 
-    // 复用既有 updateSlide 写回，保持历史/持久化一致；重画完成清除 stale 标记
-    get().updateSlide(slideId, { svg: newSvg, svgStale: false });
+    // 复用既有 updateSlide 写回，保持历史/持久化一致
+    get().updateSlide(slideId, { svg: newSvg });
   },
 
   undo: () => {
