@@ -21,6 +21,8 @@ import { DESTRUCTIVE_OPS } from "@/services/deck-patch/types";
 import {
   checkDeckQuality,
   applyAutoFixes,
+  applyAutoFixActions,
+  generateAutoFixes,
   getHardFindings,
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
@@ -150,10 +152,12 @@ export function ChatPanel() {
       const rules = qualityStore.pendingRules ?? undefined;
       qualityStore.clearPendingRules();
       const findings = checkDeckQuality(current, { rules });
-      // (b) applyAutoFixes 内部只会处理 soft+autoFixable，hard 问题自动被隔离
-      const fixed = applyAutoFixes(current, findings);
+      // (b) applyAutoFixes 只会处理 soft+autoFixable；再叠加 generateAutoFixes
+      //     的结构修复（占位标题/空要点/空图表布局/缺结尾页）
+      let fixed = applyAutoFixes(current, findings);
+      fixed = applyAutoFixActions(fixed, generateAutoFixes(fixed));
       const hard = getHardFindings(findings);
-      // 仅当确有 soft+autoFixable 修复时才替换 slides；hard 问题绝不自动修复
+      // 仅当确有修复时才替换 slides；hard 问题绝不自动修复
       if (fixed !== current) {
         await replaceSlides(fixed.slides);
       }

@@ -12,4 +12,8 @@ export {
   TEMPLATE_QUALITY_RULES,
 } from "./deck-quality";
 export type { AutoFixAction } from "./types";
-export { applyAutoFixes, getHardFindings } from "./auto-fix";
+export {
+  applyAutoFixes,
+  applyAutoFixActions,
+  getHardFindings,
+} from "./auto-fix";
