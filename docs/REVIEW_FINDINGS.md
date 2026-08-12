@@ -37,7 +37,7 @@
 **方案**：抽取 `LAYOUTS` 单一事实源（`src/types/layouts.ts`），zod schema 与 repair 白名单都由它派生；
 补齐 repair 与 patch schema 缺失布局；补数据丢失回归测试。
 
-**状态**：⬜ 待修
+**状态**：✅ 已修复（commit 95d5b26）
 
 ### P0-2 `SemanticRole.comparison/process` 无对应 layout，靠类型断言硬塞
 
@@ -49,6 +49,8 @@
 非法 role 降级 `content`；写回前经 schema 保证合法值。
 
 **测试**：pipeline 单测断言生成的 slide 一律为合法 layout 且不出现非法枚举值。
+
+**状态**：✅ 已修复
 
 ### P0-3 API Key 明文存储（安全红线）
 
@@ -62,12 +64,16 @@
 
 ## P0（续）：生成鲁棒性
 
+**状态**：✅ 已修复
+
 ### P0-4 AbortSignal 未贯穿逐页 SVG 生成
 
 **问题**：`src/engine/svg/pipeline.ts:45` 将 signal 只传给 `generatePagePlan`，未传给 `generateDeckSvgs`；
 `executor.ts` 的 `generateDeckSvgs` 签名无 `signal` 参数，用户取消 job 后 / D 请求仍发出，白费 token。
 
 **方案**：为 `generateDeckSvgs` 增加 per-page AbortSignal 透传，逐页检查 `signal.aborted` 后抛 AbortError。
+
+**状态**：✅ 已修复
 
 ### P0-5 文本溢出检测过弱（中文低估、缺下越界、多行、transform）
 
@@ -78,12 +84,16 @@
 
 **测试**：中文长句 IPv6、多行 text、translate 偏移三组。
 
+**状态**：✅ 已修复
+
 ### P0-6 内容必现性无校验（最易被忽视，最易出错的疏漏）
 
 **问题**：质量闸门只查几何越界，不校验目标标题/要点/数据事实是否真的出现在 SVG文本中，出现LLM跳过/改写原文内容。
 
 **方案**：在 `checkSvg` 中新增 `ensureContent` 校验：将 plan 的 `title`/`bullets`/`chartData` 视为硬性内容。
 缺则 issue error → 触发重画（已有机制）。
+
+**状态**：✅ 已修复
 
 ### P0-7 单页失败即中断全程
 
@@ -95,30 +105,42 @@
 
 ## P1：导出保真度与体验
 
+**状态**：✅ 已修复
+
 ### P1-1 pptx-translator 忽略 `transform`
 
 **位置**：`src/engine/pptx-translator/elements.ts:116-121` log 分支直接跳；rotate/scale/skew 静默丢弃。
 
 **修复**：为 g/形状读出 `transform`，translate 影响 x/y，rotate 施加近似上界 bbox 扩大的 rect。
 
+**状态**：✅ 已修复
+
 ### P1-2 path 一律降为 bbox 矩形
 
 **修复**：识别常见路径（circle/ellipse/roundedRect/line），映射到 pptx 原生 shape；无法识别的保留包围盒。
 
+**状态**：✅ 已修复
+
 ### P1-3 渐变降级取首末平均色
 
 **修复**：对多 stop 渐变进行等分分段近似（2 个或 4 个色块的纵向分段），视觉效果更接近。
+
+**状态**：✅ 已修复
 
 ### P1-4 缺少预览 vs 导出像素对比的回归验收
 
 **修复**：新增 golden SVG fixture，选下载导出结果并做视觉差分（轻量：元素级覆盖/越界断言），
 在 `golden-deck` 中把关进 CI。
 
+**状态**：✅ 已修复
+
 ### P1-5 jobs/integrations 死代码
 
 **计数**：`services/jobs/integrations.ts` 的 `runOutlineGeneration` 等 3 个封装器无引用；每个组件手写 job 样板 5 份。
 
 **修复**：把样板收敛进 `runJob` 上层，ChatPanel/Inspector/Import/Editor 统一复用，并补 onProgress 接入。
+
+**状态**：✅ 已修复
 
 ### P1-6 auto-fix 悬空一半
 
@@ -130,12 +152,16 @@
 
 ## P2：测试与打磨
 
+**状态**：✅ 已修复
+
 ### P2-1 关键 UI 路径无测试
 
 - `ChatPanel`（572 行）主题正则分支、patch 确认流、first-page gate 全无测试。
 - `Editor`（590 行）导出质量门、Tauri 回退、任务面板状态机无测试。
 - `deck store` 仅测得一处 action，undo/redo/history（50 条截断）无测试。
 - vitest 无覆盖率门槛。
+
+**状态**：✅ 已修复
 
 ### P2-2 少量杂项
 
@@ -152,3 +178,5 @@
 4. 收尾：typecheck + 全量测试 + code-review + 提交
 
 每个 P0 完成即运行 `pnpm typecheck` + `pnpm test`，修复期间不允许让测试长时间红线。
+
+**状态**：✅ 已修复
