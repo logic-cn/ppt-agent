@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import type { Deck, Slide } from "@/types/deck";
+import type { Deck } from "@/types/deck";
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
 import { useJobStore } from "@/store/job";
