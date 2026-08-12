@@ -101,6 +101,61 @@ describe("generateSlideSvg", () => {
     };
     expect(secondCallArgs.messages[1].content).toContain("你的 SVG 有以下问题");
   });
+
+  it("页面软超时按单页失败抛出普通 Error（可被 isolatePageFailures 隔离），而非 AbortError", async () => {
+    vi.useFakeTimers();
+    try {
+      // chat 挂起直到 signal abort 才以 AbortError 拒绝（模拟 LLM 请求被中断）
+      vi.mocked(chat).mockImplementation(
+        (req) =>
+          new Promise((_resolve, reject) => {
+            req.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const pending = generateSlideSvg({
+        specLock: spec,
+        plan: makePlan(1)[0],
+        pageIndex: 0,
+        totalPages: 1,
+      });
+      // 先挂接断言（拒绝处理器），避免超时拒绝被判定为 unhandled
+      const assertion = expect(pending).rejects.toThrow(/超时/);
+      await vi.advanceTimersByTimeAsync(90_000);
+      // 超时（非用户取消）必须抛普通 Error，而不是 AbortError，
+      // 否则 isolatePageFailures 会把超时误判为整体取消
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("用户取消信号中止时保持 AbortError 语义", async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      vi.mocked(chat).mockImplementation(
+        (req) =>
+          new Promise((_resolve, reject) => {
+            req.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const pending = generateSlideSvg({
+        specLock: spec,
+        plan: makePlan(1)[0],
+        pageIndex: 0,
+        totalPages: 1,
+        signal: controller.signal,
+      });
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("generateDeckSvgs", () => {

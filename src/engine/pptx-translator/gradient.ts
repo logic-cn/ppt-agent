@@ -152,10 +152,7 @@ export function resolveGradientFill(
 /**
  * 计算渐变在某相对位置 t∈[0,1] 的插值色（按 stop.offset 分段线性）。
  */
-export function sampleGradient(
-  stops: GradientStop[],
-  t: number,
-): string {
+export function sampleGradient(stops: GradientStop[], t: number): string {
   if (stops.length === 0) return "000000";
   const sorted = [...stops].sort((a, b) => a.offset - b.offset);
   const clamp = Math.max(0, Math.min(1, t));

@@ -46,11 +46,27 @@ type MockSlide = PptxGenJS.Slide & { _calls: ExportCall[] };
 function translate(svg: string): ExportCall[] {
   const calls: ExportCall[] = [];
   const slide = {
-    addShape: vi.fn((type: string, opts: { x: number; y: number; w: number; h: number }) =>
-      calls.push({ kind: "shape", type, x: opts.x, y: opts.y, w: opts.w, h: opts.h }),
+    addShape: vi.fn(
+      (type: string, opts: { x: number; y: number; w: number; h: number }) =>
+        calls.push({
+          kind: "shape",
+          type,
+          x: opts.x,
+          y: opts.y,
+          w: opts.w,
+          h: opts.h,
+        }),
     ),
-    addText: vi.fn((text: string, opts: { x: number; y: number; w: number; h: number }) =>
-      calls.push({ kind: "text", text, x: opts.x, y: opts.y, w: opts.w, h: opts.h }),
+    addText: vi.fn(
+      (text: string, opts: { x: number; y: number; w: number; h: number }) =>
+        calls.push({
+          kind: "text",
+          text,
+          x: opts.x,
+          y: opts.y,
+          w: opts.w,
+          h: opts.h,
+        }),
     ),
     addChart: vi.fn((opts: { x: number; y: number; w: number; h: number }) =>
       calls.push({ kind: "chart", x: opts.x, y: opts.y, w: opts.w, h: opts.h }),
@@ -79,15 +95,21 @@ describe("P1-4 预览 vs 导出元素一致性（golden svg）", () => {
   it("主要元素覆盖：渐变分段、描边矩形、圆角矩形、圆、路径圆、文本、线", () => {
     const calls = translate(GOLDEN_SVG);
     // 渐变矩形切成 2 色块 + 描边矩形 = ≥3 个 rect
-    expect(calls.filter((c) => c.kind === "shape" && c.type === "rect").length)
-      .toBeGreaterThanOrEqual(3);
+    expect(
+      calls.filter((c) => c.kind === "shape" && c.type === "rect").length,
+    ).toBeGreaterThanOrEqual(3);
     // 圆角矩形（roundRect）
-    expect(calls.some((c) => c.kind === "shape" && c.type === "roundRect")).toBe(true);
+    expect(
+      calls.some((c) => c.kind === "shape" && c.type === "roundRect"),
+    ).toBe(true);
     // 圆 + 路径圆（都 → ellipse）
-    expect(calls.filter((c) => c.kind === "shape" && c.type === "ellipse").length)
-      .toBeGreaterThanOrEqual(2);
+    expect(
+      calls.filter((c) => c.kind === "shape" && c.type === "ellipse").length,
+    ).toBeGreaterThanOrEqual(2);
     // 线
-    expect(calls.some((c) => c.kind === "shape" && c.type === "line")).toBe(true);
+    expect(calls.some((c) => c.kind === "shape" && c.type === "line")).toBe(
+      true,
+    );
     // 两段文本都在
     const texts = calls.filter((c) => c.kind === "text").map((c) => c.text);
     expect(texts).toContain("主要标题示例");

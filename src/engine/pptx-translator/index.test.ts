@@ -183,6 +183,44 @@ describe("translateSvgToSlide 渐变与路径", () => {
     expect(type).toBe("rect");
     expect(opts.fill.color.toLowerCase()).toBe("00ff00");
   });
+
+  it("fill=none 的描边 path 不填充纯黑（回归：resolveFill 会兜底黑）", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <circle cx="100" cy="100" r="50" fill="none" stroke="#1A56DB" stroke-width="4"/>
+      <path d="M 40 300 L 240 300" fill="none" stroke="#E5E7EB" stroke-width="2"/>
+    </svg>`;
+    const slide = createMockSlide();
+    translateSvgToSlide(svg, slide);
+
+    const shapes = slide._calls
+      .filter((c) => c.kind === "shape")
+      .map((c) => c.args) as [
+      string,
+      { fill?: { type?: string; color?: string } },
+    ][];
+    expect(shapes.length).toBeGreaterThan(0);
+    for (const [type, opts] of shapes) {
+      expect(type).toMatch(/ellipse|rect|line/);
+      if (type === "line") {
+        // line 形状无填充选项
+        expect(opts.fill).toBeUndefined();
+      } else {
+        // 显式 fill=none 不得被解析成实色填充
+        expect(opts.fill?.type).toBe("none");
+      }
+    }
+  });
+
+  it("退化 path（无有效坐标）不产出形状", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <path d="Z" fill="#f00"/>
+      <path d="M 0 0 L 0 0 Z" stroke="#111"/>
+    </svg>`;
+    const slide = createMockSlide();
+    expect(() => translateSvgToSlide(svg, slide)).not.toThrow();
+    const shapes = slide._calls.filter((c) => c.kind === "shape");
+    expect(shapes).toHaveLength(0);
+  });
 });
 
 describe("translateSvgToSlide 原生图表", () => {
@@ -667,7 +705,10 @@ describe("translateSvgToSlide transform（P1-1）", () => {
       slide,
     );
     const shapeCall = slide._calls.find((c) => c.kind === "shape")!;
-    const [type, opts] = shapeCall.args as [string, { x: number; y: number; w: number; h: number }];
+    const [type, opts] = shapeCall.args as [
+      string,
+      { x: number; y: number; w: number; h: number },
+    ];
     expect(type).toBe("rect");
     // 250px → 250/1280*13.333 ≈ 2.604in
     expect(opts.x).toBeCloseTo((250 / 1280) * 13.333, 2);
@@ -703,7 +744,10 @@ describe("translateSvgToSlide transform（P1-1）", () => {
       slide,
     );
     const shapeCall = slide._calls.find((c) => c.kind === "shape")!;
-    const [type, opts] = shapeCall.args as [string, { x: number; y: number; w: number; h: number }];
+    const [type, opts] = shapeCall.args as [
+      string,
+      { x: number; y: number; w: number; h: number },
+    ];
     expect(type).toBe("rect");
     // 45° 旋转后新 bbox：w' = 200*cos45 + 100*sin45 ≈ 212.13
     expect(opts.w).toBeCloseTo((212.13 / 1280) * 13.333, 0);
@@ -787,6 +831,21 @@ describe("classifyPath 原生 shape 识别（P1-2）", () => {
       expect(c.w).toBeCloseTo(100, 3);
       expect(c.h).toBeCloseTo(80, 3);
     }
+  });
+
+  it("单段弧（≤180°）不得判为整圆", () => {
+    // 四分之一圆弧：M 起、单段 90° 弧、不闭合
+    const d = "M 0 0 A 10 10 0 0 1 10 10";
+    const c = classifyPath(d);
+    expect(c.kind).not.toBe("circle");
+  });
+
+  it("退化 path（空点集/零尺寸）判 unknown", () => {
+    expect(classifyPath("Z")).toEqual({ kind: "unknown", bbox: null });
+    expect(classifyPath("M 0 0 L 0 0")).toEqual({
+      kind: "unknown",
+      bbox: null,
+    });
   });
 });
 

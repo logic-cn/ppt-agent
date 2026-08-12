@@ -89,7 +89,7 @@ export async function buildDeckSvgsDetailed(
         if (e instanceof DOMException && e.name === "AbortError") throw e;
         failedPages.push(i);
         const err = e instanceof Error ? e : new Error(String(e));
-        const keptOldSvg = i < (deck.slides ?? []).length;
+        const keptOldSvg = Boolean(deck.slides?.[i]?.svg);
         options.onPageError?.(i, err, keptOldSvg);
       }
       options.onProgress?.(i + 1, total);

@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { AppSettings } from "@/types/llm";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "./storage";
-import {
-  getSecretStore,
-  resetSecretStore,
-  secretKey,
-} from "./secret-store";
+import { getSecretStore, resetSecretStore, secretKey } from "./secret-store";
 
 /** 环境内全局 localStorage 实现残缺，注入内存实现 */
 function memoryStorage(): Storage {
@@ -32,7 +28,12 @@ function makeSettings(apiKey = ""): AppSettings {
       enabled: true,
     };
   }
-  return { version: 1, activeProvider: "openai", providers, imageEnabled: false };
+  return {
+    version: 1,
+    activeProvider: "openai",
+    providers,
+    imageEnabled: false,
+  };
 }
 
 describe("settings 存储（密钥拆分）", () => {
@@ -74,7 +75,9 @@ describe("settings 存储（密钥拆分）", () => {
     );
 
     await saveSettings(makeSettings(""));
-    expect(await getSecretStore().get(secretKey("provider", "openai"))).toBeNull();
+    expect(
+      await getSecretStore().get(secretKey("provider", "openai")),
+    ).toBeNull();
   });
 
   it("迁移：旧版明文 settings.json 的 apiKey 被迁入 SecretStore 并返回", async () => {
@@ -90,5 +93,21 @@ describe("settings 存储（密钥拆分）", () => {
     expect(await getSecretStore().get(secretKey("provider", "openai"))).toBe(
       "sk-legacy",
     );
+  });
+
+  it("迁移后立即重写磁盘：settings.json 不再含明文 apiKey", async () => {
+    const legacy = makeSettings("sk-legacy");
+    localStorage.setItem(
+      "ppt-agent-data/settings.json",
+      JSON.stringify(legacy),
+    );
+
+    await loadSettings();
+
+    const raw = localStorage.getItem("ppt-agent-data/settings.json");
+    expect(raw).not.toBeNull();
+    expect(raw!).not.toContain("sk-legacy");
+    const persisted = JSON.parse(raw!) as AppSettings;
+    expect(persisted.providers.openai.apiKey).toBe("");
   });
 });

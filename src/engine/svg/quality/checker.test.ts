@@ -77,6 +77,32 @@ describe("checkSvg", () => {
     expect(errors.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("多 text 元素时各自按自身内容估宽（不被第一个 text 的内容污染）", () => {
+    // 第一个 text 短（在界内）；第二个 text 长且靠右，必须单独报越界
+    const svg = wrap(
+      `<text x="100" y="100" font-size="24" fill="#000">短标题</text><text x="1100" y="100" font-size="24" fill="#000">这是一个很长很长的中文副标题用来把宽度推到边界之外</text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThan(0);
+    // 越界消息对应第二个 text（x=1100 长文本），而非第一个（x=100 短标题）
+    expect(
+      errors.some(
+        (e) => /估算宽度/.test(e.message) && e.message.includes("1100"),
+      ),
+    ).toBe(true);
+  });
+
+  it("多 text 元素时靠内的长文本不误报", () => {
+    // 第一个 text 长但靠左（在界内），第二个 text 短靠左：均不应报 error
+    const svg = wrap(
+      `<text x="100" y="100" font-size="24" fill="#000">这是一个很长的中文标题内容用来验证不误报</text><text x="50" y="200" font-size="16" fill="#000">短</text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.filter((e) => /text|文本/.test(e.message))).toHaveLength(0);
+  });
+
   it("CJK 中文文本按 1.0 字号估宽，长句溢出报 error（旧 0.6 系数会漏检）", () => {
     // 20 个全角字符 × 24px = 480px 宽，位置 x=900 时 x+480=1380 > 1280
     const cn = "这是一段非常长的中文标题文本用来测试溢出";

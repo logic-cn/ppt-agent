@@ -28,7 +28,6 @@ export type SlideLayout = (typeof SLIDE_LAYOUTS)[number];
 
 export function isSlideLayout(v: unknown): v is SlideLayout {
   return (
-    typeof v === "string" &&
-    (SLIDE_LAYOUTS as readonly string[]).includes(v)
+    typeof v === "string" && (SLIDE_LAYOUTS as readonly string[]).includes(v)
   );
 }

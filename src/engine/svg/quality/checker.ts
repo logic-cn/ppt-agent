@@ -32,18 +32,24 @@ function tagNameOf(openTag: string): string {
   return m ? m[1] : "";
 }
 
-function tagContent(svg: string, openTag: string): string {
+// 提取 openTag 在 matchIndex 处开标签的内部内容；必须从 matchIndex 起查找，
+// 否则多元素 SVG 中每次都会取到第一个同名元素的 content
+function tagContent(svg: string, openTag: string, matchIndex: number): string {
   const tagName = tagNameOf(openTag);
   const re = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, "i");
-  const m = svg.match(re);
+  const m = svg.slice(matchIndex).match(re);
   return m ? m[1].replace(/<[^>]+>/g, "") : "";
 }
 
 /** 提取元素开标签内部的原始内容（保留子标签，用于统计 tspan 行数） */
-function tagRawContent(svg: string, openTag: string): string {
+function tagRawContent(
+  svg: string,
+  openTag: string,
+  matchIndex: number,
+): string {
   const tagName = tagNameOf(openTag);
   const re = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, "i");
-  const m = svg.match(re);
+  const m = svg.slice(matchIndex).match(re);
   return m ? m[1] : "";
 }
 
@@ -137,10 +143,10 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
       const x = (num(attr(full, "x")) ?? 0) + dx;
       const y = (num(attr(full, "y")) ?? 0) + dy;
       const fontSize = num(attr(full, "font-size")) ?? 16;
-      const content = tagContent(svg, full);
+      const content = tagContent(svg, full, match.index);
       const estWidth = estimateTextWidthPx(content, fontSize);
       // 多行文本：text 内容中以 <tspan 分隔的行数（含首行），行高按 1.2em 估算
-      const rawContent = tagRawContent(svg, full);
+      const rawContent = tagRawContent(svg, full, match.index);
       const tspans = (rawContent.match(/<tspan/gi) ?? []).length;
       const lineCount = Math.max(tspans + 1, 1);
       const estHeight = lineCount * fontSize * 1.2;

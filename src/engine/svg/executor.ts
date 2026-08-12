@@ -9,12 +9,13 @@ import type { SvgPage } from "./types";
 /** 进度回调：已完成页数、总页数 */
 export type SvgProgress = (done: number, total: number) => void;
 
-/** 每页 SVG 生成的软超时（不含 LLM 自身传输层重试），超时按取消处理 */
+/** 每页 SVG 生成的软超时（不含 LLM 自身传输层重试），超时按单页失败抛出 */
 const PAGE_TIME_LIMIT_MS = 90_000;
 
 /**
  * 将外部取消信号与超时合并为一个页面级 AbortSignal。
- * 超时或用户取消都会触发 abort，从而中断当页的 LLM 请求。
+ * 超时或用户取消都会触发 abort，从而中断当页的 LLM 请求；
+ * 超时与用户取消的区别在 rawGenerate 中区分（见 AbortError 分支）。
  */
 function pageLevelSignal(signal?: AbortSignal): {
   signal: AbortSignal;
@@ -70,22 +71,38 @@ export async function generateSlideSvg(
   const pageLevel = pageLevelSignal(opts.signal);
 
   const rawGenerate = async (userContent: string): Promise<string> => {
-    const res = await chat(
-      {
-        messages: [
-          {
-            role: "system",
-            content:
-              "你产出单页 SVG，只返回 <svg> 根元素，不要任何解释或 markdown 包裹。",
-          },
-          { role: "user", content: userContent },
-        ],
-        temperature,
-        maxTokens: 16000,
-        signal: pageLevel.signal,
-      },
-      "svg",
-    );
+    let res: Awaited<ReturnType<typeof chat>>;
+    try {
+      res = await chat(
+        {
+          messages: [
+            {
+              role: "system",
+              content:
+                "你产出单页 SVG，只返回 <svg> 根元素，不要任何解释或 markdown 包裹。",
+            },
+            { role: "user", content: userContent },
+          ],
+          temperature,
+          maxTokens: 16000,
+          signal: pageLevel.signal,
+        },
+        "svg",
+      );
+    } catch (e) {
+      // 页面级软超时触发的 abort 并非用户取消：转为普通页面错误抛出，
+      // 否则 isolatePageFailures 会把超时误判为整体取消，中断整份 deck
+      if (
+        e instanceof DOMException &&
+        e.name === "AbortError" &&
+        !opts.signal?.aborted
+      ) {
+        throw new Error(
+          `第 ${opts.pageIndex + 1} 页 SVG 生成超时（${PAGE_TIME_LIMIT_MS / 1000} 秒），请重试`,
+        );
+      }
+      throw e;
+    }
     // 剥离可能的 ```svg 代码块包裹，再提取 <svg>…</svg> 根元素
     const stripped = res.content
       .replace(/^```(?:svg|xml)?\s*/i, "")

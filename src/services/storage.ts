@@ -2,10 +2,7 @@ import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Palette } from "@/design/palettes";
 import { PROVIDER_PRESETS, type LLMProviderId } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
-import {
-  getSecretStore,
-  secretKey,
-} from "./secret-store";
+import { getSecretStore, secretKey } from "./secret-store";
 import { parseStoredDeck } from "./storage/deck-parse";
 import { CURRENT_DECK_VERSION } from "./storage/deck-schema";
 
@@ -77,12 +74,31 @@ async function joinPath(...segments: string[]): Promise<string> {
 
 const IMAGE_SECRET_ID = "default";
 
+/** 剥离所有 provider/image 的 apiKey（密钥不落盘） */
+function stripApiKeys(settings: AppSettings): AppSettings {
+  const persisted: AppSettings = {
+    ...settings,
+    providers: {} as AppSettings["providers"],
+  };
+  for (const id of Object.keys(settings.providers) as LLMProviderId[]) {
+    const { apiKey, ...rest } = settings.providers[id];
+    persisted.providers[id] = { ...rest, apiKey: "" };
+  }
+  if (settings.imageProvider) {
+    const { apiKey, ...rest } = settings.imageProvider;
+    persisted.imageProvider = { ...rest, apiKey: "" };
+  }
+  return persisted;
+}
+
 /**
  * 从 SecretStore 读取 provider/image 的 apiKey 并合并回内存 settings；
- * 旧版明文存于 settings.json 的 apiKey 同时迁移进 SecretStore（由后续 saveSettings 剥离落盘）。
+ * 旧版明文存于 settings.json 的 apiKey 同时迁移进 SecretStore，
+ * 返回是否有明文被迁移（迁移后应立即剥离重写落盘，避免明文滞留磁盘）。
  */
-async function hydrateSecrets(settings: AppSettings): Promise<void> {
+async function hydrateSecrets(settings: AppSettings): Promise<boolean> {
   const store = getSecretStore();
+  let migrated = false;
   const providerIds = Object.keys(settings.providers) as LLMProviderId[];
   for (const id of providerIds) {
     const cfg = settings.providers[id];
@@ -90,6 +106,7 @@ async function hydrateSecrets(settings: AppSettings): Promise<void> {
       // 旧版明文残留 → 迁移入密钥存储
       try {
         await store.set(secretKey("provider", id), cfg.apiKey);
+        migrated = true;
       } catch (e) {
         console.warn(`迁移 ${id} apiKey 到密钥存储失败：`, e);
       }
@@ -109,6 +126,7 @@ async function hydrateSecrets(settings: AppSettings): Promise<void> {
           secretKey("image", IMAGE_SECRET_ID),
           settings.imageProvider.apiKey,
         );
+        migrated = true;
       } catch (e) {
         console.warn("迁移 image apiKey 到密钥存储失败：", e);
       }
@@ -121,6 +139,7 @@ async function hydrateSecrets(settings: AppSettings): Promise<void> {
       }
     }
   }
+  return migrated;
 }
 
 export async function loadSettings(): Promise<AppSettings | null> {
@@ -143,7 +162,15 @@ export async function loadSettings(): Promise<AppSettings | null> {
         };
       }
     }
-    await hydrateSecrets(saved);
+    // 迁移时发现明文：立即剥离重写，避免 apiKey 滞留 settings.json 磁盘明文
+    const migrated = await hydrateSecrets(saved);
+    if (migrated) {
+      try {
+        await writeText(path, JSON.stringify(stripApiKeys(saved), null, 2));
+      } catch (e) {
+        console.warn("迁移后重写剥离 apiKey 的 settings.json 失败：", e);
+      }
+    }
     return saved;
   } catch {
     return null;
@@ -155,12 +182,8 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   const dir = await getDataDir();
 
   // 剥离 apiKey：非敏感配置落盘，密钥单独进 SecretStore（空值则清除残留）
-  const persisted: AppSettings = {
-    ...settings,
-    providers: {} as AppSettings["providers"],
-  };
   for (const id of Object.keys(settings.providers) as LLMProviderId[]) {
-    const { apiKey, ...rest } = settings.providers[id];
+    const apiKey = settings.providers[id].apiKey;
     try {
       if (apiKey) {
         await store.set(secretKey("provider", id), apiKey);
@@ -170,10 +193,9 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     } catch (e) {
       console.warn(`保存 ${id} apiKey 到密钥存储失败：`, e);
     }
-    persisted.providers[id] = { ...rest, apiKey: "" };
   }
   if (settings.imageProvider) {
-    const { apiKey, ...rest } = settings.imageProvider;
+    const apiKey = settings.imageProvider.apiKey;
     try {
       if (apiKey) {
         await store.set(secretKey("image", IMAGE_SECRET_ID), apiKey);
@@ -183,9 +205,9 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     } catch (e) {
       console.warn("保存 image apiKey 到密钥存储失败：", e);
     }
-    persisted.imageProvider = { ...rest, apiKey: "" };
   }
 
+  const persisted = stripApiKeys(settings);
   const path = await joinPath(dir, "settings.json");
   await writeText(path, JSON.stringify(persisted, null, 2));
 }

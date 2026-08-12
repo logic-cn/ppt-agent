@@ -86,9 +86,9 @@ export function parseTransformAttr(attr: string): Transform {
   let m: RegExpExecArray | null;
   while ((m = fnRe.exec(attr))) {
     const name = m[1].toLowerCase();
-    const args = (m[2].match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []).map(
-      Number,
-    );
+    const args = (
+      m[2].match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []
+    ).map(Number);
     if (name === "translate") {
       tx += args[0] ?? 0;
       ty += args[1] ?? 0;
@@ -196,6 +196,18 @@ function fillWithTransparency(
   const transparency = transparencyOf(el);
   if (transparency == null) return fill;
   return { ...fill, transparency };
+}
+
+// 形状填充：显式 fill="none" 映射为无填充；
+// 其余（含缺省）经 resolveFill 解析（缺省按 SVG 语义为黑）。
+// 不得把 "none" 交给 resolveFill——非 hex 会被兜底成纯黑填充。
+function shapeFill(
+  el: Element,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+): ResolvedFill | { type: "none" } {
+  const raw = el.getAttribute("fill");
+  if (raw === "none") return { type: "none" };
+  return fillWithTransparency(resolveFill({ fill: raw }, defsById), el);
 }
 
 // SVG stroke → pptxgenjs line 选项；无描边时返回零宽线
@@ -330,20 +342,13 @@ function translateRect(
     num(el.getAttribute("height")),
   );
   // P1-3：线性渐变矩形按 stop 纵向分段近似；其余走单色兜底
-  const gf = resolveGradientFill(
-    { fill: el.getAttribute("fill") },
-    defsById,
-  );
+  const gf = resolveGradientFill({ fill: el.getAttribute("fill") }, defsById);
   const line = shapeLine(el);
-  if (
-    gf.gradient &&
-    gf.gradient.type === "linear" &&
-    (!rx || num(rx) <= 0)
-  ) {
+  if (gf.gradient && gf.gradient.type === "linear" && (!rx || num(rx) <= 0)) {
     drawGradientSlices(slide, gf.gradient, b, line);
     return;
   }
-  const fill = fillWithTransparency({ color: gf.color }, el);
+  const fill = shapeFill(el, defsById);
   if (rx != null && num(rx) > 0) {
     slide.addShape("roundRect", {
       x: toX(b.x),
@@ -355,7 +360,14 @@ function translateRect(
       line,
     });
   } else {
-    slide.addShape("rect", { x: toX(b.x), y: toY(b.y), w: toW(b.w), h: toH(b.h), fill, line });
+    slide.addShape("rect", {
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
+      fill,
+      line,
+    });
   }
 }
 
@@ -402,10 +414,7 @@ function translateEllipse(
   slide: PptxGenJS.Slide,
   defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
 ): void {
-  const fill = fillWithTransparency(
-    resolveFill({ fill: el.getAttribute("fill") }, defsById),
-    el,
-  );
+  const fill = shapeFill(el, defsById);
   const line = shapeLine(el);
   if (tag === "circle") {
     const cx = num(el.getAttribute("cx"));
@@ -445,22 +454,23 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   const color = hexColor(el.getAttribute("stroke") ?? el.getAttribute("fill"));
   const width = Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25);
   const t = elementTransform(el);
-  const b = t.rotate && t.rotate.angle
-    ? rotateBBox(
-        Math.min(x1, x2) + t.tx,
-        Math.min(y1, y2) + t.ty,
-        Math.abs(x2 - x1),
-        Math.abs(y2 - y1),
-        t.rotate.angle,
-        t.rotate.cx,
-        t.rotate.cy,
-      )
-    : {
-        x: Math.min(x1, x2) + t.tx,
-        y: Math.min(y1, y2) + t.ty,
-        w: Math.abs(x2 - x1),
-        h: Math.abs(y2 - y1),
-      };
+  const b =
+    t.rotate && t.rotate.angle
+      ? rotateBBox(
+          Math.min(x1, x2) + t.tx,
+          Math.min(y1, y2) + t.ty,
+          Math.abs(x2 - x1),
+          Math.abs(y2 - y1),
+          t.rotate.angle,
+          t.rotate.cx,
+          t.rotate.cy,
+        )
+      : {
+          x: Math.min(x1, x2) + t.tx,
+          y: Math.min(y1, y2) + t.ty,
+          w: Math.abs(x2 - x1),
+          h: Math.abs(y2 - y1),
+        };
   slide.addShape("line", {
     x: toX(b.x),
     y: toY(b.y),
@@ -710,10 +720,20 @@ interface PathArc {
 export type ClassifiedPath =
   | { kind: "circle"; cx: number; cy: number; r: number }
   | { kind: "ellipse"; cx: number; cy: number; rx: number; ry: number }
-  | { kind: "roundedRect"; x: number; y: number; w: number; h: number; r: number }
+  | {
+      kind: "roundedRect";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      r: number;
+    }
   | { kind: "rect"; x: number; y: number; w: number; h: number }
   | { kind: "line"; x1: number; y1: number; x2: number; y2: number }
-  | { kind: "unknown"; bbox: { x: number; y: number; w: number; h: number } | null };
+  | {
+      kind: "unknown";
+      bbox: { x: number; y: number; w: number; h: number } | null;
+    };
 
 // 解析 path d 为绝对坐标段（用于分类），忽略曲线控制点，仅关注端点/弧段
 function parsePathSegments(d: string): {
@@ -867,15 +887,23 @@ function arcCenter(
   if (denom === 0 || num < 0) return null;
   const coef = Math.sqrt(Math.max(num, 0) / denom);
   const sign = large === sweep ? -1 : 1;
-  const cxp = sign * coef * (rx * dy) / ry;
-  const cyp = sign * coef * (ry * dx) / rx * -1;
+  const cxp = (sign * coef * (rx * dy)) / ry;
+  const cyp = ((sign * coef * (ry * dx)) / rx) * -1;
   return { cx: (x1 + x2) / 2 + cxp, cy: (y1 + y2) / 2 + cyp };
 }
 
 export function classifyPath(d: string): ClassifiedPath {
   const info = parsePathSegments(d);
-  // 1) 纯弧路径 → 圆/椭圆（多段弧共享圆心且 rx=ry）
-  if (info.arcs.length >= 1) {
+  // 无有效坐标（空点集/退化）→ unknown，由调用方跳过，避免 Infinity/NaN 落盘
+  if (
+    !Number.isFinite(info.minX) ||
+    info.maxX - info.minX <= 0 ||
+    info.maxY - info.minY <= 0
+  ) {
+    return { kind: "unknown", bbox: null };
+  }
+  // 1) 纯弧路径 → 圆/椭圆（≥2 段弧才能覆盖全周长；单段弧至多 180°，不得判为整圆）
+  if (info.arcs.length >= 2) {
     const r0 = info.arcs[0];
     const rx = r0.rx;
     const ry = r0.ry;
@@ -887,7 +915,6 @@ export function classifyPath(d: string): ClassifiedPath {
         Math.abs(a.cy - r0.cy) < 0.05,
     );
     if (allSame) {
-      // 圆要求路径上除弧 ar此外近乎只有首尾两端点，且弧覆盖全周长（≥2 段半圆）
       if (Math.abs(rx - ry) < 0.01) {
         return {
           kind: "circle",
@@ -904,9 +931,7 @@ export function classifyPath(d: string): ClassifiedPath {
     const r0 = info.arcs[0];
     // 四个弧共圆角半径（rx≈ry）
     const arcMatch = info.arcs.every(
-      (a) =>
-        Math.abs(a.rx - a.ry) < 0.001 &&
-        Math.abs(a.rx - r0.rx) < 0.05,
+      (a) => Math.abs(a.rx - a.ry) < 0.001 && Math.abs(a.rx - r0.rx) < 0.05,
     );
     if (arcMatch) {
       const w = info.maxX - info.minX;
@@ -1049,10 +1074,10 @@ function translatePath(
     return;
   }
 
-  const fill = fillWithTransparency(
-    resolveFill({ fill: fillAttr ?? "#000000" }, defsById),
-    el,
-  );
+  // 显式 fill="none"（或仅描边）时不得填充：resolveFill 会把非 hex 值解析成黑
+  const fill: ResolvedFill | { type: "none" } = hasFill
+    ? fillWithTransparency(resolveFill({ fill: fillAttr }, defsById), el)
+    : { type: "none" };
   const line = shapeLine(el);
 
   switch (cls.kind) {
@@ -1127,22 +1152,23 @@ function translatePath(
     case "line": {
       if (!stroke || stroke === "none") return;
       const t = elementTransform(el);
-      const b = t.rotate && t.rotate.angle
-        ? rotateBBox(
-            Math.min(cls.x1, cls.x2) + t.tx,
-            Math.min(cls.y1, cls.y2) + t.ty,
-            Math.abs(cls.x2 - cls.x1),
-            Math.abs(cls.y2 - cls.y1),
-            t.rotate.angle,
-            t.rotate.cx,
-            t.rotate.cy,
-          )
-        : {
-            x: Math.min(cls.x1, cls.x2) + t.tx,
-            y: Math.min(cls.y1, cls.y2) + t.ty,
-            w: Math.abs(cls.x2 - cls.x1),
-            h: Math.abs(cls.y2 - cls.y1),
-          };
+      const b =
+        t.rotate && t.rotate.angle
+          ? rotateBBox(
+              Math.min(cls.x1, cls.x2) + t.tx,
+              Math.min(cls.y1, cls.y2) + t.ty,
+              Math.abs(cls.x2 - cls.x1),
+              Math.abs(cls.y2 - cls.y1),
+              t.rotate.angle,
+              t.rotate.cx,
+              t.rotate.cy,
+            )
+          : {
+              x: Math.min(cls.x1, cls.x2) + t.tx,
+              y: Math.min(cls.y1, cls.y2) + t.ty,
+              w: Math.abs(cls.x2 - cls.x1),
+              h: Math.abs(cls.y2 - cls.y1),
+            };
       slide.addShape("line", {
         x: toX(b.x),
         y: toY(b.y),
@@ -1183,10 +1209,7 @@ function translatePolygon(
   const h = Math.max(...ys) - minY;
   if (w <= 0 || h <= 0) return;
   // SVG polygon 默认 fill 为黑；降级为包围盒矩形
-  const fill = fillWithTransparency(
-    resolveFill({ fill: el.getAttribute("fill") ?? "#000000" }, defsById),
-    el,
-  );
+  const fill = shapeFill(el, defsById);
   const b = transposedBBox(el, minX, minY, w, h);
   slide.addShape("rect", {
     x: toX(b.x),
