@@ -34,3 +34,58 @@ pub async fn secret_delete(key: String) -> Result<(), String> {
         Err(e) => Err(format!("删除密钥失败: {e}")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyring::{mock, set_default_credential_builder};
+
+    /// mock 存储是 EntryOnly 持久化：同一 key 必须复用同一 Entry 实例。
+    fn mock_entry(key: &str) -> Result<keyring::Entry, String> {
+        set_default_credential_builder(mock::default_credential_builder());
+        entry(key)
+    }
+
+    #[test]
+    fn secret_set_get_roundtrip() {
+        let e = mock_entry("provider/openai/api-key").unwrap();
+        e.set_password("sk-test-123")
+            .map_err(|e| format!("写入密钥失败: {e}"))
+            .unwrap();
+        assert_eq!(
+            e.get_password()
+                .map_err(|e| format!("读取密钥失败: {e}"))
+                .unwrap(),
+            "sk-test-123"
+        );
+    }
+
+    #[test]
+    fn secret_get_missing_returns_none() {
+        let e = mock_entry("provider/never-set").unwrap();
+        match e.get_password() {
+            Err(keyring::Error::NoEntry) => {}
+            other => panic!("expected NoEntry, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn secret_delete_removes_value() {
+        let e = mock_entry("provider/openai/api-key").unwrap();
+        e.set_password("sk-test-123").unwrap();
+        e.delete_credential().unwrap();
+        match e.get_password() {
+            Err(keyring::Error::NoEntry) => {}
+            other => panic!("expected NoEntry after delete, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn secret_delete_missing_returns_noentry() {
+        let e = mock_entry("provider/absent").unwrap();
+        assert!(matches!(
+            e.delete_credential(),
+            Err(keyring::Error::NoEntry)
+        ));
+    }
+}
