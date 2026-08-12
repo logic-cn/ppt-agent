@@ -9,7 +9,7 @@ import {
   LayoutTemplate,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
-import { useJobStore } from "@/store/job";
+import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
@@ -203,35 +203,34 @@ export function ChatPanel() {
           );
 
         if (isTopicRequest) {
-          // 通过 jobStore 生成大纲
-          const jobStore = useJobStore.getState();
-          const job = jobStore.startJob({
-            type: "outline.generate",
-            title: "生成大纲",
-            canCancel: true,
-          });
-
+          // 通过 runJob 统一封装 job 生命周期（生成大纲）
           addMessage("assistant", "正在生成大纲，请稍候…");
 
           let slides;
           try {
-            // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
-            const targetDeck =
-              deck ?? (await useDeckStore.getState().createDeck());
-            const newDeck = await buildDeckSvgs(
-              targetDeck,
-              deck?.design ?? DEFAULT_DESIGN,
+            slides = await runJob(
               {
-                topic: text,
-                pageCount: deck?.slides.length ? undefined : 8,
-                signal: job.signal,
+                type: "outline.generate",
+                title: "生成大纲",
+                canCancel: true,
+              },
+              async (job) => {
+                // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
+                const targetDeck =
+                  deck ?? (await useDeckStore.getState().createDeck());
+                const newDeck = await buildDeckSvgs(
+                  targetDeck,
+                  deck?.design ?? DEFAULT_DESIGN,
+                  {
+                    topic: text,
+                    pageCount: deck?.slides.length ? undefined : 8,
+                    signal: job.signal,
+                  },
+                );
+                return newDeck.slides;
               },
             );
-            slides = newDeck.slides;
-            job.succeed("大纲生成完成");
-          } catch (e) {
-            if (job.signal.aborted) job.cancel();
-            else job.fail(e);
+          } catch {
             return;
           }
 
@@ -274,22 +273,42 @@ export function ChatPanel() {
           );
         } else if (deck && deck.slides.length > 0) {
           // 已有 deck，优先 AI DeckPatch 编辑；失败/无 Key 时回退本地 intent-parser
-          const jobStore = useJobStore.getState();
-          const job = jobStore.startJob({
-            type: "deck.patch",
-            title: "应用修改",
-            canCancel: true,
-          });
           addMessage("assistant", "正在分析修改需求…");
 
           try {
-            const patches = await generateDeckPatches({
-              deck,
-              userRequest: text,
-              signal: job.signal,
-            });
-            job.succeed("修改方案已生成");
+            const result = await runJob(
+              { type: "deck.patch", title: "应用修改", canCancel: true },
+              async (job) => {
+                try {
+                  const patches = await generateDeckPatches({
+                    deck,
+                    userRequest: text,
+                    signal: job.signal,
+                  });
+                  return { kind: "patches" as const, patches };
+                } catch (e) {
+                  if (job.signal.aborted) throw e;
+                  // 本地兜底：用简单规则解析并执行（无 key / AI 失败场景）
+                  const fallback = applyUserIntent(text);
+                  if (fallback.action === "modify") {
+                    job.update({ message: "已使用本地规则处理" });
+                    return { kind: "fallback" as const, reply: fallback.reply };
+                  }
+                  throw e;
+                }
+              },
+            );
 
+            if (result.kind === "fallback") {
+              runQualityCheck();
+              addMessage(
+                "assistant",
+                `${result.reply}\n\n（已使用本地规则处理，未调用 AI）`,
+              );
+              return;
+            }
+
+            const patches = result.patches;
             if (!patches || patches.length === 0) {
               addMessage("assistant", "根据你的需求，当前没有需要修改的内容。");
             } else {
@@ -320,23 +339,8 @@ export function ChatPanel() {
               );
             }
           } catch (e) {
-            if (job.signal.aborted) {
-              job.cancel();
-              return;
-            }
-            // 本地兜底：用简单规则解析并执行（无 key / AI 失败场景）
-            const fallback = applyUserIntent(text);
-            if (fallback.action === "modify") {
-              job.succeed("已使用本地规则处理");
-              runQualityCheck();
-              addMessage(
-                "assistant",
-                `${fallback.reply}\n\n（已使用本地规则处理，未调用 AI）`,
-              );
-            } else {
-              job.fail(e);
-              addMessage("assistant", `应用修改失败：${(e as Error).message}`);
-            }
+            if ((e as Error).name === "AbortError") return;
+            addMessage("assistant", `应用修改失败：${(e as Error).message}`);
           }
         } else {
           // 没有 deck，提示先生成
@@ -370,26 +374,27 @@ export function ChatPanel() {
     topic: string,
     slides: Slide[],
   ) => {
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "outline.generate",
-      title: `按模板生成：${preset.name}`,
-      canCancel: false,
-    });
     try {
-      useDeckStore.getState().setDesign(preset.design);
-      await replaceSlides(slides);
-      useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
-      runQualityCheck();
-      const deck = useDeckStore.getState().deck;
-      if (deck && deck.title === "未命名项目") setTitle(topic);
-      job.succeed("大纲生成完成");
+      await runJob(
+        {
+          type: "outline.generate",
+          title: `按模板生成：${preset.name}`,
+          canCancel: false,
+        },
+        async () => {
+          useDeckStore.getState().setDesign(preset.design);
+          await replaceSlides(slides);
+          useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
+          runQualityCheck();
+          const deck = useDeckStore.getState().deck;
+          if (deck && deck.title === "未命名项目") setTitle(topic);
+        },
+      );
       addMessage(
         "assistant",
         `已按模板「${preset.name}」重新生成 **${slides.length} 页大纲**！`,
       );
     } catch (e) {
-      job.fail(e);
       addMessage("assistant", `模板生成失败：${(e as Error).message}`);
     }
   };

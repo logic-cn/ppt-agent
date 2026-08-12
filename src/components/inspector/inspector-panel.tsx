@@ -3,7 +3,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { useDeckStore } from "@/store/deck";
-import { useJobStore } from "@/store/job";
+import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { checkDeckQuality } from "@/services/quality";
 import { generateSlideContent, buildContentContext } from "@/services/content";
@@ -58,25 +58,24 @@ export function InspectorPanel({
   const handleGenerateContent = async () => {
     if (!slide || generating || generatingAll) return;
     setGenerating(true);
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "content.generate",
-      title: `生成内容：${slide.title}`,
-      canCancel: true,
-    });
     try {
-      const result = await generateSlideContent({
-        slideTitle: slide.title,
-        context: buildContentContext(deck, slide),
-        design: DEFAULT_DESIGN,
-        signal: job.signal,
-      });
-      job.succeed("内容已生成");
-      handleUpdate(collectPatch(result));
-      runQualityCheck();
-    } catch (e) {
-      if (job.signal.aborted) job.cancel();
-      else job.fail(e);
+      await runJob(
+        {
+          type: "content.generate",
+          title: `生成内容：${slide.title}`,
+          canCancel: true,
+        },
+        async (job) => {
+          const result = await generateSlideContent({
+            slideTitle: slide.title,
+            context: buildContentContext(deck, slide),
+            design: DEFAULT_DESIGN,
+            signal: job.signal,
+          });
+          handleUpdate(collectPatch(result));
+          runQualityCheck();
+        },
+      );
     } finally {
       setGenerating(false);
     }
@@ -94,32 +93,29 @@ export function InspectorPanel({
     );
     if (targets.length === 0) return;
     setGeneratingAll(true);
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "content.generate_batch",
-      title: `批量生成内容（${targets.length} 页）`,
-      canCancel: true,
-    });
     try {
-      for (const s of targets) {
-        if (job.signal.aborted) break;
-        const result = await generateSlideContent({
-          slideTitle: s.title,
-          context: buildContentContext(deck, s),
-          design: DEFAULT_DESIGN,
-          signal: job.signal,
-        });
-        updateSlide(s.id, collectPatch(result));
-      }
-      if (job.signal.aborted) {
-        job.cancel();
-      } else {
-        job.succeed("批量内容已生成");
-        runQualityCheck();
-      }
-    } catch (e) {
-      if (job.signal.aborted) job.cancel();
-      else job.fail(e);
+      await runJob(
+        {
+          type: "content.generate_batch",
+          title: `批量生成内容（${targets.length} 页）`,
+          canCancel: true,
+        },
+        async (job) => {
+          for (const s of targets) {
+            if (job.signal.aborted) {
+              throw new DOMException("已取消", "AbortError");
+            }
+            const result = await generateSlideContent({
+              slideTitle: s.title,
+              context: buildContentContext(deck, s),
+              design: DEFAULT_DESIGN,
+              signal: job.signal,
+            });
+            updateSlide(s.id, collectPatch(result));
+          }
+          runQualityCheck();
+        },
+      );
     } finally {
       setGeneratingAll(false);
     }

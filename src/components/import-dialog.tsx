@@ -9,7 +9,7 @@ import {
 } from "@/services/importer";
 import type { ParsedDocument } from "@/services/importer/types";
 import { useDeckStore } from "@/store/deck";
-import { useJobStore } from "@/store/job";
+import { useJobStore, runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { useToastStore } from "@/store/toast";
 import { checkDeckQuality } from "@/services/quality";
@@ -113,27 +113,30 @@ export function ImportDialog({ open, onClose }: Props) {
     setStep("generating");
     setImporting(true);
 
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "document.import",
-      title: `导入「${doc.source.title}」`,
-      canCancel: true,
-    });
-    activeJobRef.current = job.id;
-
     try {
-      const context = await prepareDocumentForOutline(doc, {
-        selectedSectionIds: selectedIds,
-      });
-      context.selectedSectionIds = selectedIds;
+      const slides = await runJob(
+        {
+          type: "document.import",
+          title: `导入「${doc.source.title}」`,
+          canCancel: true,
+        },
+        async (job) => {
+          activeJobRef.current = job.id;
 
-      job.update({ progress: 0.5, message: "正在生成大纲…" });
+          const context = await prepareDocumentForOutline(doc, {
+            selectedSectionIds: selectedIds,
+          });
+          context.selectedSectionIds = selectedIds;
 
-      const slides = await generateOutlineFromDocument(context, {
-        signal: job.signal,
-      });
+          job.update({ progress: 0.5, message: "正在生成大纲…" });
 
-      job.succeed(`已生成 ${slides.length} 页大纲`);
+          const result = await generateOutlineFromDocument(context, {
+            signal: job.signal,
+          });
+          return result;
+        },
+      );
+
       activeJobRef.current = null;
 
       const deck = useDeckStore.getState().deck;
@@ -153,11 +156,6 @@ export function ImportDialog({ open, onClose }: Props) {
       onClose();
     } catch (e) {
       activeJobRef.current = null;
-      if (job.signal.aborted) {
-        job.cancel();
-      } else {
-        job.fail(e);
-      }
       addToast({
         type: "error",
         title: "导入失败",

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
-import { useJobStore } from "@/store/job";
+import { useJobStore, runJob } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
 import { InspectorPanel } from "@/components/inspector/inspector-panel";
@@ -151,36 +151,35 @@ export default function Editor() {
     const slide = deck.slides.find((s) => s.id === slideId);
     if (!slide) return;
 
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "image.generate",
-      title: `生成配图「${slide.title}」`,
-      canCancel: true,
-    });
-
     try {
-      const result = await generateImage(
+      await runJob(
         {
-          prompt: [
-            slide.title,
-            ...(slide.bullets ?? []).map((b) => b.text),
-          ].join("；"),
-          size: "1024x1024",
+          type: "image.generate",
+          title: `生成配图「${slide.title}」`,
+          canCancel: true,
         },
-        deck.design ?? DEFAULT_DESIGN,
-        job.signal,
+        async (job) => {
+          const result = await generateImage(
+            {
+              prompt: [
+                slide.title,
+                ...(slide.bullets ?? []).map((b) => b.text),
+              ].join("；"),
+              size: "1024x1024",
+            },
+            deck.design ?? DEFAULT_DESIGN,
+            job.signal,
+          );
+          useDeckStore.getState().updateSlide(slideId, {
+            image: {
+              type: "ai" as const,
+              url: result.url,
+              alt: result.revisedPrompt ?? slide.title,
+            },
+          });
+        },
       );
-      job.succeed("配图生成完成");
-      useDeckStore.getState().updateSlide(slideId, {
-        image: {
-          type: "ai" as const,
-          url: result.url,
-          alt: result.revisedPrompt ?? slide.title,
-        },
-      });
     } catch (e) {
-      if (job.signal.aborted) job.cancel();
-      else job.fail(e);
       addToast({
         type: "error",
         title: "配图生成失败",
@@ -193,49 +192,46 @@ export default function Editor() {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
 
-    const jobStore = useJobStore.getState();
-    const job = jobStore.startJob({
-      type: "pptx.export",
-      title: `导出「${deck.title}」`,
-      canCancel: true,
-    });
-
     try {
-      let savePath: string | null = null;
-      try {
-        const { save } = await import("@tauri-apps/plugin-dialog");
-        savePath = await save({
-          filters: [{ name: "PowerPoint", extensions: ["pptx"] }],
-          defaultPath: `${deck.title}.pptx`,
-        });
-      } catch {
-        // 非 Tauri 环境：下载到浏览器
-        const blob = await exportDeckToBlob(deck, job.signal);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${deck.title}.pptx`;
-        a.click();
-        URL.revokeObjectURL(url);
-        if (job.signal.aborted) {
-          job.cancel();
-          return;
-        }
-        job.succeed("导出完成");
+      const result = await runJob(
+        {
+          type: "pptx.export",
+          title: `导出「${deck.title}」`,
+          canCancel: true,
+        },
+        async (job) => {
+          let savePath: string | null = null;
+          try {
+            const { save } = await import("@tauri-apps/plugin-dialog");
+            savePath = await save({
+              filters: [{ name: "PowerPoint", extensions: ["pptx"] }],
+              defaultPath: `${deck.title}.pptx`,
+            });
+          } catch {
+            // 非 Tauri 环境：下载到浏览器
+            const blob = await exportDeckToBlob(deck, job.signal);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${deck.title}.pptx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            return "download" as const;
+          }
+          if (savePath) {
+            await exportDeck(deck, savePath, job.signal);
+            return "saved" as const;
+          }
+          return null;
+        },
+      );
+      if (result === "download") {
         addToast({
           type: "success",
           title: "导出成功",
           message: "文件已下载到本地",
         });
-        return;
-      }
-      if (savePath) {
-        await exportDeck(deck, savePath, job.signal);
-        if (job.signal.aborted) {
-          job.cancel();
-          return;
-        }
-        job.succeed("导出完成");
+      } else if (result === "saved") {
         addToast({
           type: "success",
           title: "导出成功",
@@ -243,8 +239,6 @@ export default function Editor() {
         });
       }
     } catch (e) {
-      if (job.signal.aborted) job.cancel();
-      else job.fail(e);
       addToast({
         type: "error",
         title: "导出失败",
