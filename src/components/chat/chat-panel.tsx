@@ -13,6 +13,10 @@ import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
+import {
+  isTopicRequest,
+  deriveProjectName,
+} from "@/services/generation/topic-intent";
 import { generateDeckPatches } from "@/services/deck-patch/ai";
 import { applyDeckPatches } from "@/services/deck-patch/apply";
 import { summarizePatches } from "@/services/deck-patch/summarize";
@@ -201,12 +205,9 @@ export function ChatPanel() {
 
       try {
         // 检查是否包含主题相关的生成意图
-        const isTopicRequest =
-          /生成|创建|做一个|写一个|关于.*(PPT|幻灯片|汇报|报告)|主题/.test(
-            text,
-          );
+        const isTopic = isTopicRequest(text);
 
-        if (isTopicRequest) {
+        if (isTopic) {
           // 通过 runJob 统一封装 job 生命周期（生成大纲）
           addMessage("assistant", "正在生成大纲，请稍候…");
 
@@ -256,12 +257,7 @@ export function ChatPanel() {
                 : null,
             );
             if (deck.title === "未命名项目") {
-              const name = text
-                .replace(/^(生成|创建|做一个|写一个|关于)\s*/, "")
-                .replace(/一份|一个|一篇/, "")
-                .replace(/^关于/, "")
-                .replace(/[的]?(PPT|幻灯片|汇报|报告|主题)\s*$/, "")
-                .trim();
+              const name = deriveProjectName(text);
               if (name) setTitle(name);
             }
           } else {

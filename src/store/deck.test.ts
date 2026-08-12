@@ -66,3 +66,62 @@ describe("regenerateSlide", () => {
     expect(generateSlideSvg).not.toHaveBeenCalled();
   });
 });
+
+describe("undo/redo 与历史", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useDeckStore.setState({ deck: null, past: [], future: [], dirty: false });
+  });
+
+  it("updateSlide 记录历史，undo 恢复旧值、redo 重放新值", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useDeckStore.getState().updateSlide("s1", { title: "修改后标题" });
+
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("修改后标题");
+    expect(useDeckStore.getState().canUndo).toBe(true);
+    expect(useDeckStore.getState().canRedo).toBe(false);
+
+    useDeckStore.getState().undo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("第一页标题");
+    expect(useDeckStore.getState().canRedo).toBe(true);
+
+    useDeckStore.getState().redo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("修改后标题");
+    expect(useDeckStore.getState().canRedo).toBe(false);
+  });
+
+  it("undo 栈无内容时无操作", () => {
+    useDeckStore.setState({ deck: makeDeck(), past: [], canUndo: false });
+    useDeckStore.getState().undo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("第一页标题");
+  });
+
+  it("新操作清空 future（redo 分支失效）", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useDeckStore.getState().updateSlide("s1", { title: "A" });
+    useDeckStore.getState().updateSlide("s1", { title: "B" });
+    useDeckStore.getState().undo();
+    useDeckStore.getState().undo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("第一页标题");
+
+    // 在历史中间做新修改：future 被清空
+    useDeckStore.getState().updateSlide("s1", { title: "C" });
+    expect(useDeckStore.getState().canRedo).toBe(false);
+    useDeckStore.getState().redo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("C");
+  });
+
+  it("历史超过 50 条时截断最旧记录", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    for (let i = 0; i < 55; i++) {
+      useDeckStore.getState().updateSlide("s1", { title: `修改 ${i}` });
+    }
+    const past = useDeckStore.getState().past;
+    expect(past.length).toBeLessThanOrEqual(50);
+    // 最旧记录被丢弃：连续 undo 后应回到第 6 次修改而非初始状态
+    for (let i = 0; i < 50; i++) {
+      useDeckStore.getState().undo();
+    }
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("修改 4");
+  });
+});
