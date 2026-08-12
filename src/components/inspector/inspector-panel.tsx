@@ -76,6 +76,8 @@ export function InspectorPanel({
           runQualityCheck();
         },
       );
+    } catch {
+      // 失败/取消已由 runJob 写入任务面板，此处仅结束本地 loading 状态
     } finally {
       setGenerating(false);
     }
@@ -116,6 +118,8 @@ export function InspectorPanel({
           runQualityCheck();
         },
       );
+    } catch {
+      // 失败/取消已由 runJob 写入任务面板，此处仅结束本地 loading 状态
     } finally {
       setGeneratingAll(false);
     }

@@ -160,7 +160,6 @@ export function ChatPanel() {
       //     的结构修复（占位标题/空要点/空图表布局/缺结尾页）
       let fixed = applyAutoFixes(current, findings);
       fixed = applyAutoFixActions(fixed, generateAutoFixes(fixed));
-      const hard = getHardFindings(findings);
       // 仅当确有修复时才替换 slides；hard 问题绝不自动修复
       if (fixed !== current) {
         await replaceSlides(fixed.slides);
@@ -169,6 +168,8 @@ export function ChatPanel() {
       // 重新检查并把完整报告（含 hard）写回，确保 hard 问题对用户可见
       const newFindings = checkDeckQuality(newDeck, { rules });
       useQualityStore.getState().setReport(newFindings);
+      // hard 以修复后的检查为准：结构修复（空图表改布局/补结尾页）会消除部分 hard 项
+      const hard = getHardFindings(newFindings);
       if (hard.length > 0) {
         // (c) hard 问题阻断导出，仅提示不自动修复
         addMessage(

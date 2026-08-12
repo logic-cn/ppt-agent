@@ -160,4 +160,57 @@ describe("applyAutoFixActions", () => {
     applyAutoFixActions(deck, actions);
     expect(JSON.stringify(deck)).toBe(before);
   });
+
+  it("change_layout：图表页有数据时保留布局", () => {
+    const deck = createMockDeck({
+      slides: [
+        slide({
+          id: "s1",
+          layout: "chart",
+          title: "图表",
+          chart: { type: "bar", data: [{ label: "A", value: 1 }] },
+        }),
+      ],
+    });
+    const actions: AutoFixAction[] = [
+      { type: "change_layout", slideId: "s1", description: "改布局" },
+    ];
+    expect(applyAutoFixActions(deck, actions)).toBe(deck);
+  });
+
+  it("同一页多个动作按序叠加且各自生效", () => {
+    const deck = createMockDeck({
+      slides: [
+        slide({
+          id: "s1",
+          title: "",
+          layout: "chart",
+          chart: { type: "bar", data: [] },
+        }),
+      ],
+    });
+    const actions: AutoFixAction[] = [
+      { type: "set_title", slideId: "s1", description: "占位" },
+      { type: "change_layout", slideId: "s1", description: "改布局" },
+    ];
+    const fixed = applyAutoFixActions(deck, actions);
+    expect(fixed.slides[0].title.trim()).not.toBe("");
+    expect(fixed.slides[0].layout).toBe("content");
+    expect(fixed.slides[0].chart).toBeUndefined();
+  });
+
+  it("append_closing：空 deck 追加唯一结尾页", () => {
+    const deck = createMockDeck({ slides: [] });
+    const actions: AutoFixAction[] = [
+      { type: "append_closing", description: "追加结尾页" },
+    ];
+    const fixed = applyAutoFixActions(deck, actions);
+    expect(fixed.slides).toHaveLength(1);
+    expect(fixed.slides[0].layout).toBe("closing");
+  });
+
+  it("空动作列表时原样返回", () => {
+    const deck = createMockDeck({ slides: [slide({})] });
+    expect(applyAutoFixActions(deck, [])).toBe(deck);
+  });
 });
