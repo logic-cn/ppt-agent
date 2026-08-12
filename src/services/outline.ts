@@ -10,6 +10,7 @@ import {
 } from "./llm/prompts/pageplan";
 import type { BulletNode, Slide, SlideLayout } from "@/types/deck";
 import { SLIDE_LAYOUTS } from "@/types/layouts";
+import type { TemplateGenerationContext } from "@/presets/template-context";
 import type { DesignLock } from "@/types/design";
 import { isDesignLock } from "@/types/design";
 import { PagePlanItem, SEMANTIC_ROLES, SemanticRole } from "@/types/page-plan";
@@ -142,6 +143,7 @@ export async function generatePagePlan(params: {
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
+  templateCtx?: TemplateGenerationContext;
 }): Promise<PagePlanItem[]> {
   const design = params.design;
   if (!isDesignLock(design)) {
@@ -150,6 +152,7 @@ export async function generatePagePlan(params: {
 
   const systemPrompt = buildPagePlanSystemPrompt({
     design,
+    templateCtx: params.templateCtx,
     fewShot: buildFewShotPrompt(selectFewShot(design)),
   });
   const userPrompt = buildPagePlanUserPrompt(params);

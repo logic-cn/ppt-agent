@@ -8,10 +8,12 @@ import type { DesignLock } from "../../../types/design";
 import { getMode } from "../../../design/narrative-modes";
 import { getVisualStyle } from "../../../design/visual-styles";
 import { getPalette } from "../../../design/palettes";
+import type { TemplateGenerationContext } from "../../../presets/template-context";
 
 export function buildPagePlanSystemPrompt(opts: {
   design: DesignLock;
   fewShot?: string;
+  templateCtx?: TemplateGenerationContext;
 }): string {
   const mode = getMode(opts.design.mode);
   const style = getVisualStyle(opts.design.visualStyle)!;
@@ -63,6 +65,24 @@ export function buildPagePlanSystemPrompt(opts: {
 
   if (opts.fewShot) {
     prompt += `\n\n${opts.fewShot}`;
+  }
+
+  if (opts.templateCtx) {
+    const { slidePlan, promptHints } = opts.templateCtx;
+    const planLines = slidePlan
+      .map(
+        (item, i) =>
+          `- 第 ${i + 1} 页：role="${item.role}"，${item.instruction}`,
+      )
+      .join("\n");
+    prompt += `\n\n## 模板结构指引（请严格遵守）
+本次生成必须遵循以下模板编排，**输出页数必须与模板精确匹配（共 ${slidePlan.length} 页）**，
+每页 role 必须与模板指定一致，第一页必须为 cover，最后一页必须为 closing。
+
+${planLines}
+
+模板提示：
+${promptHints.map((h) => `- ${h}`).join("\n")}`;
   }
 
   return prompt;

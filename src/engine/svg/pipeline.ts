@@ -3,6 +3,7 @@ import type { DesignLock } from "@/types/design";
 import { buildSpecLock } from "@/design/spec-lock";
 import { generatePagePlan } from "@/services/outline";
 import { semanticRoleToLayout } from "@/types/page-plan";
+import type { TemplateGenerationContext } from "@/presets/template-context";
 import { generateDeckSvgs } from "./executor";
 import type { SvgPage } from "./types";
 
@@ -16,6 +17,8 @@ export interface BuildDeckSvgsOptions {
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
+  /** 模板生成上下文：约束 LLM 输出与模板页数/角色一致（P2 模板产品化） */
+  templateCtx?: TemplateGenerationContext;
   onProgress?: DeckSvgProgress;
   /**
    * 单页失败是否隔离：为 true 时某页生成失败不会中断整份 deck，
@@ -65,6 +68,7 @@ export async function buildDeckSvgsDetailed(
     pageCount: options.pageCount,
     docContent: options.docContent,
     signal: options.signal,
+    templateCtx: options.templateCtx,
   });
 
   let pages: SvgPage[] = [];

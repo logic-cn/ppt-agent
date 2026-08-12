@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { PresetLibrary } from "./PresetLibrary";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
+import { buildTemplateGenerationContext } from "@/presets/template-context";
 import type { DeckPreset } from "@/types/preset";
 import type { Deck, Slide } from "@/types/deck";
 
@@ -56,6 +57,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       const newDeck = await buildDeckSvgs(tempDeck, preset.design, {
         topic: topic.trim(),
         pageCount: Math.max(preset.slides.length, 1),
+        templateCtx: buildTemplateGenerationContext(preset.id) ?? undefined,
         signal: controller.signal,
       });
       const slides = newDeck.slides;
