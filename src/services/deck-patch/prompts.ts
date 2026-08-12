@@ -18,7 +18,7 @@ export function buildDeckPatchSystemPrompt(): string {
 2. 不要输出解释性文本和 JSON 混排。
 3. 所有 text 字段使用中文。
 4. SlideDraft 中的 bullets、items 不需要 id 字段。
-5. layout 字段必须是以下之一：cover, section, content, two-column, chart, image, closing, cols-2, cols-3, cols-4, cols-5, cols-6。`;
+5. layout 字段必须是以下之一：cover, section, content, two-column, chart, image, closing, cols-2, cols-3, cols-4, cols-5, cols-6, metrics, quote, timeline。metrics 布局需提供 metric（{value, unit?, label, kicker?}）；quote 布局需提供 quote 与 attribution。`;
 }
 
 export function buildDeckPatchUserPrompt(params: {

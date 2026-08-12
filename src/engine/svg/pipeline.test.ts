@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Deck, Slide } from "@/types/deck";
 import { DEFAULT_DESIGN, type DesignLock } from "@/types/design";
-import { buildDeckSvgs } from "./pipeline";
+import { buildDeckSvgs, buildDeckSvgsDetailed } from "./pipeline";
 
 const DESIGN: DesignLock = DEFAULT_DESIGN;
 
@@ -157,8 +157,8 @@ describe("buildDeckSvgs", () => {
       .mockResolvedValue([{ role: "content", title: "T", intent: "i" }]);
     const svgMock = vi
       .spyOn(await import("./executor"), "generateDeckSvgs")
-      .mockImplementation(async (_plan, _spec, cb) => {
-        cb?.(1, 1);
+      .mockImplementation(async (_plan, _spec, opts) => {
+        opts?.onProgress?.(1, 1);
         return [{ index: 0, role: "content", svg: SVG }];
       });
 
@@ -168,5 +168,72 @@ describe("buildDeckSvgs", () => {
 
     planMock.mockRestore();
     svgMock.mockRestore();
+  });
+
+  it("isolatePageFailures：单页失败不中断，保留旧 svg 并回传失败页", async () => {
+    const deck = makeDeck([makeSlide("a"), makeSlide("b")]);
+
+    const planMock = vi
+      .spyOn(await import("@/services/outline"), "generatePagePlan")
+      .mockResolvedValue([
+        { role: "content", title: "T0", intent: "i0" },
+        { role: "content", title: "T1", intent: "i1" },
+      ]);
+    const genMock = vi
+      .spyOn(await import("./executor"), "generateSlideSvg")
+      .mockImplementation(async (opts) => {
+        if (opts.pageIndex === 0) throw new Error("token 耗尽");
+        return `<svg viewBox="0 0 1280 720"><text>${opts.plan.title}</text></svg>`;
+      });
+    const onPageError = vi.fn();
+
+    const result = await buildDeckSvgsDetailed(deck, DESIGN, {
+      topic: "t",
+      isolatePageFailures: true,
+      onPageError,
+    });
+
+    // 第 0 页失败（保留旧 svg），第 1 页成功
+    expect(result.failedPages).toEqual([0]);
+    expect(onPageError).toHaveBeenCalledTimes(1);
+    expect(onPageError).toHaveBeenCalledWith(0, expect.any(Error), true);
+    expect(result.deck.slides[0].svg).toBeUndefined();
+    expect(result.deck.slides[1].svg).toContain(">T1<");
+
+    planMock.mockRestore();
+    genMock.mockRestore();
+  });
+
+  it("isolatePageFailures：空 deck 下失败页以无 svg 占位并回传", async () => {
+    const deck = makeDeck([]);
+
+    const planMock = vi
+      .spyOn(await import("@/services/outline"), "generatePagePlan")
+      .mockResolvedValue([
+        { role: "content", title: "T0", intent: "i0" },
+        { role: "content", title: "T1", intent: "i1" },
+      ]);
+    const generateMock = vi
+      .spyOn(await import("./executor"), "generateSlideSvg")
+      .mockImplementation(async (opts) => {
+        if (opts.pageIndex === 1) throw new Error("越界");
+        return `<svg viewBox="0 0 1280 720"><text>页${opts.pageIndex}</text></svg>`;
+      });
+
+    const result = await buildDeckSvgsDetailed(deck, DESIGN, {
+      topic: "t",
+      isolatePageFailures: true,
+    });
+
+    expect(result.failedPages).toEqual([1]);
+    expect(result.deck.slides).toHaveLength(2);
+    expect(result.deck.slides[0].svg).toBeDefined();
+    // 失败页被初始化但无 svg，留待用户手动重画
+    expect(result.deck.slides[1].svg).toBeUndefined();
+    expect(result.deck.slides[1].layout).toBe("content");
+    expect(result.deck.slides[1].title).toBe("T1");
+
+    planMock.mockRestore();
+    generateMock.mockRestore();
   });
 });

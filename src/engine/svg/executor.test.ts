@@ -31,7 +31,18 @@ function makePlan(n: number): PagePlanItem[] {
   }));
 }
 
-const VALID_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">Hello</text></svg>`;
+/** 生成包含指定标题的合规 SVG（内容必现性校验要求标题出现在文本中） */
+function svgWithTitle(title: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">${title}</text></svg>`;
+}
+
+/** 从生成 prompt 中提取页面标题（prompt 固定格式：标题：X，意图：Y） */
+function titleFromPrompt(req: unknown): string {
+  const content = (req as { messages: { content: string }[] }).messages[1]
+    ?.content;
+  const m = content?.match(/标题：([^，]+)/);
+  return m?.[1] ?? "Test title";
+}
 
 vi.mock("@/services/llm", () => ({
   chat: vi.fn(),
@@ -45,7 +56,7 @@ beforeEach(() => {
 
 describe("generateSlideSvg", () => {
   it("产出含 viewBox 1280×720 的 svg 字符串", async () => {
-    vi.mocked(chat).mockResolvedValue({ content: VALID_SVG });
+    vi.mocked(chat).mockResolvedValue({ content: svgWithTitle("第 1 页") });
     const svg = await generateSlideSvg({
       specLock: spec,
       plan: makePlan(3)[0],
@@ -71,10 +82,10 @@ describe("generateSlideSvg", () => {
   });
 
   it("首轮 checkSvg 报 error 时回喂重画，第二次合规后返回合规 svg", async () => {
-    const outOfBounds = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="-50" y="0" width="200" height="200" fill="#FFFFFF"/></svg>`;
+    const outOfBounds = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="-50" y="0" width="200" height="200" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text></svg>`;
     vi.mocked(chat)
       .mockResolvedValueOnce({ content: outOfBounds })
-      .mockResolvedValueOnce({ content: VALID_SVG });
+      .mockResolvedValueOnce({ content: svgWithTitle("第 1 页") });
 
     const svg = await generateSlideSvg({
       specLock: builtSpec,
@@ -84,7 +95,7 @@ describe("generateSlideSvg", () => {
     });
 
     expect(chat).toHaveBeenCalledTimes(2);
-    expect(svg).toBe(VALID_SVG.trim());
+    expect(svg).toBe(svgWithTitle("第 1 页").trim());
     const secondCallArgs = vi.mocked(chat).mock.calls[1][0] as {
       messages: { content: string }[];
     };
@@ -99,15 +110,16 @@ describe("generateDeckSvgs", () => {
       const page = (req as { messages: { content: string }[] }).messages[1]
         ?.content;
       const m = page.match(/第 (\d+)\//);
-      order.push(Number(m?.[1]) - 1);
-      return { content: VALID_SVG };
+      const n = Number(m?.[1]);
+      order.push(n - 1);
+      return { content: svgWithTitle(`第 ${n} 页`) };
     });
 
     const plan = makePlan(4);
     const progresses: Array<[number, number]> = [];
-    const pages = await generateDeckSvgs(plan, spec, (d, t) =>
-      progresses.push([d, t]),
-    );
+    const pages = await generateDeckSvgs(plan, spec, {
+      onProgress: (d, t) => progresses.push([d, t]),
+    });
 
     expect(pages).toHaveLength(4);
     expect(pages.map((p) => p.index)).toEqual([0, 1, 2, 3]);
@@ -117,5 +129,30 @@ describe("generateDeckSvgs", () => {
     expect(progresses[3]).toEqual([4, 4]);
 
     expect(chat).toHaveBeenCalledTimes(4);
+  });
+
+  it("signal 已中止时不发起任何请求，直接抛 AbortError", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      generateDeckSvgs(makePlan(2), spec, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it("逐页生成期间 signal 中止则中断后续页", async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    vi.mocked(chat).mockImplementation(async (req) => {
+      calls++;
+      const title = titleFromPrompt(req);
+      if (calls === 2) controller.abort();
+      return { content: svgWithTitle(title) };
+    });
+
+    await expect(
+      generateDeckSvgs(makePlan(4), spec, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(calls).toBe(2);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type PptxGenJS from "pptxgenjs";
 import { translateSvgToSlide } from "./elements";
+import { classifyPath, parseTransformAttr } from "./elements";
 import { svgToPptx } from "./index";
 import { collectDefs, resolveFill } from "./gradient";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -133,7 +134,7 @@ describe("渐变降级", () => {
 });
 
 describe("translateSvgToSlide 渐变与路径", () => {
-  it("fill 为 linearGradient 的 rect 翻译为平均色且不抛错", () => {
+  it("fill 为 linearGradient 的 rect 分段为插值色块（P1-3）且不抛错", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
       <defs>
         <linearGradient id="g">
@@ -146,13 +147,24 @@ describe("translateSvgToSlide 渐变与路径", () => {
     const slide = createMockSlide();
     expect(() => translateSvgToSlide(svg, slide)).not.toThrow();
 
-    const shapeCall = slide._calls.find((c) => c.kind === "shape");
-    expect(shapeCall).toBeDefined();
-    const [, opts] = (shapeCall as { args: unknown[] }).args as [
-      string,
-      { fill: { color: string } },
-    ];
-    expect(opts.fill.color.toLowerCase()).toBe("800080");
+    const shapeCalls = slide._calls.filter((c) => c.kind === "shape");
+    // 至少两段色块
+    expect(shapeCalls.length).toBeGreaterThanOrEqual(2);
+    const colors = shapeCalls.map(
+      (c) => (c.args[1] as { fill: { color: string } }).fill.color,
+    );
+    // 无描边：每段均为实色
+    expect(colors.every((c) => /^[0-9a-fA-F]{6}$/.test(c))).toBe(true);
+    // 纵向贴合：第 i 块顶 = 第 i-1 块底
+    for (let i = 1; i < shapeCalls.length; i++) {
+      const [t, prev] = shapeCalls[i - 1].args as [
+        string,
+        { y: number; h: number },
+      ];
+      const [, cur] = shapeCalls[i].args as [string, { y: number }];
+      expect(t).toBe("rect");
+      expect(cur.y).toBeCloseTo(prev.y + prev.h, 5);
+    }
   });
 
   it("含 path 的 svg 不崩溃", () => {
@@ -640,6 +652,151 @@ describe("translateSvgToSlide 元素覆盖与备注", () => {
     ];
     // 默认 18px × 0.75 = 13.5pt
     expect(opts.fontSize).toBeCloseTo(13.5, 2);
+  });
+});
+
+describe("translateSvgToSlide transform（P1-1）", () => {
+  it("g 上 translate 平移 rect 位置", () => {
+    const slide = createMockSlide();
+    translateSvgToSlide(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+        <g transform="translate(200, 100)">
+          <rect x="50" y="50" width="100" height="60" fill="#1A56DB"/>
+        </g>
+      </svg>`,
+      slide,
+    );
+    const shapeCall = slide._calls.find((c) => c.kind === "shape")!;
+    const [type, opts] = shapeCall.args as [string, { x: number; y: number; w: number; h: number }];
+    expect(type).toBe("rect");
+    // 250px → 250/1280*13.333 ≈ 2.604in
+    expect(opts.x).toBeCloseTo((250 / 1280) * 13.333, 2);
+    expect(opts.y).toBeCloseTo((150 / 720) * 7.5, 2);
+    expect(opts.w).toBeCloseTo((100 / 1280) * 13.333, 2);
+    expect(opts.h).toBeCloseTo((60 / 720) * 7.5, 2);
+  });
+
+  it("元素自身 translate + 祖先 translate 累计", () => {
+    const slide = createMockSlide();
+    translateSvgToSlide(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+        <g transform="translate(30, 40)">
+          <rect x="10" y="10" width="20" height="20" fill="#111" transform="translate(5, 6)"/>
+        </g>
+      </svg>`,
+      slide,
+    );
+    const shapeCall = slide._calls.find((c) => c.kind === "shape")!;
+    const [type, opts] = shapeCall.args as [string, { x: number; y: number }];
+    expect(type).toBe("rect");
+    // 30+5+10 = 45px
+    expect(opts.x).toBeCloseTo((45 / 1280) * 13.333, 2);
+    expect(opts.y).toBeCloseTo((56 / 720) * 7.5, 2);
+  });
+
+  it("rotate(45, cx, cy) 后包围盒按旋转上界扩大", () => {
+    const slide = createMockSlide();
+    translateSvgToSlide(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+        <rect x="100" y="100" width="200" height="100" fill="#1A56DB" transform="rotate(45, 200, 150)"/>
+      </svg>`,
+      slide,
+    );
+    const shapeCall = slide._calls.find((c) => c.kind === "shape")!;
+    const [type, opts] = shapeCall.args as [string, { x: number; y: number; w: number; h: number }];
+    expect(type).toBe("rect");
+    // 45° 旋转后新 bbox：w' = 200*cos45 + 100*sin45 ≈ 212.13
+    expect(opts.w).toBeCloseTo((212.13 / 1280) * 13.333, 0);
+    expect(opts.h).toBeCloseTo((212.13 / 720) * 7.5, 0);
+    // 中心 (200,150) 不变
+    const cx = (opts.x + opts.w / 2) * (1280 / 13.333);
+    const cy = (opts.y + opts.h / 2) * (720 / 7.5);
+    expect(cx).toBeCloseTo(200, 0);
+    expect(cy).toBeCloseTo(150, 0);
+  });
+
+  it("text 受祖先 translate 影响（rotate 忽略）", () => {
+    const slide = createMockSlide();
+    translateSvgToSlide(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+        <g transform="translate(400, 0)">
+          <text x="100" y="200" font-size="32" fill="#000">测试</text>
+        </g>
+      </svg>`,
+      slide,
+    );
+    const textCall = slide._calls.find((c) => c.kind === "text")!;
+    const [text, opts] = textCall.args as [string, { x: number }];
+    expect(text).toBe("测试");
+    // 100+400=500px
+    expect(opts.x).toBeCloseTo((500 / 1280) * 13.333, 2);
+  });
+});
+
+describe("classifyPath 原生 shape 识别（P1-2）", () => {
+  it("两段半圆弧构成圆", () => {
+    // M 0,0 起，两段 50 半径半圆拼接（左半→右半）
+    const d1 = "M 0 0 A 10 10 0 1 1 20 0 A 10 10 0 1 1 0 0";
+    const c1 = classifyPath(d1);
+    expect(c1.kind).toBe("circle");
+    if (c1.kind === "circle") {
+      expect(c1.cx).toBeCloseTo(10, 3);
+      expect(c1.cy).toBeCloseTo(0, 3);
+      expect(c1.r).toBeCloseTo(10, 3);
+    }
+  });
+
+  it("rx≠ry 的弧路径识别为椭圆", () => {
+    const d = "M 0 0 A 20 10 0 1 1 40 0 A 20 10 0 1 1 0 0";
+    const c = classifyPath(d);
+    expect(c.kind).toBe("ellipse");
+    if (c.kind === "ellipse") {
+      expect(c.cx).toBeCloseTo(20, 3);
+      expect(c.rx).toBeCloseTo(20, 3);
+      expect(c.ry).toBeCloseTo(10, 3);
+    }
+  });
+
+  it("四段 90° 圆弧构成圆角矩形", () => {
+    // x0=x0y 顶点 (0,0) 到 (100,50)：四角 r=10
+    const d =
+      "M 10 0 L 90 0 A 10 10 0 0 1 100 10 L 100 40 A 10 10 0 0 1 90 50 " +
+      "L 10 50 A 10 10 0 0 1 0 40 L 0 10 A 10 10 0 0 1 10 0 Z";
+    const c = classifyPath(d);
+    expect(c.kind).toBe("roundedRect");
+    if (c.kind === "roundedRect") {
+      expect(c.x).toBeCloseTo(0, 2);
+      expect(c.y).toBeCloseTo(0, 2);
+      expect(c.w).toBeCloseTo(100, 2);
+      expect(c.h).toBeCloseTo(50, 2);
+      expect(c.r).toBeCloseTo(10, 2);
+    }
+  });
+
+  it("单直线路径识别为 line", () => {
+    const d = "M 0 0 L 200 50";
+    const c = classifyPath(d);
+    expect(c.kind).toBe("line");
+  });
+
+  it("折线/复杂 path 回退包围盒 rect", () => {
+    const d = "M 0 0 L 100 0 L 50 80 Z";
+    const c = classifyPath(d);
+    expect(c.kind).toBe("rect");
+    if (c.kind === "rect") {
+      expect(c.w).toBeCloseTo(100, 3);
+      expect(c.h).toBeCloseTo(80, 3);
+    }
+  });
+});
+
+describe("parseTransformAttr", () => {
+  it("解析 translate 与 rotate", () => {
+    expect(parseTransformAttr("translate(10, 20) rotate(45)")).toEqual({
+      tx: 10,
+      ty: 20,
+      rotate: { angle: 45, cx: 0, cy: 0 },
+    });
   });
 });
 

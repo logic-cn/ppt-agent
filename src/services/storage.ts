@@ -1,7 +1,11 @@
 import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Palette } from "@/design/palettes";
-import { PROVIDER_PRESETS } from "@/types/llm";
+import { PROVIDER_PRESETS, type LLMProviderId } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
+import {
+  getSecretStore,
+  secretKey,
+} from "./secret-store";
 import { parseStoredDeck } from "./storage/deck-parse";
 import { CURRENT_DECK_VERSION } from "./storage/deck-schema";
 
@@ -71,6 +75,54 @@ async function joinPath(...segments: string[]): Promise<string> {
 
 // ---- 公共 API ----
 
+const IMAGE_SECRET_ID = "default";
+
+/**
+ * 从 SecretStore 读取 provider/image 的 apiKey 并合并回内存 settings；
+ * 旧版明文存于 settings.json 的 apiKey 同时迁移进 SecretStore（由后续 saveSettings 剥离落盘）。
+ */
+async function hydrateSecrets(settings: AppSettings): Promise<void> {
+  const store = getSecretStore();
+  const providerIds = Object.keys(settings.providers) as LLMProviderId[];
+  for (const id of providerIds) {
+    const cfg = settings.providers[id];
+    if (cfg.apiKey) {
+      // 旧版明文残留 → 迁移入密钥存储
+      try {
+        await store.set(secretKey("provider", id), cfg.apiKey);
+      } catch (e) {
+        console.warn(`迁移 ${id} apiKey 到密钥存储失败：`, e);
+      }
+    } else {
+      try {
+        const stored = await store.get(secretKey("provider", id));
+        if (stored) cfg.apiKey = stored;
+      } catch (e) {
+        console.warn(`读取 ${id} apiKey 失败：`, e);
+      }
+    }
+  }
+  if (settings.imageProvider) {
+    if (settings.imageProvider.apiKey) {
+      try {
+        await store.set(
+          secretKey("image", IMAGE_SECRET_ID),
+          settings.imageProvider.apiKey,
+        );
+      } catch (e) {
+        console.warn("迁移 image apiKey 到密钥存储失败：", e);
+      }
+    } else {
+      try {
+        const stored = await store.get(secretKey("image", IMAGE_SECRET_ID));
+        if (stored) settings.imageProvider.apiKey = stored;
+      } catch (e) {
+        console.warn("读取 image apiKey 失败：", e);
+      }
+    }
+  }
+}
+
 export async function loadSettings(): Promise<AppSettings | null> {
   const dir = await getDataDir();
   const path = await joinPath(dir, "settings.json");
@@ -91,6 +143,7 @@ export async function loadSettings(): Promise<AppSettings | null> {
         };
       }
     }
+    await hydrateSecrets(saved);
     return saved;
   } catch {
     return null;
@@ -98,9 +151,43 @@ export async function loadSettings(): Promise<AppSettings | null> {
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
+  const store = getSecretStore();
   const dir = await getDataDir();
+
+  // 剥离 apiKey：非敏感配置落盘，密钥单独进 SecretStore（空值则清除残留）
+  const persisted: AppSettings = {
+    ...settings,
+    providers: {} as AppSettings["providers"],
+  };
+  for (const id of Object.keys(settings.providers) as LLMProviderId[]) {
+    const { apiKey, ...rest } = settings.providers[id];
+    try {
+      if (apiKey) {
+        await store.set(secretKey("provider", id), apiKey);
+      } else {
+        await store.delete(secretKey("provider", id));
+      }
+    } catch (e) {
+      console.warn(`保存 ${id} apiKey 到密钥存储失败：`, e);
+    }
+    persisted.providers[id] = { ...rest, apiKey: "" };
+  }
+  if (settings.imageProvider) {
+    const { apiKey, ...rest } = settings.imageProvider;
+    try {
+      if (apiKey) {
+        await store.set(secretKey("image", IMAGE_SECRET_ID), apiKey);
+      } else {
+        await store.delete(secretKey("image", IMAGE_SECRET_ID));
+      }
+    } catch (e) {
+      console.warn("保存 image apiKey 到密钥存储失败：", e);
+    }
+    persisted.imageProvider = { ...rest, apiKey: "" };
+  }
+
   const path = await joinPath(dir, "settings.json");
-  await writeText(path, JSON.stringify(settings, null, 2));
+  await writeText(path, JSON.stringify(persisted, null, 2));
 }
 
 export async function loadDeck(id: string): Promise<Deck | null> {

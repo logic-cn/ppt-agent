@@ -14,6 +14,9 @@ pub fn run() {
             commands::fs::list_directory,
             commands::fs::delete_file,
             commands::fs::app_data_dir,
+            commands::secret::secret_get,
+            commands::secret::secret_set,
+            commands::secret::secret_delete,
             commands::http::http_proxy,
         ])
         .setup(|app| {

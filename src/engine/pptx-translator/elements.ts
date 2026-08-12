@@ -1,5 +1,11 @@
 import type PptxGenJS from "pptxgenjs";
-import { collectDefs, resolveFill, type ResolvedFill } from "./gradient";
+import {
+  collectDefs,
+  resolveFill,
+  resolveGradientFill,
+  sampleGradient,
+  type ResolvedFill,
+} from "./gradient";
 import { translateChart } from "./chart";
 import type { SpecLock } from "@/design/spec-lock";
 
@@ -34,6 +40,129 @@ function num(value: string | null | undefined, fallback = 0): number {
   if (value == null) return fallback;
   const n = Number.parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+// ---- transform（P1-1）----
+
+interface Transform {
+  tx: number;
+  ty: number;
+  /** 仅取最近一次 rotate；cx/cy 缺省按 (0,0)（SVG 默认坐标原点） */
+  rotate: { angle: number; cx: number; cy: number } | null;
+}
+
+/**
+ * 沿自身 + 祖先 <g> 累计 transform。
+ * 支持 translate(a[,b]) 与 rotate(a[,cx[,cy]])；
+ * scale/matrix/skew 无法安全映射到 pptx 形状，记录为需扩展的旋转空角，按降级处理。
+ * tx/ty 为累计平移；rotate 取元素链上最近一次（外围 translate 已并入 tx/ty）。
+ */
+function elementTransform(el: Element): Transform {
+  let tx = 0;
+  let ty = 0;
+  let rotate: Transform["rotate"] = null;
+  let cur: Element | null = el;
+  while (cur) {
+    const tag = cur.nodeName.toLowerCase();
+    // 跳过 svg/defs/clippath：非渲染容器不参与累计
+    if (tag === "svg" || tag === "defs" || tag === "clippath") break;
+    const attr = cur.getAttribute("transform");
+    if (attr) {
+      const t = parseTransformAttr(attr);
+      tx += t.tx;
+      ty += t.ty;
+      if (t.rotate) rotate = t.rotate;
+    }
+    cur = cur.parentElement;
+  }
+  return { tx, ty, rotate };
+}
+
+export function parseTransformAttr(attr: string): Transform {
+  let tx = 0;
+  let ty = 0;
+  let rotate: Transform["rotate"] = null;
+  const fnRe = /([a-zA-Z]+)\s*\(([^)]*)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = fnRe.exec(attr))) {
+    const name = m[1].toLowerCase();
+    const args = (m[2].match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []).map(
+      Number,
+    );
+    if (name === "translate") {
+      tx += args[0] ?? 0;
+      ty += args[1] ?? 0;
+    } else if (name === "rotate") {
+      rotate = { angle: args[0] ?? 0, cx: args[1] ?? 0, cy: args[2] ?? 0 };
+    }
+    // scale/matrix/skew 无法映射到 pptx，忽略（可继续累计 translate）
+  }
+  return { tx, ty, rotate };
+}
+
+// 旋转近似：围绕 (cx,cy) 旋转后取轴对齐包围盒（REVIEW P1-1 建议：rotate 上界扩充 rect）
+export function rotateBBox(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  angle: number,
+  cx: number,
+  cy: number,
+): { x: number; y: number; w: number; h: number } {
+  const rad = (angle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const corners = [
+    [x, y],
+    [x + w, y],
+    [x, y + h],
+    [x + w, y + h],
+  ];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [px, py] of corners) {
+    const dx = px - cx;
+    const dy = py - cy;
+    const qx = cx + dx * cos - dy * sin;
+    const qy = cy + dx * sin + dy * cos;
+    if (qx < minX) minX = qx;
+    if (qy < minY) minY = qy;
+    if (qx > maxX) maxX = qx;
+    if (qy > maxY) maxY = qy;
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+// 对 bbox 统一应用 transform：平移到 tx/ty；有 rotate 时按旋转上界扩充
+function transposedBBox(
+  el: Element,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): { x: number; y: number; w: number; h: number } {
+  const t = elementTransform(el);
+  let bx = x + t.tx;
+  let by = y + t.ty;
+  if (t.rotate && t.rotate.angle) {
+    const r = rotateBBox(
+      bx,
+      by,
+      w,
+      h,
+      t.rotate.angle,
+      t.rotate.cx,
+      t.rotate.cy,
+    );
+    bx = r.x;
+    by = r.y;
+    w = r.w;
+    h = r.h;
+  }
+  return { x: bx, y: by, w, h };
 }
 
 function hexColor(value: string | null | undefined): string {
@@ -191,28 +320,79 @@ function translateRect(
   slide: PptxGenJS.Slide,
   defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
 ): void {
-  const x = toX(num(el.getAttribute("x")));
-  const y = toY(num(el.getAttribute("y")));
-  const w = toW(num(el.getAttribute("width")));
-  const h = toH(num(el.getAttribute("height")));
   const rx = el.getAttribute("rx");
-  const fill = fillWithTransparency(
-    resolveFill({ fill: el.getAttribute("fill") }, defsById),
+  // P1-1：transform 平移 + rotate 近似（外形不变，位置/尺寸映射）
+  const b = transposedBBox(
     el,
+    num(el.getAttribute("x")),
+    num(el.getAttribute("y")),
+    num(el.getAttribute("width")),
+    num(el.getAttribute("height")),
+  );
+  // P1-3：线性渐变矩形按 stop 纵向分段近似；其余走单色兜底
+  const gf = resolveGradientFill(
+    { fill: el.getAttribute("fill") },
+    defsById,
   );
   const line = shapeLine(el);
+  if (
+    gf.gradient &&
+    gf.gradient.type === "linear" &&
+    (!rx || num(rx) <= 0)
+  ) {
+    drawGradientSlices(slide, gf.gradient, b, line);
+    return;
+  }
+  const fill = fillWithTransparency({ color: gf.color }, el);
   if (rx != null && num(rx) > 0) {
     slide.addShape("roundRect", {
-      x,
-      y,
-      w,
-      h,
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
       fill,
       rectRadius: toW(num(rx)),
       line,
     });
   } else {
-    slide.addShape("rect", { x, y, w, h, fill, line });
+    slide.addShape("rect", { x: toX(b.x), y: toY(b.y), w: toW(b.w), h: toH(b.h), fill, line });
+  }
+}
+
+/**
+ * P1-3：线性渐变降级为纵向色块（每 stop 一段，用 stop 色填充），
+ * 描边（如有）以无填充线框叠加在色块之上，保证外形与描边不丢。
+ */
+function drawGradientSlices(
+  slide: PptxGenJS.Slide,
+  gradient: { stops: { offset: number; color: string }[] },
+  b: { x: number; y: number; w: number; h: number },
+  line: ReturnType<typeof shapeLine>,
+): void {
+  // 等分 n 段，每段用其中点处的插值色（视觉接近连续渐变）
+  const n = Math.max(2, gradient.stops.length);
+  const sliceH = b.h / n;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    slide.addShape("rect", {
+      x: toX(b.x),
+      y: toY(b.y + i * sliceH),
+      w: toW(b.w),
+      h: toH(sliceH),
+      fill: { color: sampleGradient(gradient.stops, t) },
+      line: { width: 0 },
+    });
+  }
+  // 描边覆盖：色块之上再画一个无填充线框
+  if ("width" in line && line.width > 0) {
+    slide.addShape("rect", {
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
+      fill: { type: "none" },
+      line,
+    });
   }
 }
 
@@ -231,11 +411,12 @@ function translateEllipse(
     const cx = num(el.getAttribute("cx"));
     const cy = num(el.getAttribute("cy"));
     const r = num(el.getAttribute("r"));
+    const b = transposedBBox(el, cx - r, cy - r, r * 2, r * 2);
     slide.addShape("ellipse", {
-      x: toX(cx - r),
-      y: toY(cy - r),
-      w: toW(r * 2),
-      h: toH(r * 2),
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
       fill,
       line,
     });
@@ -244,11 +425,12 @@ function translateEllipse(
     const cy = num(el.getAttribute("cy"));
     const rx = num(el.getAttribute("rx"));
     const ry = num(el.getAttribute("ry"));
+    const b = transposedBBox(el, cx - rx, cy - ry, rx * 2, ry * 2);
     slide.addShape("ellipse", {
-      x: toX(cx - rx),
-      y: toY(cy - ry),
-      w: toW(rx * 2),
-      h: toH(ry * 2),
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
       fill,
       line,
     });
@@ -262,11 +444,28 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   const y2 = num(el.getAttribute("y2"));
   const color = hexColor(el.getAttribute("stroke") ?? el.getAttribute("fill"));
   const width = Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25);
+  const t = elementTransform(el);
+  const b = t.rotate && t.rotate.angle
+    ? rotateBBox(
+        Math.min(x1, x2) + t.tx,
+        Math.min(y1, y2) + t.ty,
+        Math.abs(x2 - x1),
+        Math.abs(y2 - y1),
+        t.rotate.angle,
+        t.rotate.cx,
+        t.rotate.cy,
+      )
+    : {
+        x: Math.min(x1, x2) + t.tx,
+        y: Math.min(y1, y2) + t.ty,
+        w: Math.abs(x2 - x1),
+        h: Math.abs(y2 - y1),
+      };
   slide.addShape("line", {
-    x: toX(Math.min(x1, x2)),
-    y: toY(Math.min(y1, y2)),
-    w: toW(Math.max(Math.abs(x2 - x1), 0.01)),
-    h: toH(Math.max(Math.abs(y2 - y1), 0.01)),
+    x: toX(b.x),
+    y: toY(b.y),
+    w: toW(Math.max(b.w, 0.01)),
+    h: toH(Math.max(b.h, 0.01)),
     line: { color, width },
   });
 }
@@ -470,7 +669,11 @@ function translateTextLike(
   let xBox = origin.x + extraDxPx;
   if (anchor === "center") xBox -= wPx / 2;
   else if (anchor === "right") xBox -= wPx;
-  const yBox = origin.y - fontSizePx * BASELINE_ASCENT;
+  let yBox = origin.y - fontSizePx * BASELINE_ASCENT;
+  // P1-1：祖先 translate 平移文本；rotate 对文本不做 bbox 扩充（wrap:false 单行近似）
+  const t = elementTransform(el);
+  xBox += t.tx;
+  yBox += t.ty;
 
   const fill = resolveFill({ fill: attr("fill") ?? undefined }, defsById);
   slide.addText(text, {
@@ -489,8 +692,250 @@ function translateTextLike(
   });
 }
 
+// ---- path 识别（P1-2）：常见路径映射到 pptx 原生 shape ----
+
+interface PathArc {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  large: boolean;
+  sweep: boolean;
+}
+
+export type ClassifiedPath =
+  | { kind: "circle"; cx: number; cy: number; r: number }
+  | { kind: "ellipse"; cx: number; cy: number; rx: number; ry: number }
+  | { kind: "roundedRect"; x: number; y: number; w: number; h: number; r: number }
+  | { kind: "rect"; x: number; y: number; w: number; h: number }
+  | { kind: "line"; x1: number; y1: number; x2: number; y2: number }
+  | { kind: "unknown"; bbox: { x: number; y: number; w: number; h: number } | null };
+
+// 解析 path d 为绝对坐标段（用于分类），忽略曲线控制点，仅关注端点/弧段
+function parsePathSegments(d: string): {
+  moves: { x: number; y: number }[];
+  arcs: Omit<PathArc, "startX" | "startY">[];
+  lines: { x1: number; y1: number; x2: number; y2: number }[];
+  closes: number;
+  maxX: number;
+  maxY: number;
+  minX: number;
+  minY: number;
+} {
+  let cx = 0;
+  let cy = 0;
+  const moves: { x: number; y: number }[] = [];
+  const arcs: Omit<PathArc, "startX" | "startY">[] = [];
+  const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  let closes = 0;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const segs = d.match(/[MLHVCSQTAZ][^MLHVCSQTAZ]*/gi) ?? [];
+  const stepMap: Record<string, number> = { C: 6, S: 4, Q: 4, A: 7 };
+  for (const seg of segs) {
+    const letter = seg[0];
+    const upper = letter.toUpperCase();
+    const rel = letter !== upper;
+    const n = (
+      seg.slice(1).match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []
+    ).map(Number);
+    const abs = (v: number, base: number, isRel: boolean) =>
+      isRel ? base + v : v;
+    if (upper === "Z") {
+      closes += 1;
+      continue;
+    }
+    if (upper === "M" || upper === "L" || upper === "T") {
+      for (let i = 0; i + 1 < n.length; i += 2) {
+        const isRel = rel && !(upper === "M" && i === 0);
+        const nx = abs(n[i], cx, isRel);
+        const ny = abs(n[i + 1], cy, isRel);
+        const priorX = cx;
+        const priorY = cy;
+        cx = nx;
+        cy = ny;
+        xs.push(cx);
+        ys.push(cy);
+        if (upper === "M") moves.push({ x: cx, y: cy });
+        else lines.push({ x1: priorX, y1: priorY, x2: cx, y2: cy });
+      }
+      continue;
+    }
+    if (upper === "H") {
+      for (const v of n) {
+        cx = abs(v, cx, rel);
+        xs.push(cx);
+        ys.push(cy);
+      }
+      continue;
+    }
+    if (upper === "V") {
+      for (const v of n) {
+        cy = abs(v, cy, rel);
+        xs.push(cx);
+        ys.push(cy);
+      }
+      continue;
+    }
+    if (upper === "A") {
+      for (let i = 0; i + 7 <= n.length; i += 7) {
+        const rawRx = n[i];
+        const rawRy = n[i + 1];
+        const rot = n[i + 2];
+        const large = n[i + 3] !== 0;
+        const sweep = n[i + 4] !== 0;
+        const endX = abs(n[i + 5], cx, rel);
+        const endY = abs(n[i + 6], cy, rel);
+        // 仅支持无旋转椭圆弧的中心求解；旋转弧回退（点集仍累计）
+        if (rot === 0 && rawRx > 0 && rawRy > 0) {
+          const center = arcCenter(
+            cx,
+            cy,
+            endX,
+            endY,
+            rawRx,
+            rawRy,
+            large,
+            sweep,
+          );
+          if (center) {
+            arcs.push({
+              cx: center.cx,
+              cy: center.cy,
+              rx: rawRx,
+              ry: rawRy,
+              endX,
+              endY,
+              large,
+              sweep,
+            });
+            xs.push(center.cx + rawRx, center.cx - rawRx);
+            ys.push(center.cy + rawRy, center.cy - rawRy);
+            xs.push(endX, cx);
+            ys.push(endY, cy);
+          }
+        }
+        cx = endX;
+        cy = endY;
+        xs.push(cx);
+        ys.push(cy);
+      }
+      continue;
+    }
+    const step = stepMap[upper];
+    if (step) {
+      // 忽略 C/S/Q 曲线控制点，仅推进端点
+      for (let i = 0; i + step <= n.length; i += step) {
+        cx = abs(n[i + step - 2], cx, rel);
+        cy = abs(n[i + step - 1], cy, rel);
+        xs.push(cx);
+        ys.push(cy);
+      }
+    }
+  }
+  return {
+    moves,
+    arcs,
+    lines,
+    closes,
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+function arcCenter(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  rx: number,
+  ry: number,
+  large: boolean,
+  sweep: boolean,
+): { cx: number; cy: number } | null {
+  // SVG 椭圆弧中心（F.6.5，rotation=0）
+  const dx = (x1 - x2) / 2;
+  const dy = (y1 - y2) / 2;
+  const num = rx * rx * ry * ry - rx * rx * dy * dy - ry * ry * dx * dx;
+  const denom = rx * rx * dy * dy + ry * ry * dx * dx;
+  if (denom === 0 || num < 0) return null;
+  const coef = Math.sqrt(Math.max(num, 0) / denom);
+  const sign = large === sweep ? -1 : 1;
+  const cxp = sign * coef * (rx * dy) / ry;
+  const cyp = sign * coef * (ry * dx) / rx * -1;
+  return { cx: (x1 + x2) / 2 + cxp, cy: (y1 + y2) / 2 + cyp };
+}
+
+export function classifyPath(d: string): ClassifiedPath {
+  const info = parsePathSegments(d);
+  // 1) 纯弧路径 → 圆/椭圆（多段弧共享圆心且 rx=ry）
+  if (info.arcs.length >= 1) {
+    const r0 = info.arcs[0];
+    const rx = r0.rx;
+    const ry = r0.ry;
+    const allSame = info.arcs.every(
+      (a) =>
+        Math.abs(a.rx - rx) < 0.01 &&
+        Math.abs(a.ry - ry) < 0.01 &&
+        Math.abs(a.cx - r0.cx) < 0.05 &&
+        Math.abs(a.cy - r0.cy) < 0.05,
+    );
+    if (allSame) {
+      // 圆要求路径上除弧 ar此外近乎只有首尾两端点，且弧覆盖全周长（≥2 段半圆）
+      if (Math.abs(rx - ry) < 0.01) {
+        return {
+          kind: "circle",
+          cx: r0.cx,
+          cy: r0.cy,
+          r: (rx + ry) / 2,
+        };
+      }
+      return { kind: "ellipse", cx: r0.cx, cy: r0.cy, rx, ry };
+    }
+  }
+  // 2) 圆角矩形：闭环且恰 4 个 90° 圆弧，边框与之匹配
+  if (info.arcs.length === 4 && info.lines.length >= 0) {
+    const r0 = info.arcs[0];
+    // 四个弧共圆角半径（rx≈ry）
+    const arcMatch = info.arcs.every(
+      (a) =>
+        Math.abs(a.rx - a.ry) < 0.001 &&
+        Math.abs(a.rx - r0.rx) < 0.05,
+    );
+    if (arcMatch) {
+      const w = info.maxX - info.minX;
+      const h = info.maxY - info.minY;
+      if (w > 0 && h > 0 && r0.rx > 0 && r0.rx * 2 < Math.min(w, h)) {
+        return {
+          kind: "roundedRect",
+          x: info.minX,
+          y: info.minY,
+          w,
+          h,
+          r: r0.rx,
+        };
+      }
+    }
+  }
+  // 3) 直线路径（M 后单 L，无填充时）→ line
+  if (info.arcs.length === 0 && info.lines.length === 1 && !info.closes) {
+    const l = info.lines[0];
+    return { kind: "line", x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 };
+  }
+  // 4) 其余：保留包围盒
+  const w = info.maxX - info.minX;
+  const h = info.maxY - info.minY;
+  return { kind: "rect", x: info.minX, y: info.minY, w, h };
+}
+
 // 解析 path d 的近似包围盒（控制点一并计入，略微放大，安全侧）。
-// pptxgenjs 无 custGeom API，闭合填充 path 只能降级为包围盒矩形。
+// pptxgenjs 无 custGeom API，拟合失败的路径降级为包围盒矩形。
 export function parsePathBBox(
   d: string,
 ): { x: number; y: number; w: number; h: number } | null {
@@ -582,49 +1027,134 @@ function translatePath(
   const fillAttr = el.getAttribute("fill");
   const stroke = el.getAttribute("stroke");
   const hasFill = !!fillAttr && fillAttr !== "none";
-  if (!hasFill && (!stroke || stroke === "none")) return;
+  const d = el.getAttribute("d");
+  if (!d) return;
 
-  // 几何优先取非标准 x/y/width/height 属性（生成约定），否则从 d 解析包围盒
-  let bx: number;
-  let by: number;
-  let bw: number;
-  let bh: number;
-  const rawW = el.getAttribute("width");
-  const rawH = el.getAttribute("height");
-  if (rawW != null && rawH != null && num(rawW) > 0 && num(rawH) > 0) {
-    bx = num(el.getAttribute("x"));
-    by = num(el.getAttribute("y"));
-    bw = num(rawW);
-    bh = num(rawH);
-  } else {
-    const d = el.getAttribute("d");
-    if (!d) return;
+  const cls = classifyPath(d);
+  if (cls.kind === "unknown") {
+    if (!hasFill && (!stroke || stroke === "none")) return;
     const bbox = parsePathBBox(d);
     if (!bbox || bbox.w <= 0 || bbox.h <= 0) return;
-    bx = bbox.x;
-    by = bbox.y;
-    bw = bbox.w;
-    bh = bbox.h;
-  }
-
-  const rectOpts = {
-    x: toX(bx),
-    y: toY(by),
-    w: toW(bw),
-    h: toH(bh),
-  };
-  if (hasFill) {
-    const fill = fillWithTransparency(
-      resolveFill({ fill: fillAttr }, defsById),
-      el,
-    );
-    slide.addShape("rect", { ...rectOpts, fill, line: shapeLine(el) });
-  } else {
+    const b = transposedBBox(el, bbox.x, bbox.y, bbox.w, bbox.h);
     slide.addShape("rect", {
-      ...rectOpts,
-      fill: { type: "none" },
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(b.w),
+      h: toH(b.h),
+      fill: hasFill
+        ? fillWithTransparency(resolveFill({ fill: fillAttr }, defsById), el)
+        : { type: "none" },
       line: shapeLine(el),
     });
+    return;
+  }
+
+  const fill = fillWithTransparency(
+    resolveFill({ fill: fillAttr ?? "#000000" }, defsById),
+    el,
+  );
+  const line = shapeLine(el);
+
+  switch (cls.kind) {
+    case "circle": {
+      const b = transposedBBox(
+        el,
+        cls.cx - cls.r,
+        cls.cy - cls.r,
+        cls.r * 2,
+        cls.r * 2,
+      );
+      slide.addShape("ellipse", {
+        x: toX(b.x),
+        y: toY(b.y),
+        w: toW(b.w),
+        h: toH(b.h),
+        fill,
+        line,
+      });
+      return;
+    }
+    case "ellipse": {
+      const b = transposedBBox(
+        el,
+        cls.cx - cls.rx,
+        cls.cy - cls.ry,
+        cls.rx * 2,
+        cls.ry * 2,
+      );
+      slide.addShape("ellipse", {
+        x: toX(b.x),
+        y: toY(b.y),
+        w: toW(b.w),
+        h: toH(b.h),
+        fill,
+        line,
+      });
+      return;
+    }
+    case "roundedRect": {
+      const b = transposedBBox(el, cls.x, cls.y, cls.w, cls.h);
+      slide.addShape("roundRect", {
+        x: toX(b.x),
+        y: toY(b.y),
+        w: toW(b.w),
+        h: toH(b.h),
+        rectRadius: toW(cls.r),
+        fill,
+        line,
+      });
+      return;
+    }
+    case "rect": {
+      // 兼容生成约定：显式 width/height 属性优先（老路径省略 d 细节时）
+      const rawW = num(el.getAttribute("width"));
+      const rawH = num(el.getAttribute("height"));
+      const bx = rawW > 0 && rawH > 0 ? num(el.getAttribute("x")) : cls.x;
+      const by = rawW > 0 && rawH > 0 ? num(el.getAttribute("y")) : cls.y;
+      const bw = rawW > 0 && rawH > 0 ? rawW : cls.w;
+      const bh = rawW > 0 && rawH > 0 ? rawH : cls.h;
+      const b = transposedBBox(el, bx, by, bw, bh);
+      slide.addShape("rect", {
+        x: toX(b.x),
+        y: toY(b.y),
+        w: toW(b.w),
+        h: toH(b.h),
+        fill,
+        line,
+      });
+      return;
+    }
+    case "line": {
+      if (!stroke || stroke === "none") return;
+      const t = elementTransform(el);
+      const b = t.rotate && t.rotate.angle
+        ? rotateBBox(
+            Math.min(cls.x1, cls.x2) + t.tx,
+            Math.min(cls.y1, cls.y2) + t.ty,
+            Math.abs(cls.x2 - cls.x1),
+            Math.abs(cls.y2 - cls.y1),
+            t.rotate.angle,
+            t.rotate.cx,
+            t.rotate.cy,
+          )
+        : {
+            x: Math.min(cls.x1, cls.x2) + t.tx,
+            y: Math.min(cls.y1, cls.y2) + t.ty,
+            w: Math.abs(cls.x2 - cls.x1),
+            h: Math.abs(cls.y2 - cls.y1),
+          };
+      slide.addShape("line", {
+        x: toX(b.x),
+        y: toY(b.y),
+        w: toW(Math.max(b.w, 0.01)),
+        h: toH(Math.max(b.h, 0.01)),
+        line: {
+          color: hexColor(stroke),
+          width: Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25),
+        },
+      });
+      return;
+    }
   }
 }
 
@@ -657,11 +1187,12 @@ function translatePolygon(
     resolveFill({ fill: el.getAttribute("fill") ?? "#000000" }, defsById),
     el,
   );
+  const b = transposedBBox(el, minX, minY, w, h);
   slide.addShape("rect", {
-    x: toX(minX),
-    y: toY(minY),
-    w: toW(w),
-    h: toH(h),
+    x: toX(b.x),
+    y: toY(b.y),
+    w: toW(b.w),
+    h: toH(b.h),
     fill,
     line: shapeLine(el),
   });
@@ -675,11 +1206,12 @@ function translatePolyline(el: Element, slide: PptxGenJS.Slide): void {
   const w = Math.max(...xs) - minX;
   const h = Math.max(...ys) - minY;
   const color = hexColor(el.getAttribute("stroke") ?? "#000000");
+  const b = transposedBBox(el, minX, minY, w, h);
   slide.addShape("line", {
-    x: toX(minX),
-    y: toY(minY),
-    w: toW(Math.max(w, 0.01)),
-    h: toH(Math.max(h, 0.01)),
+    x: toX(b.x),
+    y: toY(b.y),
+    w: toW(Math.max(b.w, 0.01)),
+    h: toH(Math.max(b.h, 0.01)),
     line: {
       color,
       width: Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25),
@@ -695,11 +1227,18 @@ function translateImage(el: Element, slide: PptxGenJS.Slide): void {
   const w = num(el.getAttribute("width"));
   const h = num(el.getAttribute("height"));
   if (w <= 0 || h <= 0) return;
+  const b = transposedBBox(
+    el,
+    num(el.getAttribute("x")),
+    num(el.getAttribute("y")),
+    w,
+    h,
+  );
   slide.addImage({
     data: href.replace(/^data:/, ""),
-    x: toX(num(el.getAttribute("x"))),
-    y: toY(num(el.getAttribute("y"))),
-    w: toW(w),
-    h: toH(h),
+    x: toX(b.x),
+    y: toY(b.y),
+    w: toW(b.w),
+    h: toH(b.h),
   });
 }

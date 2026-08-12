@@ -4,6 +4,8 @@
  * 供 L2 Executor 逐页生成 SVG 时使用。
  */
 
+import type { SlideLayout } from "./layouts";
+
 /** 每页的语义角色：决定该页承载的核心信息类型与视觉结构 */
 export type SemanticRole =
   | "cover" // 封面
@@ -27,6 +29,28 @@ export const SEMANTIC_ROLES: SemanticRole[] = [
   "process",
   "closing",
 ];
+
+/**
+ * 语义角色 → SlideLayout 的显式映射。
+ * 语义角色集合与 SlideLayout 集合不完全重合（comparison/process 没有同名布局），
+ * 禁止在 pipeline 中直接类型断言，必须经此表映射，保证写回 slide 的 layout 一定是合法值。
+ */
+export const ROLE_TO_LAYOUT: Record<SemanticRole, SlideLayout> = {
+  cover: "cover",
+  section: "section",
+  content: "content",
+  metrics: "metrics",
+  quote: "quote",
+  timeline: "timeline",
+  comparison: "two-column",
+  process: "content",
+  closing: "closing",
+};
+
+/** 语义角色 → 布局的兜底映射（未知/非法 role 一律 content） */
+export function semanticRoleToLayout(role: string): SlideLayout {
+  return ROLE_TO_LAYOUT[role as SemanticRole] ?? "content";
+}
 
 /** 规划项可建议的图表类型（由后续 executor 决定具体数据） */
 export type PlanChartType = "bar" | "pie" | "line" | "doughnut";

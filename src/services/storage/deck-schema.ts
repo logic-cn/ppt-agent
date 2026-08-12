@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { NARRATIVE_MODE_IDS, VISUAL_STYLE_IDS } from "@/types/design";
+import { SLIDE_LAYOUTS } from "@/types/layouts";
 
 export const CURRENT_DECK_VERSION = 2;
 
@@ -74,23 +75,7 @@ const metricSpecSchema = z.object({
 
 export const slideSchema = z.object({
   id: z.string(),
-  layout: z.enum([
-    "cover",
-    "section",
-    "content",
-    "two-column",
-    "chart",
-    "image",
-    "closing",
-    "cols-2",
-    "cols-3",
-    "cols-4",
-    "cols-5",
-    "cols-6",
-    "metrics",
-    "quote",
-    "timeline",
-  ]),
+  layout: z.enum(SLIDE_LAYOUTS),
   title: z.string(),
   subtitle: z.string().optional(),
   body: z.string().optional(),

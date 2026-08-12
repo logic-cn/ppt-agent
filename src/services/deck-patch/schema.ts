@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { SLIDE_LAYOUTS } from "@/types/layouts";
 
 const bulletNodeDraftSchema = z.object({
   text: z.string(),
@@ -33,20 +34,14 @@ const imageSpecSchema = z.object({
   position: z.enum(["full", "right", "background"]).optional(),
 });
 
-const slideLayoutSchema = z.enum([
-  "cover",
-  "section",
-  "content",
-  "two-column",
-  "chart",
-  "image",
-  "closing",
-  "cols-2",
-  "cols-3",
-  "cols-4",
-  "cols-5",
-  "cols-6",
-]);
+const metricSpecSchema = z.object({
+  value: z.string(),
+  unit: z.string().optional(),
+  label: z.string(),
+  kicker: z.string().optional(),
+});
+
+const slideLayoutSchema = z.enum(SLIDE_LAYOUTS);
 
 const slideDraftSchema = z.object({
   layout: slideLayoutSchema,
@@ -57,6 +52,9 @@ const slideDraftSchema = z.object({
   items: z.array(slideContentItemDraftSchema).optional(),
   chart: chartSpecSchema.optional(),
   image: imageSpecSchema.optional(),
+  metric: metricSpecSchema.optional(),
+  quote: z.string().optional(),
+  attribution: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -82,6 +80,9 @@ const slidePatchSchema = z.object({
     .optional(),
   chart: chartSpecSchema.optional(),
   image: imageSpecSchema.optional(),
+  metric: metricSpecSchema.optional(),
+  quote: z.string().optional(),
+  attribution: z.string().optional(),
   notes: z.string().optional(),
 });
 

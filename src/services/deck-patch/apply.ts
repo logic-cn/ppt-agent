@@ -36,6 +36,9 @@ function draftToSlide(draft: SlideDraft): Slide {
     })),
     chart: draft.chart,
     image: draft.image,
+    metric: draft.metric,
+    quote: draft.quote,
+    attribution: draft.attribution,
     notes: draft.notes,
   };
 }

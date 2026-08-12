@@ -9,6 +9,7 @@ import {
   buildPagePlanUserPrompt,
 } from "./llm/prompts/pageplan";
 import type { BulletNode, Slide, SlideLayout } from "@/types/deck";
+import { SLIDE_LAYOUTS } from "@/types/layouts";
 import type { DesignLock } from "@/types/design";
 import { isDesignLock } from "@/types/design";
 import { PagePlanItem, SEMANTIC_ROLES, SemanticRole } from "@/types/page-plan";
@@ -105,23 +106,7 @@ const slideContentItemSchema = z.object({
 
 const slideSchema = z.object({
   title: z.string(),
-  layout: z.enum([
-    "cover",
-    "section",
-    "content",
-    "two-column",
-    "chart",
-    "image",
-    "closing",
-    "cols-2",
-    "cols-3",
-    "cols-4",
-    "cols-5",
-    "cols-6",
-    "metrics",
-    "quote",
-    "timeline",
-  ]),
+  layout: z.enum(SLIDE_LAYOUTS),
   subtitle: z.string().optional(),
   bullets: z.array(bulletNodeSchema).optional(),
   items: z.array(slideContentItemSchema).optional(),

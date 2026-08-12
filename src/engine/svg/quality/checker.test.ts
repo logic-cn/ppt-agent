@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkSvg } from "./checker";
+import { checkSvg, checkContentPresence } from "./checker";
 import { buildSpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
 
@@ -75,5 +75,97 @@ describe("checkSvg", () => {
     const issues = checkSvg(svg, specLock);
     const errors = issues.filter((i) => i.severity === "error");
     expect(errors.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("CJK 中文文本按 1.0 字号估宽，长句溢出报 error（旧 0.6 系数会漏检）", () => {
+    // 20 个全角字符 × 24px = 480px 宽，位置 x=900 时 x+480=1380 > 1280
+    const cn = "这是一段非常长的中文标题文本用来测试溢出";
+    const svg = wrap(
+      `<text x="900" y="100" font-size="24" fill="#000">${cn}</text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.some((e) => /text 越界|超出/.test(e.message))).toBe(true);
+  });
+
+  it("CJK 文本紧贴右边界但未溢出时不报 error", () => {
+    // 10 个全角字符 × 24px = 240px + 0.4em 尾距 ≈ 250px，x=1000 时 1250 < 1280
+    const cn = "十个字符十个字符十";
+    const svg = wrap(
+      `<text x="1000" y="100" font-size="24" fill="#000">${cn}</text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.filter((e) => /text|文本/.test(e.message))).toHaveLength(0);
+  });
+
+  it("多行 text（多个 tspan）行高累加后下越界报 error", () => {
+    // 3 个 tspan = 4 行 × 48px font × 1.2 = 230px，y=600 时 830 > 720
+    const svg = wrap(
+      `<text x="100" y="600" font-size="48" fill="#000">第一行<tspan x="100" dy="58">第二行</tspan><tspan x="100" dy="58">第三行</tspan><tspan x="100" dy="58">第四行</tspan></text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.some((e) => /下越界/.test(e.message))).toBe(true);
+  });
+
+  it("transform=translate 平移后的元素参与越界检测", () => {
+    // 无 translate 时 rect x=1200 正常；translate(100,0) 后 x+width 越界
+    const svg = wrap(
+      `<rect transform="translate(100,0)" x="1200" y="100" width="200" height="50" fill="#111"/>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.some((e) => /右边界|越界/.test(e.message))).toBe(true);
+  });
+});
+
+describe("checkContentPresence", () => {
+  const svgWith = (text: string) =>
+    wrap(`<text x="100" y="100" font-size="24" fill="#000">${text}</text>`);
+
+  it("标题未出现在 SVG 文本中时报 error", () => {
+    const issues = checkContentPresence(svgWith("其他内容"), {
+      title: "Q3 业务复盘",
+    });
+    expect(issues.filter((i) => i.severity === "error").length).toBe(1);
+  });
+
+  it("标题完整出现在 SVG 文本中时无 error", () => {
+    const issues = checkContentPresence(svgWith("Q3 业务复盘报告"), {
+      title: "Q3 业务复盘",
+    });
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
+  it("容忍 LLM 在同义改写：标题插入修饰词不判缺失", () => {
+    // 标题「成本控制」被渲染为「成本控制策略」，子串包含仍通过
+    const issues = checkContentPresence(svgWith("成本控制策略"), {
+      title: "成本控制",
+    });
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
+  it("多个要点中任一缺失都报 error", () => {
+    const svg = wrap(`
+      <text x="100" y="100" font-size="20" fill="#000">第一点：业绩回暖</text>
+      <text x="100" y="140" font-size="20" fill="#000">第三点也写了</text>
+    `);
+    const issues = checkContentPresence(svg, {
+      bullets: ["第一点：业绩回暖", "第二点：成本下降", "第三点也写了"],
+    });
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((e) => /第二点/.test(e.message))).toBe(true);
+  });
+
+  it("tspan 嵌套文本也能被提取（多行正文）", () => {
+    const svg = wrap(
+      `<text x="100" y="100" font-size="24" fill="#000">利润增长<tspan>40%</tspan><tspan>创历史新高</tspan></text>`,
+    );
+    const issues = checkContentPresence(svg, {
+      title: "利润增长 40%",
+    });
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
   });
 });

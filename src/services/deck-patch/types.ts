@@ -3,6 +3,7 @@ import type {
   SlideContentItem,
   ChartSpec,
   ImageSpec,
+  MetricSpec,
   Slide,
   Deck,
 } from "@/types/deck";
@@ -32,6 +33,9 @@ export interface SlideDraft {
   items?: Omit<SlideContentItem, "id">[];
   chart?: ChartSpec;
   image?: ImageSpec;
+  metric?: MetricSpec;
+  quote?: string;
+  attribution?: string;
   notes?: string;
 }
 

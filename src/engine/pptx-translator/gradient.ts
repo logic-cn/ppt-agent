@@ -2,7 +2,9 @@
 // 因此原生 PPTX 渐变无法通过官方 API 表达。本模块采用务实降级策略：
 // 当 SVG 元素使用 linearGradient / radialGradient 填充时，解析其 <stop> 颜色，
 // 取首 stop 与末 stop 的平均色作为 solid 兜底色返回，保证不崩溃且视觉相对柔和。
-// 解析口径：SVG fill 属性既可能是纯色（#abc）也可能是 url(#id) 引用 <defs> 中的渐变。
+// 对矩形元素之上的线性渐变，P1-3 进一步把 bbox 按 stop 切分为纵向色块，
+// 视觉更接近渐变而不是单一平均色。解析口径：SVG fill 属性既可能是纯色（#abc）
+// 也可能是 url(#id) 引用 <defs> 中的渐变。
 
 export interface GradientStop {
   offset: number;
@@ -116,4 +118,61 @@ export function resolveFill(
   }
 
   return { color: normalizeHex(raw) };
+}
+
+export interface ResolvedGradientFill {
+  /** 首末平均色兜底（非渐变或无法映射时使用） */
+  color: string;
+  /** 渐变定义（存在时为 url(#id) 引用，可用于分段近似） */
+  gradient?: GradientDef;
+}
+
+/**
+ * P1-3：解析元素填充的完整信息。
+ * 与 resolveFill 区别：保留 gradient 定义供矩形分段近似使用；
+ * 对不支持分段的形状仍取首末平均色兜底。
+ */
+export function resolveGradientFill(
+  node: { fill?: string | null | undefined },
+  defsById: Record<string, GradientDef>,
+): ResolvedGradientFill {
+  const raw = node.fill;
+  const plain = resolveFill(node, defsById);
+  if (!raw) return { color: plain.color };
+  const urlMatch = raw.match(/url\(\s*#([^\s)]+)\s*\)/);
+  if (urlMatch) {
+    const def = defsById[urlMatch[1]];
+    if (def && def.stops.length > 0) {
+      return { color: plain.color, gradient: def };
+    }
+  }
+  return { color: plain.color };
+}
+
+/**
+ * 计算渐变在某相对位置 t∈[0,1] 的插值色（按 stop.offset 分段线性）。
+ */
+export function sampleGradient(
+  stops: GradientStop[],
+  t: number,
+): string {
+  if (stops.length === 0) return "000000";
+  const sorted = [...stops].sort((a, b) => a.offset - b.offset);
+  const clamp = Math.max(0, Math.min(1, t));
+  if (clamp <= sorted[0].offset) return sorted[0].color;
+  const last = sorted[sorted.length - 1];
+  if (clamp >= last.offset) return last.color;
+  let i = 0;
+  while (i + 1 < sorted.length && sorted[i + 1].offset < clamp) i++;
+  const a = sorted[i];
+  const b = sorted[i + 1];
+  const span = b.offset - a.offset || 1;
+  const k = (clamp - a.offset) / span;
+  const ca = hexToRgb(a.color);
+  const cb = hexToRgb(b.color);
+  return rgbToHex(
+    ca[0] + (cb[0] - ca[0]) * k,
+    ca[1] + (cb[1] - ca[1]) * k,
+    ca[2] + (cb[2] - ca[2]) * k,
+  );
 }

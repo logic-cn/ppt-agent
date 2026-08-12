@@ -1,5 +1,6 @@
 import { DEFAULT_DESIGN, isDesignLock } from "@/types/design";
 import { getPalette } from "@/design/palettes";
+import { isSlideLayout } from "@/types/layouts";
 import type { ValidDeck } from "./deck-schema";
 
 export interface RepairResult {
@@ -58,23 +59,9 @@ function repairSlide(
   slide: Record<string, unknown>,
   warnings: string[],
 ): ValidDeck["slides"][number] {
-  const validLayouts = [
-    "cover",
-    "section",
-    "content",
-    "two-column",
-    "chart",
-    "image",
-    "closing",
-    "cols-2",
-    "cols-3",
-    "cols-4",
-    "cols-5",
-    "cols-6",
-  ];
-
+  // 白名单与 schema 同源（SLIDE_LAYOUTS），保证 repair 不会误伤合法布局
   let layout = ensureString(slide.layout);
-  if (!layout || !validLayouts.includes(layout)) {
+  if (!layout || !isSlideLayout(layout)) {
     warnings.push(
       `页面「${slide.title || "无标题"}」布局无效，已回退到 content`,
     );
@@ -90,6 +77,15 @@ function repairSlide(
   if (slide.subtitle) repaired.subtitle = ensureString(slide.subtitle);
   if (slide.body) repaired.body = ensureString(slide.body);
   if (slide.notes) repaired.notes = ensureString(slide.notes);
+
+  // 语义化布局载荷：metrics/quote/timeline 对应的字段必须原样保留
+  if (slide.metric && typeof slide.metric === "object") {
+    repaired.metric = slide.metric as ValidDeck["slides"][number]["metric"];
+  }
+  if (slide.quote) repaired.quote = ensureString(slide.quote);
+  if (slide.attribution) {
+    repaired.attribution = ensureString(slide.attribution);
+  }
 
   if (Array.isArray(slide.bullets)) {
     repaired.bullets = slide.bullets as ValidDeck["slides"][number]["bullets"];
