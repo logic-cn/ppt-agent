@@ -15,7 +15,9 @@
 
 ## 截图
 
-_（待补充）_
+| 编辑器：大纲 + 实时预览 + AI 面板 | 首页：新建 / 导入 / 示例库 |
+| --- | --- |
+| ![编辑器](docs/screenshots/editor.png) | ![首页](docs/screenshots/home.png) |
 
 ## 快速开始
 
