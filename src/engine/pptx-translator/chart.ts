@@ -70,10 +70,10 @@ export function translateChart(
 ): void {
   const typeAttr = gEl.getAttribute("data-chart-type");
   const dataAttr = gEl.getAttribute("data-chart-data");
-  if (!typeAttr || !dataAttr) return;
+  if (!typeAttr || !dataAttr) return console.warn("[chart] 缺少 data-chart-type / data-chart-data 属性，已跳过该图表");
 
   const type = typeAttr as PptxGenJS.CHART_NAME;
-  if (!VALID_CHART_TYPES.includes(type)) return;
+  if (!VALID_CHART_TYPES.includes(type)) return console.warn(`[chart] 非法图表类型: ${type}，已跳过该图表`);
 
   let points: ChartPoint[] = [];
   try {
@@ -85,9 +85,9 @@ export function translateChart(
       }));
     }
   } catch {
-    return;
+    return console.warn("[chart] data-chart-data 非法 JSON，已跳过该图表");
   }
-  if (points.length === 0) return;
+  if (points.length === 0) return console.warn("[chart] data-chart-data 为空数组，已跳过该图表");
 
   const { dx, dy } = parseTranslate(gEl);
   // 坐标优先取 x/y 属性，缺省时回退到 transform 的平移偏移，再回退默认区域。
