@@ -192,6 +192,16 @@ export default function Editor() {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
 
+    // 有 SVG 过期的页：导出将包含旧版视觉，先给提示（不阻断）
+    const staleCount = deck.slides.filter((s) => s.svg && s.svgStale).length;
+    if (staleCount > 0) {
+      addToast({
+        type: "warning",
+        title: "部分页面内容已修改",
+        message: `${staleCount} 页内容被编辑后未重画，导出将包含旧版视觉，建议先「重画同步」`,
+      });
+    }
+
     try {
       const result = await runJob(
         {

@@ -144,6 +144,34 @@ describe("applyDeckPatches", () => {
     expect(slide.layout).toBe("two-column");
   });
 
+  it("update_slide 编辑视觉字段且已有 svg 时标记 svgStale", () => {
+    const deck = createMockDeck();
+    deck.slides[1] = {
+      ...deck.slides[1],
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>',
+    };
+    const patches: DeckPatch[] = [
+      { op: "update_slide", slideId: "s2", patch: { title: "新标题" } },
+    ];
+    const result = applyDeckPatches(deck, patches);
+    const slide = result.deck.slides.find((s) => s.id === "s2")!;
+    expect(slide.svgStale).toBe(true);
+  });
+
+  it("update_slide 编辑 notes（非视觉字段）不标记 svgStale", () => {
+    const deck = createMockDeck();
+    deck.slides[1] = {
+      ...deck.slides[1],
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>',
+    };
+    const patches: DeckPatch[] = [
+      { op: "update_slide", slideId: "s2", patch: { notes: "备注" } },
+    ];
+    const result = applyDeckPatches(deck, patches);
+    const slide = result.deck.slides.find((s) => s.id === "s2")!;
+    expect(slide.svgStale).toBeUndefined();
+  });
+
   it("replace_slide 替换页面", () => {
     const deck = createMockDeck();
     const patches: DeckPatch[] = [

@@ -70,7 +70,14 @@ describe("regenerateSlide", () => {
 describe("svgStale（编辑后 SVG 过期标记）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useDeckStore.setState({ deck: null, past: [], future: [], dirty: false });
+    useDeckStore.setState({
+      deck: null,
+      past: [],
+      future: [],
+      dirty: false,
+      canUndo: false,
+      canRedo: false,
+    });
   });
 
   function deckWithSvg(): Deck {
@@ -92,6 +99,31 @@ describe("svgStale（编辑后 SVG 过期标记）", () => {
       bullets: [{ id: "b1", text: "新要点", level: 0 }],
     });
     expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+  });
+
+  it("切换 layout 触发 svgStale（布局是最强视觉字段）", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", { layout: "chart" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+  });
+
+  it("视觉字段与显式 svgStale 组合 patch 时以显式值为准", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", {
+      title: "新标题",
+      svgStale: false,
+    });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(false);
+  });
+
+  it("svg 被清空时清除过期标记", () => {
+    const deck = deckWithSvg();
+    useDeckStore.setState({ deck });
+    useDeckStore.getState().updateSlide("s1", { title: "改" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+
+    useDeckStore.getState().updateSlide("s1", { svg: undefined });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
   });
 
   it("编辑 notes（speaker notes，不参与 SVG 视觉）不触发 svgStale", () => {
@@ -153,6 +185,14 @@ describe("svgStale（编辑后 SVG 过期标记）", () => {
       palette: "tech-purple",
     });
     expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+  });
+
+  it("setDesign 传入与当前相同的 design 时不标记过期也不记历史", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    const design = useDeckStore.getState().deck!.design;
+    useDeckStore.getState().setDesign(design);
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+    expect(useDeckStore.getState().canUndo).toBe(false);
   });
 });
 

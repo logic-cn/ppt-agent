@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Deck, Slide } from "@/types/deck";
+import { touchesSvgVisual } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
 import { clearRenderCache } from "@/engine/render-ir/build";
@@ -77,21 +78,6 @@ function toSemanticRole(layout: string): PagePlanItem["role"] {
     : "content";
 }
 
-// 影响 SVG 视觉呈现的结构化字段：编辑后需标记 svgStale 提示重画
-// （notes/sourceRefs 不参与 SVG 视觉，编辑不触发过期）
-const SVG_VISUAL_FIELDS = new Set([
-  "title",
-  "subtitle",
-  "body",
-  "bullets",
-  "items",
-  "chart",
-  "image",
-  "metric",
-  "quote",
-  "attribution",
-]);
-
 // 从 slide 收集要点文本（兼容 bullets / items 结构）
 function collectBullets(slide: Slide): string[] {
   const out: string[] = [];
@@ -164,6 +150,15 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
 
   setDesign: (design) => {
     set((s) => {
+      // 同值重设：不记录历史、不标记过期，避免误报
+      if (
+        s.deck &&
+        s.deck.design.mode === design.mode &&
+        s.deck.design.visualStyle === design.visualStyle &&
+        s.deck.design.palette === design.palette
+      ) {
+        return s;
+      }
       const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
@@ -234,14 +229,15 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
               slides: s.deck.slides.map((sl) => {
                 if (sl.id !== id) return sl;
                 const next = { ...sl, ...patch };
-                // 编辑了影响 SVG 视觉的结构化字段、且该页已有 SVG → 标记过期。
-                // 显式传入 svgStale（如重画写回清除）或仅写回 svg 本身时不触发。
-                if (
-                  sl.svg &&
-                  !("svgStale" in patch) &&
-                  Object.keys(patch).some((k) => SVG_VISUAL_FIELDS.has(k))
-                ) {
+                if ("svgStale" in patch) {
+                  // 调用方显式指定（如重画写回 {svg, svgStale:false}）：直接采用
+                  next.svgStale = patch.svgStale;
+                } else if (sl.svg && touchesSvgVisual(patch)) {
+                  // 编辑了影响 SVG 视觉的结构化字段且该页已有 SVG → 标记过期
                   next.svgStale = true;
+                } else if ("svg" in patch && !next.svg) {
+                  // SVG 被清空：过期标记随之清除
+                  next.svgStale = undefined;
                 }
                 return next;
               }),

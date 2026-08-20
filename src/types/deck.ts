@@ -94,6 +94,32 @@ export interface Slide {
   svgStale?: boolean;
 }
 
+/**
+ * 影响 SVG 视觉呈现的结构化字段：编辑这些字段后，已有的 SVG 不再反映当前内容。
+ * notes / sourceRefs 不参与 SVG 视觉，编辑不触发过期。
+ * 被 store 的 updateSlide 与 deck-patch / auto-fix 等编辑路径共用。
+ */
+export const SVG_VISUAL_FIELDS = [
+  "title",
+  "subtitle",
+  "body",
+  "bullets",
+  "items",
+  "elements",
+  "chart",
+  "image",
+  "metric",
+  "quote",
+  "attribution",
+  "layout",
+] as const;
+
+/** patch 是否触及影响 SVG 视觉的结构化字段 */
+export function touchesSvgVisual(patch: Record<string, unknown>): boolean {
+  const allowed = SVG_VISUAL_FIELDS as readonly string[];
+  return Object.keys(patch).some((k) => allowed.includes(k));
+}
+
 export type DeckSource = "topic" | "doc" | "url";
 
 export interface Deck {

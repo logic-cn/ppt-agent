@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import type { Deck, Slide } from "@/types/deck";
+import { touchesSvgVisual } from "@/types/deck";
 import type {
   DeckPatch,
   SlideDraft,
@@ -165,16 +166,24 @@ export function applyDeckPatches(
         }
         const slides = [...working.slides];
         const p = patch.patch;
-        slides[idx] = {
-          ...slides[idx],
+        const original = slides[idx];
+        const merged: Slide = {
+          ...original,
           ...p,
-          bullets: p.bullets
-            ? p.bullets.map(mapBulletDraft)
-            : slides[idx].bullets,
+          bullets: p.bullets ? p.bullets.map(mapBulletDraft) : original.bullets,
           items: p.items
             ? p.items.map((item) => ({ ...item, id: nanoid() }))
-            : slides[idx].items,
+            : original.items,
         };
+        // 编辑了影响 SVG 视觉的结构化字段、且该页已有 SVG → 标记过期
+        if (
+          original.svg &&
+          touchesSvgVisual(p as Record<string, unknown>) &&
+          !("svgStale" in p)
+        ) {
+          merged.svgStale = true;
+        }
+        slides[idx] = merged;
         working = { ...working, slides };
         applied.push({
           op: "update_slide",

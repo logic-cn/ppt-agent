@@ -32,7 +32,12 @@ export function applyAutoFixes(deck: Deck, findings: QualityFinding[]): Deck {
     if (!fixableIds.has(s.id) || !s.bullets) return s;
     if (s.bullets.length <= MAX_BULLETS) return s;
     changed = true;
-    return { ...s, bullets: s.bullets.slice(0, MAX_BULLETS) };
+    // 裁剪要点即编辑了 SVG 视觉字段：已有 SVG 标记过期
+    return {
+      ...s,
+      bullets: s.bullets.slice(0, MAX_BULLETS),
+      ...(s.svg ? { svgStale: true } : {}),
+    };
   });
 
   if (!changed) return deck;
@@ -77,6 +82,10 @@ function touchSlide(
         }
         break;
     }
+  }
+  // 该页被结构性修改且已有 SVG → 标记过期（编辑了视觉字段）
+  if (touched.has(s.id) && s.svg && next.svgStale !== true) {
+    next = { ...next, svgStale: true };
   }
   return next;
 }

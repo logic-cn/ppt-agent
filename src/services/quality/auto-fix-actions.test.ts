@@ -102,6 +102,33 @@ describe("applyAutoFixActions", () => {
     expect(fixed.slides[0].layout).toBe("content");
   });
 
+  it("被修改的页已有 svg 时标记 svgStale，未修改的页不标记", () => {
+    const deck = createMockDeck({
+      slides: [
+        slide({
+          id: "s1",
+          layout: "chart",
+          title: "图表",
+          chart: { type: "bar", data: [] },
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>',
+        }),
+        slide({
+          id: "s2",
+          layout: "content",
+          title: "不动页",
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>',
+        }),
+      ],
+    });
+    const actions: AutoFixAction[] = [
+      { type: "change_layout", slideId: "s1", description: "改为正文布局" },
+    ];
+    const fixed = applyAutoFixActions(deck, actions);
+    expect(fixed.slides[0].layout).toBe("content");
+    expect(fixed.slides[0].svgStale).toBe(true);
+    expect(fixed.slides[1].svgStale).toBeUndefined();
+  });
+
   it("append_closing：末尾非结尾页时追加结尾页", () => {
     const deck = createMockDeck({
       slides: [
