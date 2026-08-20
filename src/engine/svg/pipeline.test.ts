@@ -28,6 +28,29 @@ describe("buildDeckSvgs", () => {
     vi.resetAllMocks();
   });
 
+  it("写回新 svg 时清除该页的 svgStale 标记", async () => {
+    const deck = makeDeck([
+      { ...makeSlide("a"), svg: "<svg>old</svg>", svgStale: true },
+    ]);
+
+    const planMock = vi
+      .spyOn(await import("@/services/outline"), "generatePagePlan")
+      .mockResolvedValue([{ role: "content", title: "T1", intent: "i" }]);
+    const svgMock = vi
+      .spyOn(await import("./executor"), "generateDeckSvgs")
+      .mockResolvedValue([{ index: 0, role: "content", svg: SVG }]);
+
+    const result = await buildDeckSvgs(deck, DESIGN, { topic: "t" });
+
+    expect(result.slides[0].svg).toBe(SVG);
+    expect(result.slides[0].svgStale).toBe(false);
+    // 入参不被修改
+    expect(deck.slides[0].svgStale).toBe(true);
+
+    planMock.mockRestore();
+    svgMock.mockRestore();
+  });
+
   it("按 plan 数量把 svg 写回对应 slide，且不修改入参", async () => {
     const deck = makeDeck([makeSlide("a"), makeSlide("b"), makeSlide("c")]);
 

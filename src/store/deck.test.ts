@@ -67,6 +67,95 @@ describe("regenerateSlide", () => {
   });
 });
 
+describe("svgStale（编辑后 SVG 过期标记）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useDeckStore.setState({ deck: null, past: [], future: [], dirty: false });
+  });
+
+  function deckWithSvg(): Deck {
+    const deck = makeDeck();
+    deck.slides[0].svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>';
+    return deck;
+  }
+
+  it("编辑影响 SVG 视觉的结构化字段后置 svgStale=true", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", { title: "新标题" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+  });
+
+  it("编辑 bullets 同样触发 svgStale", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", {
+      bullets: [{ id: "b1", text: "新要点", level: 0 }],
+    });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+  });
+
+  it("编辑 notes（speaker notes，不参与 SVG 视觉）不触发 svgStale", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", { notes: "演讲备注" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+  });
+
+  it("仅写回 svg 本身（如重画结果）不触发 svgStale", () => {
+    useDeckStore.setState({ deck: deckWithSvg() });
+    useDeckStore.getState().updateSlide("s1", { svg: "<svg></svg>" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+  });
+
+  it("无 svg 的页编辑结构化字段不产生 svgStale", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useDeckStore.getState().updateSlide("s1", { title: "新标题" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+  });
+
+  it("regenerateSlide 成功后清除 svgStale", async () => {
+    const deck = deckWithSvg();
+    useDeckStore.setState({ deck });
+    useDeckStore.getState().updateSlide("s1", { title: "改过的标题" });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBe(true);
+
+    await useDeckStore.getState().regenerateSlide("s1");
+    const updated = useDeckStore.getState().deck!.slides[0];
+    expect(updated.svg).toContain("重画的页面");
+    expect(updated.svgStale).toBe(false);
+  });
+
+  it("setDesign 使所有带 svg 的页 svgStale=true", () => {
+    const deck = deckWithSvg();
+    deck.slides.push({
+      id: "s2",
+      layout: "closing",
+      title: "结尾页",
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"></svg>',
+    });
+    useDeckStore.setState({ deck });
+
+    useDeckStore.getState().setDesign({
+      mode: "briefing",
+      visualStyle: "dark-tech",
+      palette: "tech-purple",
+    });
+
+    const slides = useDeckStore.getState().deck!.slides;
+    expect(slides[0].svgStale).toBe(true);
+    expect(slides[1].svgStale).toBe(true);
+  });
+
+  it("setDesign 对无 svg 的页不产生 svgStale", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useDeckStore.getState().setDesign({
+      mode: "briefing",
+      visualStyle: "dark-tech",
+      palette: "tech-purple",
+    });
+    expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
+  });
+});
+
 describe("undo/redo 与历史", () => {
   beforeEach(() => {
     vi.clearAllMocks();

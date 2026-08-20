@@ -87,6 +87,11 @@ export interface Slide {
   sourceRefs?: SlideSourceRef[];
   /** X1 链路：由 executor 逐页生成的设计真相 SVG（viewBox="0 0 1280 720"） */
   svg?: string;
+  /**
+   * SVG 过期标记：svg 存在，但其结构化内容（标题/要点/图表等）在生成后被编辑，
+   * 预览与导出中的 SVG 已不能反映当前内容，需提示用户重画同步。
+   */
+  svgStale?: boolean;
 }
 
 export type DeckSource = "topic" | "doc" | "url";

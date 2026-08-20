@@ -91,6 +91,8 @@ export const slideSchema = z.object({
   sourceRefs: z.array(slideSourceRefSchema).optional(),
   // X1 链路：设计真相 SVG，必须持久化
   svg: z.string().optional(),
+  // SVG 过期标记：结构化内容被编辑后为 true，提示重画同步
+  svgStale: z.boolean().optional(),
 });
 
 export const deckSchema = z.object({

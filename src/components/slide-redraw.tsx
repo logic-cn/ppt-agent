@@ -4,6 +4,11 @@ import { useDeckStore } from "@/store/deck";
 interface SlideRedrawButtonProps {
   slideId: string;
   className?: string;
+  /**
+   * 该页 SVG 已过期（内容被编辑但未重画）。
+   * 为 true 时按钮高亮并显示「重画同步」，引导用户点击。
+   */
+  stale?: boolean;
 }
 
 /**
@@ -13,6 +18,7 @@ interface SlideRedrawButtonProps {
 export function SlideRedrawButton({
   slideId,
   className,
+  stale,
 }: SlideRedrawButtonProps) {
   const regenerateSlide = useDeckStore((s) => s.regenerateSlide);
   const [loading, setLoading] = useState(false);
@@ -34,11 +40,13 @@ export function SlideRedrawButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={`rounded-md px-3 py-1 text-sm text-text-secondary hover:bg-bg-hover disabled:opacity-50 ${
-        className ?? ""
-      }`}
+      className={`rounded-md px-3 py-1 text-sm disabled:opacity-50 ${
+        stale
+          ? "bg-accent text-white hover:bg-accent-hover"
+          : "text-text-secondary hover:bg-bg-hover"
+      } ${className ?? ""}`}
     >
-      {loading ? "重画中…" : "重画此页"}
+      {loading ? "重画中…" : stale ? "重画同步" : "重画此页"}
     </button>
   );
 }

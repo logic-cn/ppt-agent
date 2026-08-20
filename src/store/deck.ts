@@ -77,6 +77,21 @@ function toSemanticRole(layout: string): PagePlanItem["role"] {
     : "content";
 }
 
+// 影响 SVG 视觉呈现的结构化字段：编辑后需标记 svgStale 提示重画
+// （notes/sourceRefs 不参与 SVG 视觉，编辑不触发过期）
+const SVG_VISUAL_FIELDS = new Set([
+  "title",
+  "subtitle",
+  "body",
+  "bullets",
+  "items",
+  "chart",
+  "image",
+  "metric",
+  "quote",
+  "attribution",
+]);
+
 // 从 slide 收集要点文本（兼容 bullets / items 结构）
 function collectBullets(slide: Slide): string[] {
   const out: string[] = [];
@@ -152,7 +167,17 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       const snap = snapshot(s.deck);
       debouncedPersist(get);
       return {
-        deck: s.deck ? { ...s.deck, design, updatedAt: Date.now() } : null,
+        deck: s.deck
+          ? {
+              ...s.deck,
+              design,
+              // 设计变更影响全部页的 SVG 视觉：带 svg 的页全部标记过期
+              slides: s.deck.slides.map((sl) =>
+                sl.svg ? { ...sl, svgStale: true } : sl,
+              ),
+              updatedAt: Date.now(),
+            }
+          : null,
         dirty: true,
         past: snap ? [...s.past.slice(-49), snap] : s.past,
         future: [],
@@ -206,9 +231,20 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
         deck: s.deck
           ? {
               ...s.deck,
-              slides: s.deck.slides.map((sl) =>
-                sl.id === id ? { ...sl, ...patch } : sl,
-              ),
+              slides: s.deck.slides.map((sl) => {
+                if (sl.id !== id) return sl;
+                const next = { ...sl, ...patch };
+                // 编辑了影响 SVG 视觉的结构化字段、且该页已有 SVG → 标记过期。
+                // 显式传入 svgStale（如重画写回清除）或仅写回 svg 本身时不触发。
+                if (
+                  sl.svg &&
+                  !("svgStale" in patch) &&
+                  Object.keys(patch).some((k) => SVG_VISUAL_FIELDS.has(k))
+                ) {
+                  next.svgStale = true;
+                }
+                return next;
+              }),
               updatedAt: Date.now(),
             }
           : null,
@@ -326,8 +362,8 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       contentBrief: briefParts.join("\n") || undefined,
     });
 
-    // 复用既有 updateSlide 写回，保持历史/持久化一致
-    get().updateSlide(slideId, { svg: newSvg });
+    // 复用既有 updateSlide 写回，保持历史/持久化一致；同时清除过期标记
+    get().updateSlide(slideId, { svg: newSvg, svgStale: false });
   },
 
   undo: () => {

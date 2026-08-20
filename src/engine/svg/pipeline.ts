@@ -114,7 +114,10 @@ export async function buildDeckSvgsDetailed(
   for (let i = 0; i < plan.length; i++) {
     const page = pageByIndex.get(i);
     if (i < slides.length) {
-      slides[i] = page ? { ...slides[i], svg: page.svg } : slides[i];
+      // 写回新 svg 即代表以 SVG 为当前真相，清除过期标记
+      slides[i] = page
+        ? { ...slides[i], svg: page.svg, svgStale: false }
+        : slides[i];
     } else if (page) {
       slides.push({
         id: `s${i + 1}`,

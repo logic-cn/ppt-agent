@@ -65,7 +65,9 @@ describe("ChatPanel 主题生成分支", () => {
 
     render(<ChatPanel />);
     const input = screen.getByPlaceholderText(/输入指令/);
-    fireEvent.change(input, { target: { value: "生成一份关于 AI 行业的 PPT" } });
+    fireEvent.change(input, {
+      target: { value: "生成一份关于 AI 行业的 PPT" },
+    });
     fireEvent.keyDown(input, { key: "Enter" });
 
     await waitFor(() => {
@@ -93,9 +95,7 @@ describe("ChatPanel patch 确认流", () => {
   it("修改指令生成 patches 并展示摘要与确认按钮", async () => {
     const deck = makeDeck([slide("s1")]);
     useDeckStore.setState({ deck });
-    const patches: DeckPatch[] = [
-      { op: "set_deck_title", title: "新标题" },
-    ];
+    const patches: DeckPatch[] = [{ op: "set_deck_title", title: "新标题" }];
     vi.mocked(generateDeckPatches).mockResolvedValue(patches);
 
     render(<ChatPanel />);
@@ -122,7 +122,9 @@ describe("ChatPanel patch 确认流", () => {
     ]);
     vi.mocked(applyDeckPatches).mockImplementation((d, patches) => ({
       deck: { ...d, title: (patches[0] as { title: string }).title },
-      applied: [{ op: "set_deck_title", title: "新标题", description: "重命名标题" }],
+      applied: [
+        { op: "set_deck_title", title: "新标题", description: "重命名标题" },
+      ],
       warnings: [],
     }));
 

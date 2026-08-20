@@ -96,6 +96,13 @@ export const SlidePreview = memo(function SlidePreview({
               />
             )
           )}
+          {/* SVG 已过期：内容被编辑但未重画，提示用户同步 */}
+          {currentSlide.svg && currentSlide.svgStale && (
+            <div className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-medium text-white shadow">
+              <span aria-hidden>⚠</span>
+              内容已修改，预览为旧版本
+            </div>
+          )}
         </div>
       </div>
 
@@ -118,7 +125,12 @@ export const SlidePreview = memo(function SlidePreview({
         >
           下一页
         </button>
-        {currentSlide.svg && <SlideRedrawButton slideId={currentSlide.id} />}
+        {currentSlide.svg && (
+          <SlideRedrawButton
+            slideId={currentSlide.id}
+            stale={currentSlide.svgStale}
+          />
+        )}
       </div>
     </div>
   );
@@ -165,6 +177,15 @@ export const SlideThumbnail = memo(function SlideThumbnail({
             width={width}
           />
         )
+      )}
+      {/* SVG 已过期的小角标 */}
+      {slide.svg && slide.svgStale && (
+        <div
+          title="内容已修改，预览为旧版本"
+          className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] leading-none text-white"
+        >
+          !
+        </div>
       )}
     </div>
   );
