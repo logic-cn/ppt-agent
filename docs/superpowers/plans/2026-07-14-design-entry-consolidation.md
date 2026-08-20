@@ -1,6 +1,6 @@
 # 设计入口合并 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 把"模板 / 主题 / 画廊 / 自定义主题"四套入口收敛为「预设 DeckPreset（结构+设计+质量规则）」+「设计 DesignLock」两套概念，配色统一为单一 `getPalette` 注册表，`Theme` 由 `(palette, visualStyle)` 派生。
 
@@ -62,7 +62,7 @@
 - Consumes: `ThemeColors`（`src/types/theme.ts`）
 - Produces: `getPalette(id)`（内置+自定义）、`setCustomPalettes`、`getCustomPalettes`、`useCustomPalettes` store、`saveCustomPalette`/`listCustomPalettes`/`deleteCustomPalette`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 // src/design/palettes.test.ts
@@ -105,12 +105,12 @@ describe("getPalette 自定义配色", () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `pnpm test src/design/palettes.test.ts`
 Expected: FAIL（`setCustomPalettes` 未定义）
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 ```ts
 // src/design/palettes.ts （在文件末尾追加）
@@ -257,12 +257,12 @@ export async function deleteCustomPalette(id: string): Promise<void> {
 ```
 （删除原 `saveCustomTheme`/`listCustomThemes`/`deleteCustomTheme`/`CUSTOM_THEME_PREFIX` 及对 `Theme` 的导入；`storage.ts` 顶部 `import type { Theme }` 若仅此处使用则移除。）
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `pnpm test src/design/palettes.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/design/palettes.ts src/design/palettes.test.ts src/store/custom-palettes.ts src/services/storage.ts
@@ -286,7 +286,7 @@ git commit -m "feat(palette): 自定义配色并入统一 getPalette 注册表"
 - Consumes: `getPalette`（`palettes.ts`）、`getVisualStyle`（`visual-styles.ts`）、`DEFAULT_DESIGN`（`types/design.ts`）
 - Produces: `resolveTheme(paletteId, visualStyleId): Theme`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 // src/themes/theme.test.ts
@@ -312,12 +312,12 @@ describe("resolveTheme 派生", () => {
 });
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `pnpm test src/themes/theme.test.ts`
 Expected: FAIL（`resolveTheme` 签名/行为不符）
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 ```ts
 // src/types/theme.ts —— 删除 layouts 字段
@@ -373,7 +373,7 @@ const theme = resolveTheme(deck.design.palette, deck.design.visualStyle);
 theme={resolveTheme(deck.design.palette, deck.design.visualStyle)}
 ```
 
-- [ ] **Step 4: 删除旧 theme 测试与 JSON，修复 golden-deck 测试**
+- [x] **Step 4: 删除旧 theme 测试与 JSON，修复 golden-deck 测试**
 
 ```bash
 rm src/themes/business-blue.json src/themes/minimal-white.json src/themes/tech-purple.json src/themes/vibrant-orange.json
@@ -382,12 +382,12 @@ rm src/__tests__/theme.test.ts
 
 `src/__tests__/golden-deck.test.ts` 中两处 `resolveTheme(deck.design.palette)` → `resolveTheme(deck.design.palette, deck.design.visualStyle)`。
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `pnpm test src/themes/theme.test.ts src/__tests__/golden-deck.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/themes/index.ts src/themes/*.json src/types/theme.ts src/engine/preview/index.tsx src/engine/pptx/exporter.ts src/pages/Editor.tsx src/__tests__/theme.test.ts src/__tests__/golden-deck.test.ts
@@ -409,7 +409,7 @@ git commit -m "refactor(theme): resolveTheme 改为 (palette,visualStyle) 派生
 - Consumes: `getPalette`、`PALETTES`、`DesignLock`、`Template`（各模板 `slides` 骨架）、原 `GalleryExample[]`（来自 `src/examples/index.ts`）
 - Produces: `getPresets(): DeckPreset[]`、`getPresetById(id)`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 // src/presets/presets.test.ts
@@ -439,12 +439,12 @@ describe("presets 合并", () => {
 });
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `pnpm test src/presets/presets.test.ts`
 Expected: FAIL（模块不存在）
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 ```ts
 // src/types/preset.ts
@@ -521,7 +521,7 @@ export function getPresetById(id: string): DeckPreset | undefined {
 }
 ```
 
-- [ ] **Step 4: outline.ts 去除模板依赖**
+- [x] **Step 4: outline.ts 去除模板依赖**
 
 `src/services/outline.ts`：删除 `buildContextualPrompt`/`getTemplatePackById` 引入与 `templateCtx` 分支（design 已含 mode/visualStyle，由 `buildOutlineSystemPrompt` 消费）：
 
@@ -537,12 +537,12 @@ const systemPrompt = buildOutlineSystemPrompt({
 ```
 （如 `buildOutlineSystemPrompt` 仍接受 `templateCtx` 形参，传 `undefined` 保持签名兼容。）
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `pnpm test src/presets/presets.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/types/preset.ts src/presets/index.ts src/presets/presets.test.ts src/services/outline.ts
@@ -562,7 +562,7 @@ git commit -m "feat(presets): 合并模板与画廊为统一 DeckPreset"
 - Consumes: `getPresets()`、`useDeckStore.createDeck` / `setDesign`、`useQualityStore.setPendingRules`
 - Produces: 点击 preset → `createDeck()` + `setDesign(preset.design)` + 套用 `preset.slides` + `setPendingRules(preset.qualityRules)` + 跳转编辑器
 
-- [ ] **Step 1: 写失败测试（渲染预设列表）**
+- [x] **Step 1: 写失败测试（渲染预设列表）**
 
 ```tsx
 // src/components/preset/PresetLibrary.test.tsx
@@ -581,7 +581,7 @@ describe("PresetLibrary", () => {
 });
 ```
 
-- [ ] **Step 2: 实现**
+- [x] **Step 2: 实现**
 
 ```tsx
 // src/components/preset/PresetLibrary.tsx
@@ -628,12 +628,12 @@ const handlePresetPick = async (preset: DeckPreset) => {
 // 删除 TemplateDialog / GalleryPanel 引入与使用、TemplateSelectResult 类型引入
 ```
 
-- [ ] **Step 3: 运行测试确认通过**
+- [x] **Step 3: 运行测试确认通过**
 
 Run: `pnpm test src/components/preset/PresetLibrary.test.tsx`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/components/preset/PresetLibrary.tsx src/components/preset/PresetLibrary.test.tsx src/pages/Home.tsx
@@ -649,7 +649,7 @@ git commit -m "feat(home): 合并模板弹框与画廊为单一示例库"
 - Modify: `src/pages/Editor.tsx`（替换 366-473 主题下拉为设计面板）
 - Consumes: `ModePicker`/`StylePicker`/`PalettePicker`（`src/components/design/*`）、`useDeckStore.setDesign`、`deck.design`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```tsx
 // src/pages/Editor.design.test.tsx（或归入现有 Editor 测试）
@@ -660,7 +660,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 （如编辑器集成测试成本高，可仅做类型/手动验证，并在 PR 说明。本任务以 typecheck+format 为准，UI 行为由 Task 6 的 PalettePicker 单测覆盖。）
 
-- [ ] **Step 2: 实现**
+- [x] **Step 2: 实现**
 
 将 `Editor.tsx` 中 `BUILTIN_THEMES.map(...)` 整段（含 customThemes、管理自定义主题按钮）替换为调用三个选择器：
 
@@ -681,12 +681,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 ```
 （删除 `customThemes`/`setThemeOpen` 相关状态与「管理自定义主题」按钮；`useCustomThemeStore` 在设置页才用。）
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 Run: `pnpm typecheck && pnpm format:check`
 Expected: 干净
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/pages/Editor.tsx
@@ -702,7 +702,7 @@ git commit -m "feat(editor): 用完整设计选择器替换仅 palette 的主题
 - Consumes: `useCustomPalettes`、`getPalette`、`PALETTES`、`ThemeColors`
 - Produces: 渲染内置 + 自定义配色 + 「＋新建配色」内联表单（仅 colors）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```tsx
 // src/components/design/palette-picker.test.tsx
@@ -723,16 +723,16 @@ describe("PalettePicker", () => {
 });
 ```
 
-- [ ] **Step 2: 实现**
+- [x] **Step 2: 实现**
 
 `PalettePicker.tsx` 在现有列表末尾加「＋新建配色」按钮，点击展开 7 个颜色输入框（primary/secondary/accent/background/surface/text/textMuted），「保存」调用 `useCustomPalettes.getState().create(name, colors)` 并把新 id 通过 `onChange` 传出。仅 colors，不含 fonts。
 
-- [ ] **Step 3: 运行测试确认通过**
+- [x] **Step 3: 运行测试确认通过**
 
 Run: `pnpm test src/components/design/palette-picker.test.tsx`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/components/design/PalettePicker.tsx src/components/design/palette-picker.test.tsx
@@ -748,26 +748,26 @@ git commit -m "feat(design): PalettePicker 内联新建自定义配色"
 - Delete: `src/components/theme-editor-dialog.tsx`、`src/store/custom-themes.ts`
 - Modify: `src/services/storage.ts`（如仍残留 `saveCustomTheme` 等旧函数则删除）
 
-- [ ] **Step 1: 删除 Settings 自定义主题 section**
+- [x] **Step 1: 删除 Settings 自定义主题 section**
 
 在 `src/pages/Settings.tsx` 中删除 `{/* 自定义主题 */}` 整段 `<section>`（约 269-368 行）与文件末尾 `<ThemeEditorDialog .../>` 两处，并移除顶部 `useCustomThemeStore`/`generateCustomThemeId`/`BUILTIN_THEMES`/`Theme`/`ThemeEditorDialog` 的 import 与 `customThemes`/`loadCustomThemes`/`saveTheme`/`removeTheme`/`editingTheme`/`creating` 状态。（设置页仍保留 LLM/图片 provider 配置。）
 
-- [ ] **Step 2: 删除组件与 store**
+- [x] **Step 2: 删除组件与 store**
 
 ```bash
 git rm src/components/theme-editor-dialog.tsx src/store/custom-themes.ts
 ```
 
-- [ ] **Step 3: storage 清理**
+- [x] **Step 3: storage 清理**
 
 确认 `src/services/storage.ts` 不再导出 `saveCustomTheme`/`listCustomThemes`/`deleteCustomTheme`/`CUSTOM_THEME_PREFIX`（Task 1 已替换为 palette 版）；如残留则删除。
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 Run: `pnpm typecheck && pnpm format:check`
 Expected: 干净（无未使用导入/未定义引用）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/pages/Settings.tsx src/services/storage.ts
@@ -783,21 +783,21 @@ git commit -m "refactor(settings): 删除自定义主题区块, 自定义配色�
 - Delete: `src/templates/index.ts` 中 `buildTemplateGenerationContext`、旧 `TemplatePack` 类型相关导出；如 `getTemplatePackById` 不再被任何文件引用则删除
 - Modify: `src/types/template.ts`（删除仅被 `TemplatePack` 使用的类型）
 
-- [ ] **Step 1: 确认无残留引用**
+- [x] **Step 1: 确认无残留引用**
 
 Run: `pnpm exec tsc --noEmit` 后 `rg -n "getTemplatePackById|buildContextualPrompt|TemplatePack|getTemplates" src`
 Expected: 仅 `src/templates/index.ts` 内部定义，无外部调用
 
-- [ ] **Step 2: 清理**
+- [x] **Step 2: 清理**
 
 删除 `src/templates/index.ts` 的 `BUILTIN_PACKS` 平移后残留的 `TemplatePack`/`TemplateGenerationContext` 引用（已在 Task 3 平移到 presets），仅保留各模板 `slides` 骨架若仍被 presets 引用（实际上 presets 已内联，可整体删除 `src/templates/index.ts` 与 `src/types/template.ts` 中 `TemplatePack` 部分）。若 `Template` 类型仍被他处使用则保留。
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 Run: `pnpm typecheck && pnpm test`
 Expected: 干净 / 全绿
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/services/outline.ts src/templates/index.ts src/types/template.ts
@@ -813,7 +813,7 @@ git commit -m "refactor(outline): 去除模板 suggestedMode 依赖, 清理 Temp
 - Modify: `src/services/storage/deck-repair.ts`（兜底 `custom-*` palette）
 - Modify: 调用 `deck.themeOverrides` 处（preview/exporter/Editor 已在 Task 2 去掉）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 // src/services/storage/deck-repair.test.ts
@@ -830,18 +830,18 @@ describe("deck-repair 旧自定义主题兜底", () => {
 });
 ```
 
-- [ ] **Step 2: 实现**
+- [x] **Step 2: 实现**
 
 `src/types/deck.ts`：`Deck` 删除 `themeOverrides?: Partial<Theme>;`（并删除 `import type { Theme }`）。
 
 `src/services/storage/deck-repair.ts`：在修复逻辑中，若 `deck.design.palette` 不以 `business-blue/minimal-white/tech-purple/vibrant-orange` 开头且 `getPalette` 返回 undefined，则置为 `DEFAULT_DESIGN.palette`。
 
-- [ ] **Step 3: 运行测试确认通过**
+- [x] **Step 3: 运行测试确认通过**
 
 Run: `pnpm test src/services/storage/deck-repair.test.ts`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/types/deck.ts src/services/storage/deck-repair.ts src/services/storage/deck-repair.test.ts
@@ -854,22 +854,22 @@ git commit -m "refactor(deck): 删 themeOverrides, 旧 custom-* palette 兜底�
 
 **Files:** 无新增，全仓验证
 
-- [ ] **Step 1: typecheck**
+- [x] **Step 1: typecheck**
 
 Run: `pnpm typecheck`
 Expected: 无错误
 
-- [ ] **Step 2: test**
+- [x] **Step 2: test**
 
 Run: `pnpm test`
 Expected: 173+ 测试全绿（含新增 preset/palette/theme/picker 测试）
 
-- [ ] **Step 3: format**
+- [x] **Step 3: format**
 
 Run: `pnpm format:check`
 Expected: 所有文件符合 prettier
 
-- [ ] **Step 4: 提交（若需，仅当发现遗留清理）**
+- [x] **Step 4: 提交（若需，仅当发现遗留清理）**
 
 ```bash
 git add -A

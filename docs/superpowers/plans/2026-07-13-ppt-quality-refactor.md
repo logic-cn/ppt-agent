@@ -1,6 +1,6 @@
 # PPT Agent 质量提升重构 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 重构 PPT Agent 的"设计概念模型"与"生成主链路"，把 PPT 生成质量做高、做稳——通过分层原子设计模型、设计规范锁、首屏锚点、质量门分级、设计词表、样例画廊 few-shot、图片一致性锁、失败恢复矩阵八项改造。
 
@@ -64,7 +64,7 @@
 
 **Interfaces:** 后续所有模块消费 `DesignLock`。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -87,12 +87,12 @@ describe("isDesignLock", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `pnpm test src/types/design.test.ts`
 Expected: FAIL（模块未导出）
 
-- [ ] **Step 3: 写最小实现**
+- [x] **Step 3: 写最小实现**
 
 ```ts
 import type { SlideLayout } from "./deck";
@@ -142,12 +142,12 @@ export function isDesignLock(v: unknown): v is DesignLock {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `pnpm test src/types/design.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/types/design.ts src/types/design.test.ts
@@ -163,7 +163,7 @@ git commit -m "feat(types): 新增 DesignLock 与设计原子类型"
 
 **Interfaces:** `LAYOUT_GEOMETRY: Record<SlideLayout, LayoutSpec>` 被 IR 构建消费。
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -181,9 +181,9 @@ describe("getLayoutRects", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败** → FAIL
+- [x] **Step 2: 跑测试确认失败** → FAIL
 
-- [ ] **Step 3: 写实现（几何从 business-blue.json 提取，并复核其余 3 主题一致）**
+- [x] **Step 3: 写实现（几何从 business-blue.json 提取，并复核其余 3 主题一致）**
 
 ```ts
 import type { SlideLayout, LayoutSpec, Rect } from "../types/deck";
@@ -230,11 +230,11 @@ export function getLayoutRects(layout: SlideLayout): LayoutSpec {
 }
 ```
 
-- [ ] **Step 4: 改 `src/engine/render-ir/build.ts`** — 把 `theme.layouts[slide.layout]` 替换为 `getLayoutRects(slide.layout)`，删除对 `theme.layouts` 的引用。
+- [x] **Step 4: 改 `src/engine/render-ir/build.ts`** — 把 `theme.layouts[slide.layout]` 替换为 `getLayoutRects(slide.layout)`，删除对 `theme.layouts` 的引用。
 
-- [ ] **Step 5: 跑测试 + typecheck** → PASS / 无错
+- [x] **Step 5: 跑测试 + typecheck** → PASS / 无错
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ---
 
@@ -246,9 +246,9 @@ export function getLayoutRects(layout: SlideLayout): LayoutSpec {
 - Create: `src/design/palettes.ts`
 - Test: `src/design/palettes.test.ts`
 
-- [ ] **Step 1: 写测试**：`getPalette("business-blue")` 返回含 7 个颜色字段的对象；未知 id 返回 undefined。
+- [x] **Step 1: 写测试**：`getPalette("business-blue")` 返回含 7 个颜色字段的对象；未知 id 返回 undefined。
 
-- [ ] **Step 2: 写实现**（从 `src/themes/*.json` 的 `colors` 提取，仅保留颜色；保留 4 套）
+- [x] **Step 2: 写实现**（从 `src/themes/*.json` 的 `colors` 提取，仅保留颜色；保留 4 套）
 
 ```ts
 import type { ThemeColors } from "../types/theme";
@@ -267,7 +267,7 @@ export function getPalette(id: string): Palette | undefined {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 1.2：视觉风格词表（6 个，无 HEX）
 
@@ -275,9 +275,9 @@ export function getPalette(id: string): Palette | undefined {
 - Create: `src/design/visual-styles.ts`
 - Test: `src/design/visual-styles.test.ts`
 
-- [ ] **Step 1: 写测试**：`getVisualStyle("swiss-minimal")` 返回 `decoration.cornerRadius === 0`；`pairedImageRendering` 为字符串；unknown 返回 undefined。
+- [x] **Step 1: 写测试**：`getVisualStyle("swiss-minimal")` 返回 `decoration.cornerRadius === 0`；`pairedImageRendering` 为字符串；unknown 返回 undefined。
 
-- [ ] **Step 2: 写实现**
+- [x] **Step 2: 写实现**
 
 ```ts
 import type { ThemeFonts, ThemeFontSize, Spacing } from "../types/theme";
@@ -343,7 +343,7 @@ export function getVisualStyle(id: string): VisualStyleDef | undefined {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 1.3：叙事模式词表 + 场景映射
 
@@ -351,9 +351,9 @@ export function getVisualStyle(id: string): VisualStyleDef | undefined {
 - Create: `src/design/narrative-modes.ts`
 - Test: `src/design/narrative-modes.test.ts`
 
-- [ ] **Step 1: 写测试**：`selectModeByScenario("business_review") === "pyramid"`；`selectModeByScenario("training") === "instructional"`；`getMode("pyramid").titleRule` 含"结论句"。
+- [x] **Step 1: 写测试**：`selectModeByScenario("business_review") === "pyramid"`；`selectModeByScenario("training") === "instructional"`；`getMode("pyramid").titleRule` 含"结论句"。
 
-- [ ] **Step 2: 写实现**
+- [x] **Step 2: 写实现**
 
 ```ts
 import type { NarrativeModeId } from "../types/design";
@@ -430,7 +430,7 @@ export function getMode(id: NarrativeModeId): NarrativeModeDef {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 1.4：模板瘦身为纯结构
 
@@ -439,9 +439,9 @@ export function getMode(id: NarrativeModeId): NarrativeModeDef {
 - Modify: `src/templates/index.ts` + 8 个 `*.ts`
 - Test: `src/templates/template.test.ts`
 
-- [ ] **Step 1: 写测试**：`getTemplatePackById("quarterly-review").suggestedTheme` 为 undefined；`suggestedMode` 为 "pyramid"；`promptHints` 不存在。
+- [x] **Step 1: 写测试**：`getTemplatePackById("quarterly-review").suggestedTheme` 为 undefined；`suggestedMode` 为 "pyramid"；`promptHints` 不存在。
 
-- [ ] **Step 2: 改 `template.ts`**
+- [x] **Step 2: 改 `template.ts`**
 
 ```ts
 export interface TemplatePack {
@@ -458,9 +458,9 @@ export interface TemplatePack {
 }
 ```
 
-- [ ] **Step 3: 改 `index.ts`** — 每个 pack 去掉 `suggestedTheme`/`promptHints`，加 `suggestedMode`（按 scenario 映射：business_review/proposal→pyramid；pitch→narrative；training→instructional；market_analysis→briefing）。`buildContextualPrompt` 改为只输出"页面顺序+layout"，并附 `suggestedMode` 建议行，不再注入论证提示。
+- [x] **Step 3: 改 `index.ts`** — 每个 pack 去掉 `suggestedTheme`/`promptHints`，加 `suggestedMode`（按 scenario 映射：business_review/proposal→pyramid；pitch→narrative；training→instructional；market_analysis→briefing）。`buildContextualPrompt` 改为只输出"页面顺序+layout"，并附 `suggestedMode` 建议行，不再注入论证提示。
 
-- [ ] **Step 4: 测试通过 + typecheck + 提交**
+- [x] **Step 4: 测试通过 + typecheck + 提交**
 
 ---
 
@@ -473,9 +473,9 @@ export interface TemplatePack {
 - Create: `src/examples/index.ts`（内联 5-8 个，或每例一文件）
 - Test: `src/examples/examples.test.ts`
 
-- [ ] **Step 1: 写测试**：`getExamples()` 返回 5-8 条；每条 `design` 通过 `isDesignLock`；每条 `slides` 为合法 `Slide[]`（用现有 `slideSchema` 校验）；每条 mode+visualStyle 组合唯一或可重复但覆盖多种。
+- [x] **Step 1: 写测试**：`getExamples()` 返回 5-8 条；每条 `design` 通过 `isDesignLock`；每条 `slides` 为合法 `Slide[]`（用现有 `slideSchema` 校验）；每条 mode+visualStyle 组合唯一或可重复但覆盖多种。
 
-- [ ] **Step 2: 写类型**
+- [x] **Step 2: 写类型**
 
 ```ts
 import type { Slide } from "./deck";
@@ -490,7 +490,7 @@ export interface GalleryExample {
 }
 ```
 
-- [ ] **Step 3: 写 5-8 个样例**（覆盖金字塔+swiss / 叙事+dark-tech / 教学+soft / 通报+editorial / 复盘+blueprint 等组合；每例 6-10 页，含真实标题/bullet/chart，符合对应 mode 的标题规则）。示例节选：
+- [x] **Step 3: 写 5-8 个样例**（覆盖金字塔+swiss / 叙事+dark-tech / 教学+soft / 通报+editorial / 复盘+blueprint 等组合；每例 6-10 页，含真实标题/bullet/chart，符合对应 mode 的标题规则）。示例节选：
 
 ```ts
 export const EXAMPLES: GalleryExample[] = [
@@ -511,7 +511,7 @@ export const EXAMPLES: GalleryExample[] = [
 export function getExamples(): GalleryExample[] { return EXAMPLES; }
 ```
 
-- [ ] **Step 4: 测试通过 + 提交**
+- [x] **Step 4: 测试通过 + 提交**
 
 ### Task 2.2：few-shot 选择 + prompt 构建
 
@@ -519,9 +519,9 @@ export function getExamples(): GalleryExample[] { return EXAMPLES; }
 - Create: `src/services/llm/few-shot.ts`
 - Test: `src/services/llm/few-shot.test.ts`
 
-- [ ] **Step 1: 写测试**：`selectFewShot({mode:"pyramid",visualStyle:"swiss-minimal",palette:"business-blue"})` 优先返回 `quarterly-pyramid-swiss`；最多 2 条；`buildFewShotPrompt` 输出含 `slides` 的精简 JSON 且不含 full content 长文本。
+- [x] **Step 1: 写测试**：`selectFewShot({mode:"pyramid",visualStyle:"swiss-minimal",palette:"business-blue"})` 优先返回 `quarterly-pyramid-swiss`；最多 2 条；`buildFewShotPrompt` 输出含 `slides` 的精简 JSON 且不含 full content 长文本。
 
-- [ ] **Step 2: 写实现**
+- [x] **Step 2: 写实现**
 
 ```ts
 import type { DesignLock } from "../../types/design";
@@ -553,7 +553,7 @@ export function buildFewShotPrompt(examples: GalleryExample[]): string {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 2.3：DesignLock 注入 outline/content 提示词
 
@@ -564,9 +564,9 @@ export function buildFewShotPrompt(examples: GalleryExample[]): string {
 - Modify: `src/services/content.ts` `generateSlideContent(slide, design, ...)`
 - Test: `src/services/llm/prompts/outline.test.ts`
 
-- [ ] **Step 1: 写测试**：`buildOutlineSystemPrompt({design, fewShot})` 返回的字符串包含 mode 的 `titleRule` 文本、visualStyle 的 `character` 文本、palette 的 7 个颜色 HEX、`fewShot` 文本。
+- [x] **Step 1: 写测试**：`buildOutlineSystemPrompt({design, fewShot})` 返回的字符串包含 mode 的 `titleRule` 文本、visualStyle 的 `character` 文本、palette 的 7 个颜色 HEX、`fewShot` 文本。
 
-- [ ] **Step 2: 改 `outline.ts` 提示词**
+- [x] **Step 2: 改 `outline.ts` 提示词**
 
 ```ts
 import { getMode } from "../../../design/narrative-modes";
@@ -594,11 +594,11 @@ export function buildOutlineSystemPrompt(opts: {
 }
 ```
 
-- [ ] **Step 3: 改 `src/services/outline.ts`** — `generateOutline(topic, design, opts)` 内调用 `buildOutlineSystemPrompt({ design, templateCtx: design.templateId? buildContextualPrompt(getTemplatePackById(design.templateId)!, topic): undefined, fewShot: buildFewShotPrompt(selectFewShot(design)) })`，`temperature` 维持 0.6。
+- [x] **Step 3: 改 `src/services/outline.ts`** — `generateOutline(topic, design, opts)` 内调用 `buildOutlineSystemPrompt({ design, templateCtx: design.templateId? buildContextualPrompt(getTemplatePackById(design.templateId)!, topic): undefined, fewShot: buildFewShotPrompt(selectFewShot(design)) })`，`temperature` 维持 0.6。
 
-- [ ] **Step 4: 改 `content.ts`** 类似注入 style+palette（不含模板结构）。
+- [x] **Step 4: 改 `content.ts`** 类似注入 style+palette（不含模板结构）。
 
-- [ ] **Step 5: 测试通过 + typecheck + 提交**
+- [x] **Step 5: 测试通过 + typecheck + 提交**
 
 ---
 
@@ -610,9 +610,9 @@ export function buildOutlineSystemPrompt(opts: {
 - Modify: `src/services/quality/deck-quality.ts`
 - Test: `src/services/quality/deck-quality.test.ts`
 
-- [ ] **Step 1: 写测试**：缺封面→`hard`；bullet>7→`soft` 且 `autoFixable`；空 chart(无 data)→`hard`；标题为空泛词("概述")→`soft`。
+- [x] **Step 1: 写测试**：缺封面→`hard`；bullet>7→`soft` 且 `autoFixable`；空 chart(无 data)→`hard`；标题为空泛词("概述")→`soft`。
 
-- [ ] **Step 2: 改类型与实现**
+- [x] **Step 2: 改类型与实现**
 
 ```ts
 export type Severity = "hard" | "soft";
@@ -644,7 +644,7 @@ export function hasHardError(findings: QualityFinding[]): boolean {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 3.2：校验在 auto-fix 之前跑（不遮丑）
 
@@ -652,11 +652,11 @@ export function hasHardError(findings: QualityFinding[]): boolean {
 - Modify: `src/services/quality/auto-fix.ts` 调用方（`chat-panel.tsx` 的"一键修复"）
 - 确保顺序：`checkDeckQuality` → 仅对 `soft && autoFixable` 应用 `applyAutoFixes`；`hard` 阻断并提示用户重生成对应页。
 
-- [ ] **Step 1: 写测试**：`applyAutoFixes(deck, findings)` 只对 soft+autoFixable 生效；hard 不被修改。
+- [x] **Step 1: 写测试**：`applyAutoFixes(deck, findings)` 只对 soft+autoFixable 生效；hard 不被修改。
 
-- [ ] **Step 2: 实现**：在 `auto-fix.ts` 增加过滤 `findings.filter(f => f.severity==="soft" && f.autoFixable)` 后再修复；导出 `hardFindings` 供 UI 阻断。
+- [x] **Step 2: 实现**：在 `auto-fix.ts` 增加过滤 `findings.filter(f => f.severity==="soft" && f.autoFixable)` 后再修复；导出 `hardFindings` 供 UI 阻断。
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ### Task 3.3：首屏风格锚点关卡
 
@@ -665,9 +665,9 @@ export function hasHardError(findings: QualityFinding[]): boolean {
 - Modify: `src/components/chat/chat-panel.tsx`
 - Test: `src/services/generation/first-page-gate.test.ts`
 
-- [ ] **Step 1: 写测试**：对 `design={mode:"pyramid",...}` 的 deck，首屏标题为话题词("市场概述")→返回 hard finding（违反 pyramid 标题规则）；首屏标题为结论句→通过。
+- [x] **Step 1: 写测试**：对 `design={mode:"pyramid",...}` 的 deck，首屏标题为话题词("市场概述")→返回 hard finding（违反 pyramid 标题规则）；首屏标题为结论句→通过。
 
-- [ ] **Step 2: 写实现**
+- [x] **Step 2: 写实现**
 
 ```ts
 import type { Deck } from "../../types/deck";
@@ -687,9 +687,9 @@ export function runFirstPageGate(deck: Deck, design: DesignLock): QualityFinding
 }
 ```
 
-- [ ] **Step 3: 改 `chat-panel.tsx`** — `generateOutline` 完成后调用 `runFirstPageGate(deck, design)`，若有 hard → 显示"首屏风格检查"横幅，提供"调整后继续/重新生成首屏"；软提示可忽略。
+- [x] **Step 3: 改 `chat-panel.tsx`** — `generateOutline` 完成后调用 `runFirstPageGate(deck, design)`，若有 hard → 显示"首屏风格检查"横幅，提供"调整后继续/重新生成首屏"；软提示可忽略。
 
-- [ ] **Step 4: 测试通过 + typecheck + 提交**
+- [x] **Step 4: 测试通过 + typecheck + 提交**
 
 ---
 
@@ -701,9 +701,9 @@ export function runFirstPageGate(deck: Deck, design: DesignLock): QualityFinding
 - Modify: `src/services/image.ts` `generateImage(prompt, design)`
 - Test: `src/services/image.test.ts`（测 prompt 拼接，不真调 API）
 
-- [ ] **Step 1: 写测试**：`buildImagePrompt("产品图", design)` 含 `pairedImageRendering`(minimalist-swiss) 与 palette 主色 HEX，且不含其他随机风格词。
+- [x] **Step 1: 写测试**：`buildImagePrompt("产品图", design)` 含 `pairedImageRendering`(minimalist-swiss) 与 palette 主色 HEX，且不含其他随机风格词。
 
-- [ ] **Step 2: 改 `image.ts`**
+- [x] **Step 2: 改 `image.ts`**
 
 ```ts
 import { getVisualStyle } from "../design/visual-styles";
@@ -716,7 +716,7 @@ export function buildImagePrompt(subject: string, design: DesignLock): string {
 }
 ```
 
-- [ ] **Step 3: 测试通过 + 提交**
+- [x] **Step 3: 测试通过 + 提交**
 
 ---
 
@@ -729,9 +729,9 @@ export function buildImagePrompt(subject: string, design: DesignLock): string {
 - Modify: `src/services/llm/adapter.ts`（outline/content/image 调用前包裹决策）
 - Test: `src/services/recovery.test.ts`
 
-- [ ] **Step 1: 写测试**：`decideRecovery("outline", 0, err)`→`retry`；第 3 次→`ask-user`；`decideRecovery("image", 0)`→`degrade`（标记 Needs-Manual 继续）；`decideRecovery("content",1)`→`retry`。
+- [x] **Step 1: 写测试**：`decideRecovery("outline", 0, err)`→`retry`；第 3 次→`ask-user`；`decideRecovery("image", 0)`→`degrade`（标记 Needs-Manual 继续）；`decideRecovery("content",1)`→`retry`。
 
-- [ ] **Step 2: 写实现**
+- [x] **Step 2: 写实现**
 
 ```ts
 export type FailureKind = "outline" | "content" | "image" | "export";
@@ -746,9 +746,9 @@ export function decideRecovery(kind: FailureKind, attempt: number, _err?: unknow
 }
 ```
 
-- [ ] **Step 3: 改 `adapter.ts`** — 在 `OpenAICompatProvider.chat` / `AnthropicProvider` 调用处用 `decideRecovery` 决定重试/降级/上报；`image` 失败降级为占位图继续；`outline`/`content` 达上限则向上抛"需用户确认"。
+- [x] **Step 3: 改 `adapter.ts`** — 在 `OpenAICompatProvider.chat` / `AnthropicProvider` 调用处用 `decideRecovery` 决定重试/降级/上报；`image` 失败降级为占位图继续；`outline`/`content` 达上限则向上抛"需用户确认"。
 
-- [ ] **Step 4: 测试通过 + typecheck + 提交**
+- [x] **Step 4: 测试通过 + typecheck + 提交**
 
 ---
 
@@ -760,11 +760,11 @@ export function decideRecovery(kind: FailureKind, attempt: number, _err?: unknow
 - Modify: `src/store/deck.ts`（删 `themeId`，加 `design: DesignLock`）
 - Modify：所有读取 `themeId` 处改用 `design.palette`/`design.visualStyle`
 
-- [ ] **Step 1: 全局搜索 `themeId`**，`grep -rn "themeId" src` 逐个替换为 `design`。
+- [x] **Step 1: 全局搜索 `themeId`**，`grep -rn "themeId" src` 逐个替换为 `design`。
 
-- [ ] **Step 2: 默认 design**：新建 deck 默认 `{ mode:"briefing", visualStyle:"soft-rounded", palette:"business-blue" }`。
+- [x] **Step 2: 默认 design**：新建 deck 默认 `{ mode:"briefing", visualStyle:"soft-rounded", palette:"business-blue" }`。
 
-- [ ] **Step 3: typecheck 通过 + 提交**
+- [x] **Step 3: typecheck 通过 + 提交**
 
 ### Task 6.2：设计选择器组件
 
@@ -772,9 +772,9 @@ export function decideRecovery(kind: FailureKind, attempt: number, _err?: unknow
 - Create: `src/components/design/ModePicker.tsx` / `StylePicker.tsx` / `PalettePicker.tsx`
 - 这些组件渲染 `NARRATIVE_MODES` / `VISUAL_STYLES` / `PALETTES`，选中写入 `design`。
 
-- [ ] **Step 1: 实现三个受控选择器**（从对应 design 数据映射，单选高亮）。
+- [x] **Step 1: 实现三个受控选择器**（从对应 design 数据映射，单选高亮）。
 
-- [ ] **Step 2: typecheck + prettier + 提交**
+- [x] **Step 2: typecheck + prettier + 提交**
 
 ### Task 6.3：画廊 UI + 创建流程串联
 
@@ -782,15 +782,15 @@ export function decideRecovery(kind: FailureKind, attempt: number, _err?: unknow
 - Create: `src/components/gallery/GalleryPanel.tsx`
 - Modify：Home/新建流程（如 `src/pages/Home.tsx` 或 Editor 新建入口）
 
-- [ ] **Step 1: 画廊渲染 `getExamples()`**，每张卡片显示 `name` + 缩略（可用首屏 SVG/占位），点击"用此风格"→ 把 `example.design` 写入新 deck 的 `design`，并预选对应模板（若 example.design.templateId）。
+- [x] **Step 1: 画廊渲染 `getExamples()`**，每张卡片显示 `name` + 缩略（可用首屏 SVG/占位），点击"用此风格"→ 把 `example.design` 写入新 deck 的 `design`，并预选对应模板（若 example.design.templateId）。
 
-- [ ] **Step 2: 创建流程改为两步**：① 选模板/画廊（定 design+结构）② 输入主题 → 调 `generateOutline(topic, design)`（已含 DesignLock+few-shot）。
+- [x] **Step 2: 创建流程改为两步**：① 选模板/画廊（定 design+结构）② 输入主题 → 调 `generateOutline(topic, design)`（已含 DesignLock+few-shot）。
 
-- [ ] **Step 3: 接首屏锚点**：outline 完成后走 Task 3.3 的横幅。
+- [x] **Step 3: 接首屏锚点**：outline 完成后走 Task 3.3 的横幅。
 
-- [ ] **Step 4: 接质量门阻断**：导出前 `checkDeckQuality`，有 hard → 禁用导出并提示。
+- [x] **Step 4: 接质量门阻断**：导出前 `checkDeckQuality`，有 hard → 禁用导出并提示。
 
-- [ ] **Step 5: `pnpm typecheck && pnpm format:check && pnpm test` 全绿 + 提交**
+- [x] **Step 5: `pnpm typecheck && pnpm format:check && pnpm test` 全绿 + 提交**
 
 ---
 
