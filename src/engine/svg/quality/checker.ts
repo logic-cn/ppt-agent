@@ -189,6 +189,81 @@ export function extractSvgTexts(svg: string): string[] {
   return texts;
 }
 
+/** 图表标记约定的合法类型（与 pptx-translator/chart.ts VALID_CHART_TYPES 保持一致） */
+const VALID_CHART_TYPES = new Set([
+  "area",
+  "bar",
+  "bar3D",
+  "doughnut",
+  "line",
+  "pie",
+  "radar",
+]);
+
+/** 提取属性值：值内含 JSON 等引号字符时用配对引号取完整内容（外层引号约定单引号） */
+function attrQuoted(part: string, name: string): string | undefined {
+  const m = part.match(new RegExp(`${name}\\s*=\\s*(['"])[\\s\\S]*?\\1`, "i"));
+  if (!m) return undefined;
+  const value = m[0].slice(m[0].indexOf("=") + 1).trim();
+  return value.slice(1, -1);
+}
+
+/** SVG 中是否存在携带 data-chart-type 的原生图表元素 */
+export function svgContainsChart(svg: string): boolean {
+  return /<g[^>]*data-chart-type\s*=/i.test(svg);
+}
+
+/**
+ * 图表数据校验：LLM 渲染了图表标记（data-chart-type）但数据缺失/损坏时，
+ * 导出端 translateChart 会静默跳过整张图，因此在这里就拦下重画。
+ * 只校验「已声明的图表」是否自带可用数据，不校验图表位置/尺寸。
+ */
+export function checkChartData(svg: string): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const re = /<g([^>]*data-chart-type[^>]*)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(svg)) !== null) {
+    const attrs = match[1];
+    const type = attr(attrs, "data-chart-type");
+    if (!type || !VALID_CHART_TYPES.has(type)) {
+      issues.push({
+        severity: "error",
+        message: `图表类型非法：data-chart-type="${type ?? ""}"（支持 ${[...VALID_CHART_TYPES].join("/")}）`,
+        location: "g",
+      });
+      continue;
+    }
+    const raw = attrQuoted(attrs, "data-chart-data");
+    if (raw === undefined || raw === "") {
+      issues.push({
+        severity: "error",
+        message: `图表缺少数据：data-chart-data 未提供（${type} 图将无法导出）`,
+        location: "g",
+      });
+      continue;
+    }
+    let points: unknown;
+    try {
+      points = JSON.parse(raw);
+    } catch {
+      issues.push({
+        severity: "error",
+        message: `图表数据非法 JSON：data-chart-data 无法解析（${type} 图将无法导出）`,
+        location: "g",
+      });
+      continue;
+    }
+    if (!Array.isArray(points) || points.length === 0) {
+      issues.push({
+        severity: "error",
+        message: `图表数据为空：data-chart-data 需为包含 label/value 的非空数组（${type} 图将无法导出）`,
+        location: "g",
+      });
+    }
+  }
+  return issues;
+}
+
 function collapseWs(s: string): string {
   return s.replace(/\s+/g, "");
 }

@@ -102,6 +102,46 @@ describe("generateSlideSvg", () => {
     expect(secondCallArgs.messages[1].content).toContain("你的 SVG 有以下问题");
   });
 
+  it("plan 要求图表但 SVG 未渲染图表标记时回喂重画，直到出现图表", async () => {
+    const noChart = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text></svg>`;
+    const withChart = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text><g data-chart-type="bar" data-chart-data='[{"label":"A","value":1}]'></g></svg>`;
+    vi.mocked(chat)
+      .mockResolvedValueOnce({ content: noChart })
+      .mockResolvedValueOnce({ content: withChart });
+
+    const svg = await generateSlideSvg({
+      specLock: builtSpec,
+      plan: { ...makePlan(1)[0], chartType: "bar" },
+      pageIndex: 0,
+      totalPages: 1,
+    });
+
+    expect(chat).toHaveBeenCalledTimes(2);
+    expect(svg).toBe(withChart.trim());
+    const secondCallArgs = vi.mocked(chat).mock.calls[1][0] as {
+      messages: { content: string }[];
+    };
+    expect(secondCallArgs.messages[1].content).toContain("图表缺失");
+  });
+
+  it("图表 data 损坏（空数组）时回喂重画", async () => {
+    const emptyData = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text><g data-chart-type="bar" data-chart-data='[]'></g></svg>`;
+    const goodData = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text><g data-chart-type="bar" data-chart-data='[{"label":"A","value":1}]'></g></svg>`;
+    vi.mocked(chat)
+      .mockResolvedValueOnce({ content: emptyData })
+      .mockResolvedValueOnce({ content: goodData });
+
+    const svg = await generateSlideSvg({
+      specLock: builtSpec,
+      plan: { ...makePlan(1)[0], chartType: "bar" },
+      pageIndex: 0,
+      totalPages: 1,
+    });
+
+    expect(chat).toHaveBeenCalledTimes(2);
+    expect(svg).toBe(goodData.trim());
+  });
+
   it("页面软超时按单页失败抛出普通 Error（可被 isolatePageFailures 隔离），而非 AbortError", async () => {
     vi.useFakeTimers();
     try {

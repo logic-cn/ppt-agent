@@ -1,4 +1,4 @@
-import type { Deck, Slide } from "@/types/deck";
+import type { Deck, Slide, BulletNode } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import { buildSpecLock } from "@/design/spec-lock";
 import { generatePagePlan } from "@/services/outline";
@@ -36,16 +36,10 @@ export interface BuildDeckSvgsResult {
   failedPages: number[];
 }
 
-/**
- * 串联「pagePlan → executor 逐页生成 SVG → 写回 deck」的编排函数（纯函数）。
- *
- * 行为：
- * 1. 由 pagePlan 驱动生成 N 页 SVG（逐页串行，禁止并行）。
- * 2. 若入参 deck 已有 slides，按 slide 顺序覆盖其 svg 字段（slide 数量以 pagePlan 为准，
- *    取 min(deck.slides.length, plan.length) 对齐；多出的 deck slide 保留原样）。
- * 3. 若 deck 无 slides（或数量少于 plan），按 plan 顺序新建带 svg 的 slide。
- * 4. 不修改入参，返回新 deck 对象。
- */
+/** string[] -> BulletNode[] 的简单转换（仅在 pipeline 生成时使用） */
+function bulletsToNodes(bullets: string[]): BulletNode[] {
+  return bullets.map((text, i) => ({ id: `b${i}`, text, level: 0 }));
+}
 export async function buildDeckSvgs(
   deck: Deck,
   design: DesignLock,
@@ -114,18 +108,32 @@ export async function buildDeckSvgsDetailed(
   for (let i = 0; i < plan.length; i++) {
     const page = pageByIndex.get(i);
     if (i < slides.length) {
-      // 写回新 svg 即代表以 SVG 为当前真相，清除过期标记
+      // 写入新 svg 即代表以 SVG 为当前真相，清除过期标记
+      // 同步 plan 的结构化内容（bullets/quote/attribution），防止 pipeline 生成后字段丢失
+      // bullets：有旧值则保持，无旧值则从 plan 注入；quote/attribution 有旧值则保持，无旧值则从 plan 注入
       slides[i] = page
-        ? { ...slides[i], svg: page.svg, svgStale: false }
+        ? {
+            ...slides[i],
+            svg: page.svg,
+            svgStale: false,
+            title: plan[i].title,
+            bullets:
+              slides[i].bullets !== undefined
+                ? slides[i].bullets
+                : bulletsToNodes(plan[i].bullets ?? []),
+            quote: slides[i].quote ?? plan[i].quote,
+            attribution: slides[i].attribution ?? plan[i].attribution,
+          }
         : slides[i];
     } else if (page) {
       slides.push({
         id: `s${i + 1}`,
-        // 经语义角色映射得到合法布局（comparison→two-column、process→content），
-        // 不做类型断言强转，保证写回 slide 的 layout 一定是合法枚举值。
         layout: semanticRoleToLayout(page.role),
         title: plan[i].title,
         svg: page.svg,
+        bullets: bulletsToNodes(plan[i].bullets ?? []),
+        quote: plan[i].quote,
+        attribution: plan[i].attribution,
       });
     } else {
       // 隔离模式下失败的新页：占位（无 svg），标题/布局从 plan 派生

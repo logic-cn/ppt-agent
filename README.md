@@ -58,6 +58,7 @@ pnpm tauri:build
 - **PPT 生成**：PptxGenJS
 - **LLM 接入**：OpenAI SDK（兼容多 Provider）
 - **图表**：PptxGenJS 原生图表
+- （近期优化：svgStale 同步机制、图表质量闸门、单页重画 Toast 提示）
 
 ## 项目结构
 

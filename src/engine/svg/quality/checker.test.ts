@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { checkSvg, checkContentPresence } from "./checker";
+import {
+  checkSvg,
+  checkContentPresence,
+  checkChartData,
+  svgContainsChart,
+} from "./checker";
 import { buildSpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
 
@@ -143,6 +148,56 @@ describe("checkSvg", () => {
     const issues = checkSvg(svg, specLock);
     const errors = issues.filter((i) => i.severity === "error");
     expect(errors.some((e) => /右边界|越界/.test(e.message))).toBe(true);
+  });
+
+  describe("checkChartData", () => {
+    function chartG(attrs: string, inner = ""): string {
+      return wrap(`<g ${attrs}>${inner}</g>`);
+    }
+
+    it("合法 data-chart-type + data-chart-data 无 error", () => {
+      const svg = chartG(
+        `data-chart-type="bar" data-chart-data='[{"label":"A","value":1},{"label":"B","value":2}]'`,
+      );
+      const issues = checkChartData(svg);
+      expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+    });
+
+    it("缺 data-chart-data 报 error（LLM 渲染了图表但没给数据）", () => {
+      const svg = chartG(`data-chart-type="bar"`);
+      const issues = checkChartData(svg);
+      expect(issues.some((i) => i.severity === "error")).toBe(true);
+    });
+
+    it("data-chart-data 非法 JSON 报 error", () => {
+      const svg = chartG(`data-chart-type="bar" data-chart-data='[{"label":'`);
+      const issues = checkChartData(svg);
+      expect(issues.some((i) => i.severity === "error")).toBe(true);
+    });
+
+    it("data-chart-data 空数组报 error", () => {
+      const svg = chartG(`data-chart-type="pie" data-chart-data='[]'`);
+      const issues = checkChartData(svg);
+      expect(issues.some((i) => i.severity === "error")).toBe(true);
+    });
+
+    it("非法 data-chart-type 报 error", () => {
+      const svg = chartG(
+        `data-chart-type="scatter" data-chart-data='[{"label":"A","value":1}]'`,
+      );
+      const issues = checkChartData(svg);
+      expect(issues.some((i) => i.severity === "error")).toBe(true);
+    });
+
+    it("svgContainsChart 区分有/无图表", () => {
+      const withChart = chartG(
+        `data-chart-type="line" data-chart-data='[{"label":"A","value":1}]'`,
+      );
+      expect(svgContainsChart(withChart)).toBe(true);
+      expect(svgContainsChart(wrap("<rect width='10' height='10'/>"))).toBe(
+        false,
+      );
+    });
   });
 });
 

@@ -84,6 +84,12 @@ export default function Settings() {
                           >
                             <span className="font-medium text-text-primary">
                               {cfg.label}
+                              {cfg.apiKey == null ||
+                              cfg.apiKey.trim() === "" ? (
+                                <span className="text-xs text-red-500 ml-1">
+                                  ⚠ 缺少 API Key
+                                </span>
+                              ) : null}
                             </span>
                             {isActive && (
                               <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-white">

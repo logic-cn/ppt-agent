@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDeckStore } from "@/store/deck";
+import { useToastStore } from "@/store/toast";
 
 interface SlideRedrawButtonProps {
   slideId: string;
@@ -29,7 +30,12 @@ export function SlideRedrawButton({
     try {
       await regenerateSlide(slideId);
     } catch (err) {
-      console.error("单页重画失败:", err);
+      useToastStore.getState().add({
+        type: "error",
+        title: "单页重画失败",
+        message: err instanceof Error ? err.message : String(err),
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }

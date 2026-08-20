@@ -3,7 +3,12 @@ import { buildSvgGenPrompt } from "@/services/llm/prompts/svg-gen";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
 import { validateSvgContract } from "./spec-contract";
-import { checkSvg, checkContentPresence } from "./quality/checker";
+import {
+  checkSvg,
+  checkContentPresence,
+  checkChartData,
+  svgContainsChart,
+} from "./quality/checker";
 import type { SvgPage } from "./types";
 
 /** 进度回调：已完成页数、总页数 */
@@ -131,6 +136,17 @@ export async function generateSlideSvg(
     for (let attempt = 1; attempt <= 2; attempt++) {
       const issues = [
         ...checkSvg(svg, opts.specLock),
+        // 图表数据完整性：LLM 声明了图表但数据缺失/损坏会在导出端静默丢图
+        ...checkChartData(svg),
+        // 图表必现性：plan 要求图表页时，SVG 中必须出现原生图表标记
+        ...(opts.plan.chartType && !svgContainsChart(svg)
+          ? [
+              {
+                severity: "error" as const,
+                message: `图表缺失：该页计划要求 ${opts.plan.chartType} 图，但 SVG 中未出现 data-chart-type 标记`,
+              },
+            ]
+          : []),
         // 内容必现性：标题/要点必须出现在 SVG 文本中，防止 LLM 丢字/改写关键内容
         ...checkContentPresence(svg, {
           title: opts.plan.title,
