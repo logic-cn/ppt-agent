@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { t } from "@/services/i18n";
 
 interface Props {
   open: boolean;
@@ -14,8 +15,8 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmText = "确认",
-  cancelText = "取消",
+  confirmText = t("confirm"),
+  cancelText = t("cancel"),
   onConfirm,
   onCancel,
 }: Props) {
