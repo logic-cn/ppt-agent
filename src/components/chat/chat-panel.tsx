@@ -35,6 +35,7 @@ import type { Slide } from "@/types/deck";
 import { PresetPickerDialog } from "@/components/preset/PresetPickerDialog";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
+import { useT } from "@/hooks/use-page-t";
 
 interface Message {
   id: string;
@@ -43,15 +44,16 @@ interface Message {
   patches?: DeckPatch[];
   summary?: string;
   destructive?: boolean;
+  error?: boolean;
 }
 
 export function ChatPanel() {
+  const t = useT();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
-      content:
-        "你好！我可以帮你生成 PPT 大纲、修改内容。告诉我你想做什么主题的 PPT？",
+      content: t("chat.welcome"),
     },
   ]);
   const [input, setInput] = useState("");
@@ -89,6 +91,7 @@ export function ChatPanel() {
       patches?: DeckPatch[],
       summary?: string,
       destructive?: boolean,
+      error?: boolean,
     ) => {
       setMessages((prev) => [
         ...prev,
@@ -99,6 +102,7 @@ export function ChatPanel() {
           patches,
           summary,
           destructive,
+          error,
         },
       ]);
     },
@@ -113,7 +117,10 @@ export function ChatPanel() {
         const result = applyDeckPatches(deck, msg.patches);
         const fatal = result.warnings.find((w) => w.fatal);
         if (fatal) {
-          addMessage("assistant", `应用修改失败：${fatal.message}`);
+          addMessage(
+            "assistant",
+            t("chat.applyFailed", { error: fatal.message }),
+          );
           return;
         }
         replaceSlides(result.deck.slides);
@@ -122,13 +129,18 @@ export function ChatPanel() {
         }
         addMessage(
           "assistant",
-          `✅ 已应用修改：${result.applied.map((a) => a.description).join("；")}`,
+          `✅ ${t("chat.applied", {
+            changes: result.applied.map((a) => a.description).join("；"),
+          })}`,
           undefined,
           undefined,
           false,
         );
       } catch (e) {
-        addMessage("assistant", `应用修改失败：${(e as Error).message}`);
+        addMessage(
+          "assistant",
+          t("chat.applyFailed", { error: (e as Error).message }),
+        );
       }
     },
     [replaceSlides, setTitle, addMessage],
@@ -172,16 +184,18 @@ export function ChatPanel() {
       const hard = getHardFindings(newFindings);
       if (hard.length > 0) {
         // (c) hard 问题阻断导出，仅提示不自动修复
+        const prefix = fixed !== current ? t("chat.autoFixedSome") : "";
         addMessage(
           "assistant",
-          `⚠️${fixed !== current ? "已自动修复部分可修复问题，" : ""}仍有 ${hard.length} 项严重问题需手动处理，导出已阻断：${hard
-            .map((f) => f.message)
-            .join("；")}`,
+          `⚠️${prefix}${t("chat.hardIssuesRemain", {
+            count: hard.length,
+            issues: hard.map((f) => f.message).join("；"),
+          })}`,
         );
       } else if (fixed !== current) {
-        addMessage("assistant", "✅ 已自动修复可修复的问题");
+        addMessage("assistant", `✅ ${t("chat.autoFixedAll")}`);
       } else {
-        addMessage("assistant", "没有发现可自动修复的问题");
+        addMessage("assistant", t("chat.noAutoFix"));
       }
     } finally {
       setFixing(false);
@@ -210,14 +224,14 @@ export function ChatPanel() {
 
         if (isTopic) {
           // 通过 runJob 统一封装 job 生命周期（生成大纲）
-          addMessage("assistant", "正在生成大纲，请稍候…");
+          addMessage("assistant", t("chat.generatingOutline"));
 
           let slides;
           try {
             slides = await runJob(
               {
                 type: "outline.generate",
-                title: "生成大纲",
+                title: t("chat.generateOutline"),
                 canCancel: true,
               },
               async (job) => {
@@ -254,7 +268,9 @@ export function ChatPanel() {
               .map((f) => f.message);
             setFirstPageGateMsg(
               hardMsgs.length > 0
-                ? "首屏风格检查未通过：" + hardMsgs.join("；")
+                ? t("chat.firstPageGateFailed", {
+                    issues: hardMsgs.join("；"),
+                  })
                 : null,
             );
             if (deck.title === "未命名项目") {
@@ -267,18 +283,15 @@ export function ChatPanel() {
 
           addMessage(
             "assistant",
-            `已生成 **${slides.length} 页大纲**！你可以：
- 1. 在左侧大纲面板拖拽调整顺序
- 2. 点击每页展开修改标题和布局
- 3. 告诉我想进一步调整哪里`,
+            t("chat.outlineGenerated", { count: slides.length }),
           );
         } else if (deck && deck.slides.length > 0) {
           // 已有 deck，优先 AI DeckPatch 编辑；失败/无 Key 时回退本地 intent-parser
-          addMessage("assistant", "正在分析修改需求…");
+          addMessage("assistant", t("chat.analyzing"));
 
           try {
             const result = await runJob(
-              { type: "deck.patch", title: "应用修改", canCancel: true },
+              { type: "deck.patch", title: t("chat.apply"), canCancel: true },
               async (job) => {
                 try {
                   const patches = await generateDeckPatches({
@@ -292,7 +305,7 @@ export function ChatPanel() {
                   // 本地兜底：用简单规则解析并执行（无 key / AI 失败场景）
                   const fallback = applyUserIntent(text);
                   if (fallback.action === "modify") {
-                    job.update({ message: "已使用本地规则处理" });
+                    job.update({ message: t("chat.localFallbackHandled") });
                     return { kind: "fallback" as const, reply: fallback.reply };
                   }
                   throw e;
@@ -304,14 +317,14 @@ export function ChatPanel() {
               runQualityCheck();
               addMessage(
                 "assistant",
-                `${result.reply}\n\n（已使用本地规则处理，未调用 AI）`,
+                `${result.reply}\n\n${t("chat.localFallbackNote")}`,
               );
               return;
             }
 
             const patches = result.patches;
             if (!patches || patches.length === 0) {
-              addMessage("assistant", "根据你的需求，当前没有需要修改的内容。");
+              addMessage("assistant", t("chat.noChangesNeeded"));
             } else {
               const summary = summarizePatches(patches);
               const hasDestructive = patches.some((p) =>
@@ -319,16 +332,16 @@ export function ChatPanel() {
               );
 
               const summaryLines = [
-                `📋 检测到 **${patches.length} 个操作**：${summary.title}`,
+                `📋 ${t("chat.detectedOps", {
+                  count: patches.length,
+                  title: summary.title,
+                })}`,
                 "",
                 ...summary.details.map((d) => `- ${d}`),
               ];
 
               if (hasDestructive) {
-                summaryLines.push(
-                  "",
-                  "⚠️ **包含高风险操作**（删除/替换/合并页面），请确认后应用。",
-                );
+                summaryLines.push("", t("chat.highRiskWarning"));
               }
 
               addMessage(
@@ -341,19 +354,25 @@ export function ChatPanel() {
             }
           } catch (e) {
             if ((e as Error).name === "AbortError") return;
-            addMessage("assistant", `应用修改失败：${(e as Error).message}`);
+            addMessage(
+              "assistant",
+              t("chat.applyFailed", { error: (e as Error).message }),
+            );
           }
         } else {
           // 没有 deck，提示先生成
-          addMessage(
-            "assistant",
-            "当前还没有 PPT 大纲。请先告诉我你想做什么主题的 PPT，我来为你生成。",
-          );
+          addMessage("assistant", t("chat.emptyDeck"));
         }
       } catch (e) {
         addMessage(
           "assistant",
-          `出错了：${(e as Error).message || "未知错误"}。请检查设置页的 API Key 是否正确配置。`,
+          t("chat.errorWithApiKey", {
+            error: (e as Error).message || t("chat.unknownError"),
+          }),
+          undefined,
+          undefined,
+          undefined,
+          true,
         );
       } finally {
         setLoading(false);
@@ -379,7 +398,7 @@ export function ChatPanel() {
       await runJob(
         {
           type: "outline.generate",
-          title: `按模板生成：${preset.name}`,
+          title: t("chat.generateFromTemplateJob", { name: preset.name }),
           canCancel: false,
         },
         async () => {
@@ -393,26 +412,32 @@ export function ChatPanel() {
       );
       addMessage(
         "assistant",
-        `已按模板「${preset.name}」重新生成 **${slides.length} 页大纲**！`,
+        t("chat.regeneratedFromTemplate", {
+          name: preset.name,
+          count: slides.length,
+        }),
       );
     } catch (e) {
-      addMessage("assistant", `模板生成失败：${(e as Error).message}`);
+      addMessage(
+        "assistant",
+        t("chat.templateFailed", { error: (e as Error).message }),
+      );
     }
   };
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
-        <span>AI 助手</span>
+        <span>{t("chat.assistantTitle")}</span>
         <button
           onClick={() => setPresetOpen(true)}
           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-bg-hover hover:text-accent ${
             presetOpen ? "text-accent" : "text-text-muted"
           }`}
-          title="用模板生成"
+          title={t("chat.useTemplate")}
         >
           <LayoutTemplate className="h-3.5 w-3.5" />
-          模板
+          {t("chat.template")}
         </button>
       </div>
 
@@ -438,20 +463,20 @@ export function ChatPanel() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <div className="flex-1">
-                <span className="font-medium">首屏风格检查</span>
+                <span className="font-medium">{t("chat.firstPageCheck")}</span>
                 <p className="mt-0.5 leading-relaxed">{firstPageGateMsg}</p>
                 <div className="mt-1.5 flex gap-2">
                   <button
                     onClick={() => void handleSubmit(lastUserText.current)}
                     className="rounded-md bg-amber-100 px-2 py-0.5 font-medium text-amber-800 hover:bg-amber-200"
                   >
-                    重新生成首屏
+                    {t("chat.regenerateFirstPage")}
                   </button>
                   <button
                     onClick={() => setFirstPageGateMsg(null)}
                     className="rounded-md border border-amber-300 px-2 py-0.5 text-amber-700 hover:bg-amber-100"
                   >
-                    调整后继续
+                    {t("chat.continueAfterAdjust")}
                   </button>
                 </div>
               </div>
@@ -469,7 +494,7 @@ export function ChatPanel() {
               <button
                 onClick={() => copyMessage(msg.id, msg.content)}
                 className="absolute right-1.5 top-1.5 rounded p-1 text-text-muted opacity-0 transition-opacity hover:bg-bg-hover group-hover:opacity-100"
-                title="复制消息"
+                title={t("chat.copyMessage")}
               >
                 {copiedId === msg.id ? (
                   <Check className="h-3.5 w-3.5 text-green-500" />
@@ -487,7 +512,7 @@ export function ChatPanel() {
                   {msg.destructive && (
                     <div className="flex items-center gap-1 text-xs text-amber-500">
                       <AlertTriangle className="h-3 w-3" />
-                      高风险操作
+                      {t("chat.highRisk")}
                     </div>
                   )}
                   <div className="flex-1" />
@@ -495,31 +520,30 @@ export function ChatPanel() {
                     onClick={() => applyPatches(msg)}
                     className="rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1 text-xs font-medium text-white hover:opacity-90 shadow-sm shadow-ai/20"
                   >
-                    应用修改
+                    {t("chat.apply")}
                   </button>
                   <button className="rounded-md border border-border px-3 py-1 text-xs text-text-muted hover:bg-bg-hover">
-                    取消
+                    {t("common.cancel")}
                   </button>
                 </div>
               )}
 
               {/* 错误消息附带重试 */}
-              {msg.role === "assistant" &&
-                msg.content.startsWith("出错了：") && (
-                  <button
-                    onClick={() => void handleSubmit(lastUserText.current)}
-                    className="mt-2 flex items-center gap-1 rounded-md bg-accent/10 px-2.5 py-1 text-xs text-accent hover:bg-accent/20"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    重试
-                  </button>
-                )}
+              {msg.role === "assistant" && msg.error && (
+                <button
+                  onClick={() => void handleSubmit(lastUserText.current)}
+                  className="mt-2 flex items-center gap-1 rounded-md bg-accent/10 px-2.5 py-1 text-xs text-accent hover:bg-accent/20"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  {t("common.retry")}
+                </button>
+              )}
             </div>
           ))}
           {loading && (
             <div className="flex items-center gap-2 text-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              思考中…
+              {t("chat.thinking")}
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -530,10 +554,10 @@ export function ChatPanel() {
       {messages.length <= 1 && !loading && (
         <div className="flex flex-wrap gap-1.5 px-3 pb-1">
           {[
-            "生成一份关于AI行业的PPT",
-            "Q3业务汇报",
-            "产品发布会PPT",
-            "市场分析报告",
+            t("chat.suggestionAiIndustry"),
+            t("chat.suggestionQ3Report"),
+            t("chat.suggestionLaunch"),
+            t("chat.suggestionMarketAnalysis"),
           ].map((text) => (
             <button
               key={text}
@@ -556,7 +580,7 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入指令，如：生成一份 Q3 业务复盘汇报"
+            placeholder={t("chat.inputPlaceholder")}
             rows={1}
             className="max-h-32 flex-1 resize-none bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
           />

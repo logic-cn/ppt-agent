@@ -13,6 +13,7 @@ import { useJobStore, runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { useToastStore } from "@/store/toast";
 import { checkDeckQuality } from "@/services/quality";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   open: boolean;
@@ -22,6 +23,7 @@ interface Props {
 type ImportStep = "input" | "parsed" | "generating";
 
 export function ImportDialog({ open, onClose }: Props) {
+  const t = useT();
   const [tab, setTab] = useState<"file" | "url">("file");
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -117,7 +119,7 @@ export function ImportDialog({ open, onClose }: Props) {
       const slides = await runJob(
         {
           type: "document.import",
-          title: `导入「${doc.source.title}」`,
+          title: t("import.jobImportTitle", { title: doc.source.title }),
           canCancel: true,
         },
         async (job) => {
@@ -128,7 +130,7 @@ export function ImportDialog({ open, onClose }: Props) {
           });
           context.selectedSectionIds = selectedIds;
 
-          job.update({ progress: 0.5, message: "正在生成大纲…" });
+          job.update({ progress: 0.5, message: t("import.generatingOutline") });
 
           const result = await generateOutlineFromDocument(context, {
             signal: job.signal,
@@ -150,15 +152,15 @@ export function ImportDialog({ open, onClose }: Props) {
 
       addToast({
         type: "success",
-        title: "导入完成",
-        message: `已生成 ${slides.length} 页大纲`,
+        title: t("import.complete"),
+        message: t("import.generatedPages", { count: slides.length }),
       });
       onClose();
     } catch (e) {
       activeJobRef.current = null;
       addToast({
         type: "error",
-        title: "导入失败",
+        title: t("import.failed"),
         message: (e as Error).message,
       });
       if (doc) {
@@ -205,15 +207,15 @@ export function ImportDialog({ open, onClose }: Props) {
       } else {
         addToast({
           type: "error",
-          title: "不支持的文件格式",
-          message: "仅支持 .docx 和 .md 文件",
+          title: t("import.unsupportedFormat"),
+          message: t("import.unsupportedFormatMsg"),
         });
         setImporting(false);
       }
     } catch (e) {
       addToast({
         type: "error",
-        title: "解析失败",
+        title: t("import.parseFailed"),
         message: (e as Error).message,
       });
       setImporting(false);
@@ -243,12 +245,15 @@ export function ImportDialog({ open, onClose }: Props) {
       if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
         addToast({
           type: "warning",
-          title: "无法访问该网页",
-          message:
-            "可能是 CORS 限制或网络问题。试试手动复制内容粘贴到 Markdown 文件导入。",
+          title: t("import.urlUnreachable"),
+          message: t("import.urlUnreachableMsg"),
         });
       } else {
-        addToast({ type: "error", title: "导入失败", message: msg });
+        addToast({
+          type: "error",
+          title: t("import.failed"),
+          message: msg,
+        });
       }
       setImporting(false);
     }
@@ -265,10 +270,10 @@ export function ImportDialog({ open, onClose }: Props) {
     const totalChars = parsed.rawText.length;
     const strategyLabel =
       docStrategy === "direct"
-        ? "直接生成"
+        ? t("import.strategyDirect")
         : docStrategy === "chunk_summary"
-          ? "分块摘要后生成"
-          : "选择章节后生成";
+          ? t("import.strategyChunk")
+          : t("import.strategySelect");
 
     return (
       <div className="space-y-3">
@@ -278,12 +283,17 @@ export function ImportDialog({ open, onClose }: Props) {
               {parsed.source.title}
             </span>
             <span className="text-xs text-text-muted">
-              {totalChars} 字 · 估算 {Math.ceil(totalChars / 4)} tokens
+              {t("import.charCount", {
+                chars: totalChars,
+                tokens: Math.ceil(totalChars / 4),
+              })}
             </span>
           </div>
           <div className="text-xs text-text-muted">
-            策略：{strategyLabel} · 推荐页数：
-            {Math.max(5, Math.ceil(totalChars / 800))} 页
+            {t("import.strategyAndPages", {
+              strategy: strategyLabel,
+              pages: Math.max(5, Math.ceil(totalChars / 800)),
+            })}
           </div>
           {parsed.warnings.length > 0 && (
             <div className="mt-2 text-xs text-amber-500">
@@ -299,8 +309,10 @@ export function ImportDialog({ open, onClose }: Props) {
           parsed.sections.length > 0 && (
             <div>
               <label className="mb-1.5 block text-xs text-text-secondary">
-                选择要生成的章节（{selectedSectionIds.length}/
-                {parsed.sections.length}）
+                {t("import.selectSections", {
+                  selected: selectedSectionIds.length,
+                  total: parsed.sections.length,
+                })}
               </label>
               <div className="max-h-48 space-y-1 overflow-auto">
                 {parsed.sections.map((s) => (
@@ -318,7 +330,7 @@ export function ImportDialog({ open, onClose }: Props) {
                       {s.heading}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {s.content.length}字
+                      {t("import.charsShort", { count: s.content.length })}
                     </span>
                   </label>
                 ))}
@@ -334,7 +346,7 @@ export function ImportDialog({ open, onClose }: Props) {
             }}
             className="rounded-lg px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover"
           >
-            重新选择
+            {t("import.reselect")}
           </button>
           <button
             onClick={() => parsed && handleGenerate(parsed, selectedSectionIds)}
@@ -346,7 +358,7 @@ export function ImportDialog({ open, onClose }: Props) {
             ) : (
               <Check className="h-4 w-4" />
             )}
-            生成 PPT
+            {t("import.generatePpt")}
           </button>
         </div>
       </div>
@@ -379,7 +391,7 @@ export function ImportDialog({ open, onClose }: Props) {
         {/* 标题 */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 id="import-dialog-title" className="text-base font-semibold">
-            导入文档
+            {t("import.title")}
           </h2>
           <button
             onClick={
@@ -409,7 +421,7 @@ export function ImportDialog({ open, onClose }: Props) {
               }`}
             >
               <Upload className="h-4 w-4" />
-              上传文件
+              {t("import.uploadFile")}
             </button>
             <button
               onClick={() => setTab("url")}
@@ -420,7 +432,7 @@ export function ImportDialog({ open, onClose }: Props) {
               }`}
             >
               <Link className="h-4 w-4" />
-              网页链接
+              {t("import.webLink")}
             </button>
           </div>
         )}
@@ -434,9 +446,11 @@ export function ImportDialog({ open, onClose }: Props) {
             >
               <FileText className="h-10 w-10 text-text-muted" />
               <div>
-                <p className="font-medium text-text-primary">点击上传文件</p>
+                <p className="font-medium text-text-primary">
+                  {t("import.uploadHint")}
+                </p>
                 <p className="mt-1 text-sm text-text-muted">
-                  支持 .docx（Word 文档）和 .md（Markdown）格式
+                  {t("import.uploadFormats")}
                 </p>
               </div>
               <input
@@ -451,7 +465,7 @@ export function ImportDialog({ open, onClose }: Props) {
             <div className="space-y-3">
               <div>
                 <label className="mb-1.5 block text-sm text-text-secondary">
-                  网页链接
+                  {t("import.webLink")}
                 </label>
                 <input
                   value={url}
@@ -460,17 +474,14 @@ export function ImportDialog({ open, onClose }: Props) {
                   className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                 />
               </div>
-              <p className="text-xs text-text-muted">
-                注意：部分网站可能会阻止访问（CORS
-                限制），建议优先使用文件导入。
-              </p>
+              <p className="text-xs text-text-muted">{t("import.urlNote")}</p>
               <button
                 onClick={handleUrl}
                 disabled={importing || !url.trim()}
                 className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
               >
                 {importing && <Loader2 className="h-4 w-4 animate-spin" />}
-                解析并导入
+                {t("import.parseAndImport")}
               </button>
             </div>
           ) : step === "parsed" || step === "generating" ? (
@@ -485,7 +496,7 @@ export function ImportDialog({ open, onClose }: Props) {
               onClick={onClose}
               className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-bg-hover"
             >
-              取消
+              {t("common.cancel")}
             </button>
           </div>
         )}
