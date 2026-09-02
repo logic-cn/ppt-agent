@@ -3,10 +3,12 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import { ToastContainer } from "@/components/ui/toast-container";
+import { useTheme } from "@/hooks/use-theme";
 
 const Editor = lazy(() => import("./pages/Editor"));
 
 export default function App() {
+  useTheme();
   return (
     <>
       <Routes>
