@@ -5,6 +5,7 @@ import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { buildTemplateGenerationContext } from "@/presets/template-context";
 import type { DeckPreset } from "@/types/preset";
 import type { Deck, Slide } from "@/types/deck";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   open: boolean;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
+  const t = useT();
   const [preset, setPreset] = useState<DeckPreset | null>(null);
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -66,7 +68,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       onClose();
     } catch (e) {
       if (controller.signal.aborted) return;
-      setError((e as Error).message || "生成失败，请重试");
+      setError((e as Error).message || t("preset.generateError"));
     } finally {
       setGenerating(false);
       abortRef.current = null;
@@ -87,12 +89,12 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 id="preset-picker-title" className="text-base font-semibold">
-            {preset ? "输入主题" : "示例库"}
+            {preset ? t("preset.enterTopic") : t("preset.library")}
           </h2>
           <button
             onClick={onClose}
             className="rounded-md p-1.5 text-text-muted transition hover:bg-bg-hover hover:text-text-primary"
-            aria-label="关闭"
+            aria-label={t("common.close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -114,11 +116,11 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                   className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent"
                 >
                   <ArrowLeft className="h-3 w-3" />
-                  返回
+                  {t("preset.back")}
                 </button>
               </div>
               <p className="text-xs text-text-muted">
-                已选风格骨架，请输入你的主题，将基于此风格生成专属大纲。
+                {t("preset.enterTopicPrompt")}
               </p>
               <input
                 type="text"
@@ -131,7 +133,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                     void handleGenerate();
                   }
                 }}
-                placeholder="输入主题，如：Q3 业务复盘"
+                placeholder={t("preset.topicPlaceholder")}
                 className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               />
               {error && <p className="text-xs text-red-500">{error}</p>}
@@ -142,11 +144,13 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
               >
                 {generating ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> 生成中…
+                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                    {t("common.generating")}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4" /> 生成大纲
+                    <Sparkles className="h-4 w-4" />{" "}
+                    {t("preset.generateOutline")}
                   </>
                 )}
               </button>

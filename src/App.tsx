@@ -4,11 +4,13 @@ import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { useTheme } from "@/hooks/use-theme";
+import { useT } from "@/hooks/use-page-t";
 
 const Editor = lazy(() => import("./pages/Editor"));
 
 export default function App() {
   useTheme();
+  const t = useT();
   return (
     <>
       <Routes>
@@ -19,7 +21,7 @@ export default function App() {
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center text-text-muted">
-                  加载中…
+                  {t("common.loading")}
                 </div>
               }
             >
