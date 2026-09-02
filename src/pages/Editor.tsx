@@ -33,11 +33,13 @@ import { resolveTheme } from "@/themes";
 import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
 import { generateImage } from "@/services/image";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { useT } from "@/hooks/use-page-t";
 
 export default function Editor() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const t = useT();
   const isNew = params.get("new") === "1";
   const deck = useDeckStore((s) => s.deck);
   const load = useDeckStore((s) => s.load);
@@ -126,8 +128,8 @@ export default function Editor() {
       if (!current && !isNew) {
         addToast({
           type: "error",
-          title: "项目不存在",
-          message: "尝试加载的项目不存在，将新建一个项目。",
+          title: t("editor.projectNotFound"),
+          message: t("editor.projectNotFoundMessage"),
         });
         const deckStore = useDeckStore.getState();
         void deckStore.createDeck().then((d) => {
@@ -155,7 +157,7 @@ export default function Editor() {
       await runJob(
         {
           type: "image.generate",
-          title: `生成配图「${slide.title}」`,
+          title: t("editor.generateImageJob", { title: slide.title }),
           canCancel: true,
         },
         async (job) => {
@@ -182,7 +184,7 @@ export default function Editor() {
     } catch (e) {
       addToast({
         type: "error",
-        title: "配图生成失败",
+        title: t("editor.imageGenerationFailed"),
         message: (e as Error).message,
       });
     }
@@ -197,8 +199,8 @@ export default function Editor() {
     if (staleCount > 0) {
       addToast({
         type: "warning",
-        title: "部分页面内容已修改",
-        message: `${staleCount} 页内容被编辑后未重画，导出将包含旧版视觉，建议先「重画同步」`,
+        title: t("editor.pagesStaleTitle"),
+        message: t("editor.pagesStaleMessage", { n: staleCount }),
       });
     }
 
@@ -206,7 +208,7 @@ export default function Editor() {
       const result = await runJob(
         {
           type: "pptx.export",
-          title: `导出「${deck.title}」`,
+          title: t("editor.exportJob", { title: deck.title }),
           canCancel: true,
         },
         async (job) => {
@@ -238,20 +240,20 @@ export default function Editor() {
       if (result === "download") {
         addToast({
           type: "success",
-          title: "导出成功",
-          message: "文件已下载到本地",
+          title: t("editor.exportSuccess"),
+          message: t("editor.exportDownloaded"),
         });
       } else if (result === "saved") {
         addToast({
           type: "success",
-          title: "导出成功",
-          message: `${deck.slides.length} 页已保存`,
+          title: t("editor.exportSuccess"),
+          message: t("editor.exportSaved", { n: deck.slides.length }),
         });
       }
     } catch (e) {
       addToast({
         type: "error",
-        title: "导出失败",
+        title: t("editor.exportFailed"),
         message: (e as Error).message,
       });
     } finally {
@@ -300,17 +302,17 @@ export default function Editor() {
           ) : (
             <button
               onClick={() => {
-                setTitleInput(deck?.title ?? "未命名项目");
+                setTitleInput(deck?.title ?? t("editor.untitled"));
                 setEditingTitle(true);
               }}
               className="rounded px-1.5 py-0.5 text-sm font-medium text-text-primary hover:bg-bg-hover"
             >
-              {deck?.title ?? "未命名项目"}
+              {deck?.title ?? t("editor.untitled")}
             </button>
           )}
           {deck && (
             <span className="text-xs text-text-muted">
-              {deck.slides.length} 页
+              {t("editor.pageCount", { n: deck.slides.length })}
             </span>
           )}
         </div>
@@ -323,7 +325,7 @@ export default function Editor() {
               className="flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2.5 py-1 text-xs text-blue-600 hover:bg-blue-500/20"
             >
               <Loader2 className="h-3 w-3 animate-spin" />
-              {activeJobs.length} 个任务
+              {t("editor.activeJobsCount", { n: activeJobs.length })}
             </button>
           )}
           {failedJobs.length > 0 && !hasActiveJobs && (
@@ -331,7 +333,7 @@ export default function Editor() {
               onClick={() => setJobPanelOpen(!jobPanelOpen)}
               className="flex items-center gap-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-xs text-red-600 hover:bg-red-500/20"
             >
-              {failedJobs.length} 个失败任务
+              {t("editor.failedJobsCount", { n: failedJobs.length })}
             </button>
           )}
 
@@ -340,7 +342,7 @@ export default function Editor() {
             className={`rounded-md p-1.5 hover:bg-bg-hover ${
               leftOpen ? "text-accent" : "text-text-secondary"
             }`}
-            title="大纲面板"
+            title={t("editor.outlinePanel")}
           >
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -349,7 +351,7 @@ export default function Editor() {
             className={`rounded-md p-1.5 hover:bg-bg-hover ${
               rightOpen ? "text-accent" : "text-text-secondary"
             }`}
-            title="AI 面板"
+            title={t("editor.aiPanel")}
           >
             <PanelRight className="h-4 w-4" />
           </button>
@@ -359,7 +361,7 @@ export default function Editor() {
           <button
             onClick={() => setDeleteConfirm(true)}
             className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger"
-            title="删除项目"
+            title={t("editor.deleteProject")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -374,10 +376,10 @@ export default function Editor() {
                   ? "text-accent"
                   : "text-text-secondary hover:text-text-primary"
               }`}
-              title="设计"
+              title={t("editor.design")}
             >
               <Palette className="h-3.5 w-3.5" />
-              设计
+              {t("editor.design")}
             </button>
             {designOpen && (
               <>
@@ -400,32 +402,34 @@ export default function Editor() {
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
           >
             <Upload className="h-3.5 w-3.5" />
-            导入
+            {t("editor.import")}
           </button>
           <button
             onClick={() => setPresenting(true)}
             disabled={!deck || deck.slides.length === 0}
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
-            title="演示 (F5)"
+            title={t("editor.presentTooltip")}
           >
             <Monitor className="h-3.5 w-3.5" />
-            演示
+            {t("editor.present")}
           </button>
           <button
             onClick={handleExport}
             disabled={exporting || !deck || deck.slides.length === 0 || hasHard}
-            title={hasHard ? "存在严重质量问题，请先修复后再导出" : "导出 PPT"}
+            title={
+              hasHard ? t("editor.qualityBlockExport") : t("common.exportPpt")
+            }
             className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
           >
             <Download className="h-3.5 w-3.5" />
-            {exporting ? "导出中…" : "导出 PPT"}
+            {exporting ? t("common.exporting") : t("common.exportPpt")}
           </button>
           {hasHard && (
             <span
               className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-600"
-              title="存在严重质量问题，请先修复后再导出"
+              title={t("editor.qualityBlockExport")}
             >
-              质量未达标
+              {t("editor.qualityNotMet")}
             </span>
           )}
         </div>
@@ -436,7 +440,7 @@ export default function Editor() {
         <div className="border-b border-border bg-bg-surface px-4 py-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-text-secondary">
-              任务列表
+              {t("editor.taskList")}
             </span>
             <div className="flex items-center gap-2">
               {!hasActiveJobs && failedJobs.length > 0 && (
@@ -444,7 +448,7 @@ export default function Editor() {
                   onClick={clearFinishedJobs}
                   className="text-xs text-text-muted hover:text-text-primary"
                 >
-                  清除已完成
+                  {t("editor.clearCompleted")}
                 </button>
               )}
               <button
@@ -484,18 +488,18 @@ export default function Editor() {
                   )}
                   <span className={`ml-auto ${statusColor(job.status)}`}>
                     {job.status === "running"
-                      ? "进行中"
+                      ? t("editor.statusRunning")
                       : job.status === "failed"
-                        ? "失败"
+                        ? t("editor.statusFailed")
                         : job.status === "succeeded"
-                          ? "完成"
+                          ? t("editor.statusSucceeded")
                           : ""}
                   </span>
                   {job.status === "failed" && job.error && (
                     <button
                       onClick={() => navigator.clipboard.writeText(job.error!)}
                       className="rounded p-0.5 text-text-muted hover:text-text-primary"
-                      title="复制错误"
+                      title={t("editor.copyError")}
                     >
                       <Copy className="h-3 w-3" />
                     </button>
@@ -521,7 +525,7 @@ export default function Editor() {
             <button
               onClick={() => setLeftOpen(true)}
               className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
-              title="展开大纲"
+              title={t("editor.expandOutline")}
             >
               <PanelLeft className="h-3.5 w-3.5" />
             </button>
@@ -539,7 +543,7 @@ export default function Editor() {
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-text-muted">
-              生成大纲后将在此预览
+              {t("editor.previewPlaceholder")}
             </div>
           )}
         </main>
@@ -558,7 +562,7 @@ export default function Editor() {
             <button
               onClick={() => setRightOpen(true)}
               className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
-              title="展开 AI 面板"
+              title={t("editor.expandAiPanel")}
             >
               <PanelRight className="h-3.5 w-3.5" />
             </button>
@@ -578,9 +582,11 @@ export default function Editor() {
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       <ConfirmDialog
         open={deleteConfirm}
-        title="删除项目"
-        message={`确定要删除「${deck?.title ?? "未命名项目"}」吗？此操作不可撤销。`}
-        confirmText="删除"
+        title={t("editor.deleteProject")}
+        message={t("editor.deleteConfirmMessage", {
+          title: deck?.title ?? t("editor.untitled"),
+        })}
+        confirmText={t("common.delete")}
         onConfirm={async () => {
           if (deck) {
             await deleteDeck(deck.id);
