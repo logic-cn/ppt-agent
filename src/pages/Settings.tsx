@@ -23,7 +23,7 @@ export default function Settings() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border bg-white px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-border bg-white dark:bg-gray-900 px-6 py-3">
         <button
           onClick={() => navigate("/")}
           className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -36,7 +36,7 @@ export default function Settings() {
       <main className="flex-1 overflow-auto px-12 py-10">
         <div className="mx-auto max-w-2xl space-y-6">
           {/* ===== 模型设置 ===== */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-white">
+          <section className="overflow-hidden rounded-2xl border border-border bg-white dark:bg-gray-900">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <Key className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-semibold">模型设置</h2>
