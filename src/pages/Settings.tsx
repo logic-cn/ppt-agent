@@ -1,12 +1,29 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { ChevronLeft, Key, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, Key, Image as ImageIcon, Sparkles } from "lucide-react";
 import { useSettingsStore } from "@/store/settings";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import type { LLMProviderId } from "@/types/llm";
+import type { Lang, ThemeMode } from "@/types/preferences";
+import { useT } from "@/hooks/use-page-t";
+
+const THEME_OPTIONS: {
+  value: ThemeMode;
+  key: "settings.themeLight" | "settings.themeDark" | "settings.themeSystem";
+}[] = [
+  { value: "light", key: "settings.themeLight" },
+  { value: "dark", key: "settings.themeDark" },
+  { value: "system", key: "settings.themeSystem" },
+];
+
+const LANG_OPTIONS: { value: Lang; label: string }[] = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "English" },
+];
 
 export default function Settings() {
   const navigate = useNavigate();
+  const t = useT();
   const {
     settings,
     loaded,
@@ -15,6 +32,8 @@ export default function Settings() {
     updateProvider,
     setImageEnabled,
     setImageProvider,
+    setLang,
+    setTheme,
   } = useSettingsStore();
 
   useEffect(() => {
@@ -23,23 +42,89 @@ export default function Settings() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border bg-white dark:bg-gray-900 px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-border bg-bg-elevated px-6 py-3">
         <button
           onClick={() => navigate("/")}
           className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-lg font-semibold">设置</span>
+        <span className="text-lg font-semibold">{t("common.settings")}</span>
       </header>
 
       <main className="flex-1 overflow-auto px-12 py-10">
         <div className="mx-auto max-w-2xl space-y-6">
+          {/* ===== 通用 ===== */}
+          <section className="overflow-hidden rounded-2xl border border-border bg-bg-elevated">
+            <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold">{t("settings.general")}</h2>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div>
+                <div className="mb-2 text-xs text-text-muted">
+                  {t("common.language")}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {LANG_OPTIONS.map((opt) => {
+                    const selected = settings.lang === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setLang(opt.value)}
+                        aria-pressed={selected}
+                        className={[
+                          "rounded-md px-3 py-1.5 text-sm transition",
+                          selected
+                            ? "bg-accent text-white"
+                            : "bg-bg-surface text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+                        ].join(" ")}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs text-text-muted">
+                  {t("common.theme")}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {THEME_OPTIONS.map((opt) => {
+                    const selected = settings.theme === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setTheme(opt.value)}
+                        aria-pressed={selected}
+                        className={[
+                          "rounded-md px-3 py-1.5 text-sm transition",
+                          selected
+                            ? "bg-accent text-white"
+                            : "bg-bg-surface text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+                        ].join(" ")}
+                      >
+                        {t(opt.key)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ===== 模型设置 ===== */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-white dark:bg-gray-900">
+          <section className="overflow-hidden rounded-2xl border border-border bg-bg-elevated">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <Key className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold">模型设置</h2>
+              <h2 className="text-lg font-semibold">
+                {t("settings.modelSection")}
+              </h2>
             </div>
 
             <div className="space-y-5 p-5">
@@ -49,13 +134,15 @@ export default function Settings() {
                   <Key className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs text-text-muted">当前默认模型</div>
+                  <div className="text-xs text-text-muted">
+                    {t("settings.currentModel")}
+                  </div>
                   <div className="truncate font-medium text-text-primary">
                     {settings.providers[settings.activeProvider]
                       ? `${settings.providers[settings.activeProvider]!.label} · ${
                           settings.providers[settings.activeProvider]!.model
                         }`
-                      : "加载中…"}
+                      : t("common.loading")}
                   </div>
                 </div>
               </div>
@@ -74,7 +161,7 @@ export default function Settings() {
                           className={`rounded-xl border p-4 transition-colors ${
                             isActive
                               ? "border-accent bg-accent-soft/30"
-                              : "border-border bg-white hover:border-accent/50"
+                              : "border-border bg-bg-elevated hover:border-accent/50"
                           }`}
                         >
                           <button
@@ -87,13 +174,13 @@ export default function Settings() {
                               {cfg.apiKey == null ||
                               cfg.apiKey.trim() === "" ? (
                                 <span className="text-xs text-red-500 ml-1">
-                                  ⚠ 缺少 API Key
+                                  {t("settings.missingApiKey")}
                                 </span>
                               ) : null}
                             </span>
                             {isActive && (
                               <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-white">
-                                当前使用
+                                {t("settings.inUse")}
                               </span>
                             )}
                           </button>
@@ -110,12 +197,12 @@ export default function Settings() {
                                     baseUrl: e.target.value,
                                   })
                                 }
-                                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                               />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs text-text-muted">
-                                模型名称
+                                {t("settings.modelName")}
                               </label>
                               <input
                                 type="text"
@@ -123,7 +210,7 @@ export default function Settings() {
                                 onChange={(e) =>
                                   updateProvider(id, { model: e.target.value })
                                 }
-                                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                               />
                             </div>
                           </div>
@@ -138,7 +225,7 @@ export default function Settings() {
                                 updateProvider(id, { apiKey: e.target.value })
                               }
                               placeholder="sk-..."
-                              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                              className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                             />
                           </div>
                         </div>
@@ -153,10 +240,14 @@ export default function Settings() {
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ImageIcon className="h-5 w-5 text-accent" />
-                    <h3 className="font-semibold text-text-primary">AI 配图</h3>
+                    <h3 className="font-semibold text-text-primary">
+                      {t("settings.imageSection")}
+                    </h3>
                   </div>
                   <label className="flex cursor-pointer items-center gap-2">
-                    <span className="text-sm text-text-muted">启用</span>
+                    <span className="text-sm text-text-muted">
+                      {t("settings.enable")}
+                    </span>
                     <input
                       type="checkbox"
                       checked={settings.imageEnabled}
@@ -169,8 +260,7 @@ export default function Settings() {
                 {settings.imageEnabled && (
                   <div className="space-y-3 rounded-xl border border-border bg-bg-surface p-4">
                     <p className="text-sm text-text-muted">
-                      使用 OpenAI 兼容 API 生成配图（如
-                      DALL·E）。未单独配置时将使用当前 LLM Provider。
+                      {t("settings.imageHelp")}
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -184,7 +274,7 @@ export default function Settings() {
                             setImageProvider({
                               ...(settings.imageProvider ?? {
                                 id: "custom",
-                                label: "图片生成",
+                                label: t("settings.imageGen"),
                                 model: "dall-e-3",
                                 apiKey: "",
                                 enabled: true,
@@ -195,12 +285,12 @@ export default function Settings() {
                           placeholder={
                             settings.providers[settings.activeProvider]?.baseUrl
                           }
-                          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                         />
                       </div>
                       <div>
                         <label className="mb-1 block text-xs text-text-muted">
-                          模型
+                          {t("settings.modelName")}
                         </label>
                         <input
                           type="text"
@@ -209,7 +299,7 @@ export default function Settings() {
                             setImageProvider({
                               ...(settings.imageProvider ?? {
                                 id: "custom",
-                                label: "图片生成",
+                                label: t("settings.imageGen"),
                                 baseUrl: "",
                                 apiKey: "",
                                 enabled: true,
@@ -217,7 +307,7 @@ export default function Settings() {
                               model: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                         />
                       </div>
                     </div>
@@ -232,7 +322,7 @@ export default function Settings() {
                           setImageProvider({
                             ...(settings.imageProvider ?? {
                               id: "custom",
-                              label: "图片生成",
+                              label: t("settings.imageGen"),
                               baseUrl: "",
                               model: "dall-e-3",
                               enabled: true,
@@ -241,7 +331,7 @@ export default function Settings() {
                           })
                         }
                         placeholder="sk-..."
-                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                       />
                     </div>
                   </div>

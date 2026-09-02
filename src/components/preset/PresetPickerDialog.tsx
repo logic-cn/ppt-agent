@@ -82,7 +82,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-white shadow-xl"
+        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -132,7 +132,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                   }
                 }}
                 placeholder="输入主题，如：Q3 业务复盘"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               />
               {error && <p className="text-xs text-red-500">{error}</p>}
               <button

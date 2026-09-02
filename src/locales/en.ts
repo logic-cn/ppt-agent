@@ -21,6 +21,20 @@ export const en = {
   "common.generating": "Generating…",
   "common.empty": "No content",
   "common.redrawSync": "Redraw Sync",
+  "settings.general": "General",
+  "settings.themeLight": "Light",
+  "settings.themeDark": "Dark",
+  "settings.themeSystem": "System",
+  "settings.modelSection": "Model Settings",
+  "settings.currentModel": "Current default model",
+  "settings.missingApiKey": "Missing API Key",
+  "settings.inUse": "In use",
+  "settings.modelName": "Model",
+  "settings.imageSection": "AI Image",
+  "settings.enable": "Enable",
+  "settings.imageHelp":
+    "Generate images via an OpenAI-compatible API (e.g. DALL·E). Falls back to the current LLM provider if not configured separately.",
+  "settings.imageGen": "Image generation",
   "editor.pageOf": "Page {n} of {total}",
 } as const;
 

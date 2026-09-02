@@ -67,7 +67,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
         <select
           value={chart.type}
           onChange={(e) => updateChart({ type: e.target.value as ChartType })}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {CHART_TYPES.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -83,7 +83,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
           value={chart.title ?? ""}
           onChange={(e) => updateChart({ title: e.target.value || undefined })}
           placeholder="可选"
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -104,7 +104,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
                 value={row.label}
                 onChange={(e) => updateRow(i, { label: e.target.value })}
                 placeholder="标签"
-                className="flex-1 rounded border border-border bg-white px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
+                className="flex-1 rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <input
                 type="number"
@@ -112,7 +112,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
                 onChange={(e) =>
                   updateRow(i, { value: parseFloat(e.target.value) || 0 })
                 }
-                className="w-20 rounded border border-border bg-white px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
+                className="w-20 rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <button
                 onClick={() => removeRow(i)}

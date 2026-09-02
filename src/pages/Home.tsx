@@ -60,7 +60,7 @@ export default function Home() {
   return (
     <div className="flex h-full flex-col">
       {/* 顶栏 */}
-      <header className="flex items-center justify-between border-b border-border bg-white px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border bg-bg-elevated px-6 py-3">
         <div className="flex items-center gap-2">
           <Presentation className="h-5 w-5 text-accent" />
           <span className="text-lg font-semibold">PPT Agent</span>
@@ -81,7 +81,7 @@ export default function Home() {
           <div className="mb-12 grid grid-cols-3 gap-4">
             <button
               onClick={createProject}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-elevated p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <Plus className="h-7 w-7" />
@@ -99,7 +99,7 @@ export default function Home() {
                 const deck = await createDeck();
                 navigate(`/editor/${deck.id}?import=1`);
               }}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-elevated p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <FileText className="h-7 w-7" />
@@ -114,7 +114,7 @@ export default function Home() {
 
             <button
               onClick={() => setPresetOpen(true)}
-              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white p-8 transition-all hover:border-accent hover:shadow-sm"
+              className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-elevated p-8 transition-all hover:border-accent hover:shadow-sm"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent transition group-hover:scale-110">
                 <FileText className="h-7 w-7" />
@@ -136,7 +136,7 @@ export default function Home() {
               <span className="ml-3 text-sm">加载中…</span>
             </div>
           ) : recent.length === 0 ? (
-            <div className="rounded-xl border border-border bg-white p-8">
+            <div className="rounded-xl border border-border bg-bg-elevated p-8">
               <h2 className="mb-4 text-lg font-semibold">快速开始</h2>
               <div className="grid grid-cols-3 gap-6">
                 <div className="space-y-2">
@@ -176,7 +176,7 @@ export default function Home() {
               {recent.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative rounded-xl border border-border bg-white p-5 text-left transition-all hover:border-accent hover:shadow-sm"
+                  className="group relative rounded-xl border border-border bg-bg-elevated p-5 text-left transition-all hover:border-accent hover:shadow-sm"
                 >
                   <button
                     onClick={() => navigate(`/editor/${p.id}`)}

@@ -30,7 +30,7 @@ export function NotesTab({ slide, onUpdate }: Props) {
         }}
         placeholder="输入演讲者备注…"
         rows={12}
-        className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+        className="w-full resize-none rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
       />
     </div>
   );

@@ -2,38 +2,38 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
-  darkMode: ["class"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
         bg: {
-          base: "#FAF9F6",
-          surface: "#F5F4F0",
-          elevated: "#FFFFFF",
-          hover: "#EEEDE8",
+          base: "rgb(var(--bg-base) / <alpha-value>)",
+          surface: "rgb(var(--bg-surface) / <alpha-value>)",
+          elevated: "rgb(var(--bg-elevated) / <alpha-value>)",
+          hover: "rgb(var(--bg-hover) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "#E8E7E2",
-          strong: "#D4D3CE",
+          DEFAULT: "rgb(var(--border) / <alpha-value>)",
+          strong: "rgb(var(--border-strong) / <alpha-value>)",
         },
         text: {
-          primary: "#1A1A1E",
-          secondary: "#6B6B76",
-          muted: "#9A9AA8",
+          primary: "rgb(var(--text-primary) / <alpha-value>)",
+          secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+          muted: "rgb(var(--text-muted) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#4F6FFF",
-          hover: "#3B5FFF",
-          soft: "#EEF0FF",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
+          soft: "rgb(var(--accent-soft) / <alpha-value>)",
         },
         ai: {
-          DEFAULT: "#FF6B6B",
-          hover: "#FF5252",
-          soft: "#FFF5F5",
+          DEFAULT: "rgb(var(--ai) / <alpha-value>)",
+          hover: "rgb(var(--ai-hover) / <alpha-value>)",
+          soft: "rgb(var(--ai-soft) / <alpha-value>)",
         },
-        success: "#22C55E",
-        warning: "#F59E0B",
-        danger: "#EF4444",
+        success: "rgb(var(--success) / <alpha-value>)",
+        warning: "rgb(var(--warning) / <alpha-value>)",
+        danger: "rgb(var(--danger) / <alpha-value>)",
       },
       fontFamily: {
         sans: [

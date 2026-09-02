@@ -48,7 +48,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
               image: { ...image, type: e.target.value as ImageSource },
             })
           }
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           <option value="url">URL</option>
           <option value="ai">AI 生成</option>
@@ -68,7 +68,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
             }, 300);
           }}
           placeholder="https://example.com/image.png"
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -89,7 +89,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
           onChange={(e) =>
             onUpdate({ image: { ...image, alt: e.target.value } })
           }
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -105,7 +105,7 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
               },
             })
           }
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {POSITION_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>

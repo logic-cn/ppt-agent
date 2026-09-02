@@ -33,9 +33,7 @@ export function DesignPanel({ design, onChange }: Props) {
   return (
     <div className="space-y-4">
       <section>
-        <h3 className="mb-2 text-xs font-medium text-text-muted dark:text-text-primary">
-          模式
-        </h3>
+        <h3 className="mb-2 text-xs font-medium text-text-muted">模式</h3>
         <div className="flex flex-wrap gap-1.5">
           {NARRATIVE_MODE_IDS.map((id) => {
             const selected = id === design.mode;

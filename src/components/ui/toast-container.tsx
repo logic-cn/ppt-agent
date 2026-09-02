@@ -18,7 +18,7 @@ export function ToastContainer() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-white px-4 py-3 shadow-lg"
+          className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 shadow-lg"
           style={{ minWidth: 280, maxWidth: 400 }}
         >
           <span

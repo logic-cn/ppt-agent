@@ -23,7 +23,7 @@ export function PresetLibrary({ onPick }: { onPick: (p: DeckPreset) => void }) {
             key={p.id}
             type="button"
             onClick={() => onPick(p)}
-            className="flex flex-col rounded-xl border border-border bg-white p-3 text-left transition hover:border-accent"
+            className="flex flex-col rounded-xl border border-border bg-bg-elevated p-3 text-left transition hover:border-accent"
           >
             <div className="text-sm font-medium">{p.name}</div>
             {p.description && (

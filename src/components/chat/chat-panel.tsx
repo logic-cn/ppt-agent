@@ -541,7 +541,7 @@ export function ChatPanel() {
                 setInput(text);
                 textareaRef.current?.focus();
               }}
-              className="rounded-full border border-border bg-white px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent"
+              className="rounded-full border border-border bg-bg-elevated px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent"
             >
               {text}
             </button>
@@ -550,7 +550,7 @@ export function ChatPanel() {
       )}
 
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-bg-elevated px-3 py-2">
           <textarea
             ref={textareaRef}
             value={input}

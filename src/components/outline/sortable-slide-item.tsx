@@ -76,7 +76,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           : isDragging
             ? "border-accent"
             : "border-border"
-      } bg-white transition-shadow hover:shadow-sm`}
+      } bg-bg-elevated transition-shadow hover:shadow-sm`}
     >
       {/* Drag handle */}
       <button
@@ -124,7 +124,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
                   layout: e.target.value as Slide["layout"],
                 })
               }
-              className="rounded border border-border bg-white px-1.5 py-0.5 text-[11px] text-text-secondary focus:border-accent focus:outline-none"
+              className="rounded border border-border bg-bg-elevated px-1.5 py-0.5 text-[11px] text-text-secondary focus:border-accent focus:outline-none"
             >
               {Object.entries(layoutLabels).map(([val, label]) => (
                 <option key={val} value={val}>

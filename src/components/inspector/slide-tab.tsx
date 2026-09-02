@@ -59,7 +59,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
             setTitleDraft(e.target.value);
             debouncedUpdate(titleTimer, { title: e.target.value });
           }}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -73,7 +73,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
               subtitle: e.target.value || undefined,
             });
           }}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
@@ -82,7 +82,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
         <select
           value={slide.layout}
           onChange={(e) => onUpdate({ layout: e.target.value as SlideLayout })}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         >
           {LAYOUT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -101,7 +101,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
             debouncedUpdate(bodyTimer, { body: e.target.value || undefined });
           }}
           rows={4}
-          className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+          className="w-full resize-none rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 

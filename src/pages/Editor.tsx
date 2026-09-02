@@ -277,7 +277,7 @@ export default function Editor() {
   return (
     <div className="flex h-full flex-col bg-bg-base">
       {/* 顶部工具栏 */}
-      <header className="flex items-center justify-between border-b border-border bg-white px-4 h-10">
+      <header className="flex items-center justify-between border-b border-border bg-bg-elevated px-4 h-10">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/")}
@@ -385,7 +385,7 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setDesignOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-xl border border-border bg-white p-3 shadow-lg">
+                <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-xl border border-border bg-bg-elevated p-3 shadow-lg">
                   <DesignPanel
                     design={deck?.design ?? DEFAULT_DESIGN}
                     onChange={(d) => setDesign(d)}
@@ -510,14 +510,14 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
         {leftOpen ? (
-          <aside className="flex w-[280px] flex-col border-r border-border bg-white">
+          <aside className="flex w-[280px] flex-col border-r border-border bg-bg-elevated">
             <OutlineEditor
               onSelectSlide={setSelectedIndex}
               selectedIndex={selectedIndex}
             />
           </aside>
         ) : (
-          <aside className="flex w-9 flex-col items-center border-r border-border bg-white py-2">
+          <aside className="flex w-9 flex-col items-center border-r border-border bg-bg-elevated py-2">
             <button
               onClick={() => setLeftOpen(true)}
               className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
@@ -546,7 +546,7 @@ export default function Editor() {
 
         {/* 右栏：属性检查器（AI / 页面 / 图表 / 配图 / 备注） */}
         {rightOpen && deck ? (
-          <aside className="flex w-[280px] flex-col border-l border-border bg-white">
+          <aside className="flex w-[280px] flex-col border-l border-border bg-bg-elevated">
             <InspectorPanel
               deck={deck}
               selectedIndex={selectedIndex}
@@ -554,7 +554,7 @@ export default function Editor() {
             />
           </aside>
         ) : (
-          <aside className="flex w-9 flex-col items-center border-l border-border bg-white py-2">
+          <aside className="flex w-9 flex-col items-center border-l border-border bg-bg-elevated py-2">
             <button
               onClick={() => setRightOpen(true)}
               className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
