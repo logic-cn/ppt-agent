@@ -12,6 +12,7 @@ import { SlideTab } from "./slide-tab";
 import { ChartTab } from "./chart-tab";
 import { ImageTab } from "./image-tab";
 import { NotesTab } from "./notes-tab";
+import { useT } from "@/hooks/use-page-t";
 
 type Tab = "ai" | "slide" | "chart" | "image" | "notes";
 
@@ -27,6 +28,7 @@ export function InspectorPanel({
   selectedIndex,
   onGenerateImage,
 }: Props) {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [generating, setGenerating] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
@@ -62,7 +64,7 @@ export function InspectorPanel({
       await runJob(
         {
           type: "content.generate",
-          title: `生成内容：${slide.title}`,
+          title: t("inspector.generateContentJob", { title: slide.title }),
           canCancel: true,
         },
         async (job) => {
@@ -99,7 +101,7 @@ export function InspectorPanel({
       await runJob(
         {
           type: "content.generate_batch",
-          title: `批量生成内容（${targets.length} 页）`,
+          title: t("inspector.batchGenerateJob", { count: targets.length }),
           canCancel: true,
         },
         async (job) => {
@@ -127,10 +129,10 @@ export function InspectorPanel({
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "ai", label: "AI" },
-    { key: "slide", label: "页面" },
-    { key: "chart", label: "图表" },
-    { key: "image", label: "配图" },
-    { key: "notes", label: "备注" },
+    { key: "slide", label: t("inspector.tabSlide") },
+    { key: "chart", label: t("inspector.tabChart") },
+    { key: "image", label: t("inspector.tabImage") },
+    { key: "notes", label: t("inspector.tabNotes") },
   ];
 
   return (
@@ -166,11 +168,13 @@ export function InspectorPanel({
               >
                 {generating ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 生成中…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                    {t("common.generating")}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5" /> AI 生成本页
+                    <Sparkles className="h-3.5 w-3.5" />{" "}
+                    {t("inspector.generatePage")}
                   </>
                 )}
               </button>
@@ -181,23 +185,24 @@ export function InspectorPanel({
               >
                 {generatingAll ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 填充中…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                    {t("inspector.filling")}
                   </>
                 ) : (
-                  "AI 填充全部空页"
+                  t("inspector.fillEmptyPages")
                 )}
               </button>
             </div>
             <SlideTab slide={slide} onUpdate={handleUpdate} />
           </div>
         ) : activeTab === "slide" ? (
-          <EmptyState message="请选择一页" />
+          <EmptyState message={t("inspector.selectPage")} />
         ) : null}
 
         {activeTab === "chart" && slide ? (
           <ChartTab slide={slide} onUpdate={handleUpdate} />
         ) : activeTab === "chart" ? (
-          <EmptyState message="请选择一页" />
+          <EmptyState message={t("inspector.selectPage")} />
         ) : null}
 
         {activeTab === "image" && slide ? (
@@ -207,13 +212,13 @@ export function InspectorPanel({
             onGenerateImage={onGenerateImage}
           />
         ) : activeTab === "image" ? (
-          <EmptyState message="请选择一页" />
+          <EmptyState message={t("inspector.selectPage")} />
         ) : null}
 
         {activeTab === "notes" && slide ? (
           <NotesTab slide={slide} onUpdate={handleUpdate} />
         ) : activeTab === "notes" ? (
-          <EmptyState message="请选择一页" />
+          <EmptyState message={t("inspector.selectPage")} />
         ) : null}
       </div>
     </div>

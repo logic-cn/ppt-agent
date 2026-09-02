@@ -1,10 +1,12 @@
 import type { Slide, ChartType, ChartDataPoint } from "@/types/deck";
+import { useT } from "@/hooks/use-page-t";
+import type { TranslationKey } from "@/services/i18n";
 
-const CHART_TYPES: { value: ChartType; label: string }[] = [
-  { value: "bar", label: "柱状图" },
-  { value: "pie", label: "饼图" },
-  { value: "line", label: "折线图" },
-  { value: "doughnut", label: "环形图" },
+const CHART_TYPES: { value: ChartType; label: TranslationKey }[] = [
+  { value: "bar", label: "inspector.chartBar" },
+  { value: "pie", label: "inspector.chartPie" },
+  { value: "line", label: "inspector.chartLine" },
+  { value: "doughnut", label: "inspector.chartDoughnut" },
 ];
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function ChartTab({ slide, onUpdate }: Props) {
+  const t = useT();
   const chart = slide.chart;
 
   const updateChart = (patch: Partial<NonNullable<typeof chart>>) => {
@@ -45,7 +48,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
   if (!chart) {
     return (
       <div className="p-3 text-center text-sm text-text-muted">
-        当前页面没有图表。
+        {t("inspector.chartEmpty")}
         <button
           onClick={() =>
             onUpdate({
@@ -54,7 +57,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
           }
           className="mt-2 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-xs text-white hover:opacity-90"
         >
-          添加图表
+          {t("inspector.chartAdd")}
         </button>
       </div>
     );
@@ -63,7 +66,9 @@ export function ChartTab({ slide, onUpdate }: Props) {
   return (
     <div className="space-y-3 text-sm">
       <div>
-        <label className="mb-1 block text-xs text-text-muted">图表类型</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.chartType")}
+        </label>
         <select
           value={chart.type}
           onChange={(e) => updateChart({ type: e.target.value as ChartType })}
@@ -71,30 +76,34 @@ export function ChartTab({ slide, onUpdate }: Props) {
         >
           {CHART_TYPES.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {t(opt.label)}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-text-muted">图表标题</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.chartTitle")}
+        </label>
         <input
           value={chart.title ?? ""}
           onChange={(e) => updateChart({ title: e.target.value || undefined })}
-          placeholder="可选"
+          placeholder={t("inspector.optional")}
           className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
       </div>
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-xs text-text-muted">数据</label>
+          <label className="text-xs text-text-muted">
+            {t("inspector.chartData")}
+          </label>
           <button
             onClick={addRow}
             className="text-xs text-accent hover:text-accent-hover"
           >
-            + 新增行
+            {t("inspector.chartAddRow")}
           </button>
         </div>
         <div className="space-y-1">
@@ -103,7 +112,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
               <input
                 value={row.label}
                 onChange={(e) => updateRow(i, { label: e.target.value })}
-                placeholder="标签"
+                placeholder={t("inspector.chartLabel")}
                 className="flex-1 rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <input
@@ -130,7 +139,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
           onClick={() => onUpdate({ chart: undefined })}
           className="w-full rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
         >
-          删除图表
+          {t("inspector.chartDelete")}
         </button>
       )}
     </div>

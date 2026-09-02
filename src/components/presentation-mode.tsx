@@ -5,6 +5,7 @@ import type { Theme } from "@/types/theme";
 import { buildRenderSlides } from "@/engine/render-ir/build";
 import { RenderSlideViewer } from "@/engine/preview/render-slide-viewer";
 import { SvgViewer } from "@/components/SvgViewer";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   deck: Deck;
@@ -19,6 +20,7 @@ export function PresentationMode({
   initialIndex = 0,
   onExit,
 }: Props) {
+  const t = useT();
   const [index, setIndex] = useState(initialIndex);
   const [showNotes, setShowNotes] = useState(false);
   const [showBar, setShowBar] = useState(true);
@@ -136,14 +138,14 @@ export function PresentationMode({
           )}
         </div>
       ) : (
-        <div className="text-white/60">暂无幻灯片</div>
+        <div className="text-white/60">{t("present.empty")}</div>
       )}
 
       {/* 演讲者备注面板 */}
       {showNotes && currentSlide?.notes && (
         <div className="absolute bottom-20 left-1/2 z-10 max-w-lg -translate-x-1/2 rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-white/90 backdrop-blur-md">
           <div className="mb-2 text-xs font-medium text-white/50">
-            演讲者备注
+            {t("present.notes")}
           </div>
           <div className="whitespace-pre-wrap">{currentSlide.notes}</div>
         </div>
@@ -192,7 +194,7 @@ export function PresentationMode({
             className={`rounded-full p-1.5 ${
               showNotes ? "text-accent" : "text-white/70 hover:text-white"
             }`}
-            title="备注 (N)"
+            title={t("present.notesShortcut")}
           >
             <MessageSquareText className="h-4 w-4" />
           </button>
@@ -203,7 +205,7 @@ export function PresentationMode({
               onExit();
             }}
             className="rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
-            title="退出 (Esc)"
+            title={t("present.exitShortcut")}
           >
             <X className="h-4 w-4" />
           </button>

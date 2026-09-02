@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useToastStore } from "@/store/toast";
+import { useT } from "@/hooks/use-page-t";
 
 interface SlideRedrawButtonProps {
   slideId: string;
@@ -21,6 +22,7 @@ export function SlideRedrawButton({
   className,
   stale,
 }: SlideRedrawButtonProps) {
+  const t = useT();
   const regenerateSlide = useDeckStore((s) => s.regenerateSlide);
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +34,7 @@ export function SlideRedrawButton({
     } catch (err) {
       useToastStore.getState().add({
         type: "error",
-        title: "单页重画失败",
+        title: t("redraw.failed"),
         message: err instanceof Error ? err.message : String(err),
         duration: 5000,
       });
@@ -52,7 +54,11 @@ export function SlideRedrawButton({
           : "text-text-secondary hover:bg-bg-hover"
       } ${className ?? ""}`}
     >
-      {loading ? "重画中…" : stale ? "重画同步" : "重画此页"}
+      {loading
+        ? t("redraw.redrawing")
+        : stale
+          ? t("redraw.sync")
+          : t("redraw.page")}
     </button>
   );
 }

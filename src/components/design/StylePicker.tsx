@@ -1,5 +1,6 @@
 import type { VisualStyleId } from "@/types/design";
 import { VISUAL_STYLES } from "@/design/visual-styles";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   value: VisualStyleId;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function StylePicker({ value, onChange }: Props) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {VISUAL_STYLES.map((style) => {
@@ -25,10 +27,10 @@ export function StylePicker({ value, onChange }: Props) {
             ].join(" ")}
           >
             <span className="text-sm font-medium text-text-primary">
-              {style.name}
+              {t(`style.${style.id}`)}
             </span>
             <span className="line-clamp-3 text-[11px] leading-relaxed text-text-muted">
-              {style.character}
+              {t(`style.${style.id}.character`)}
             </span>
           </button>
         );

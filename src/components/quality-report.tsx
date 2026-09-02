@@ -1,6 +1,7 @@
 import { AlertTriangle, XCircle, Wand2, X } from "lucide-react";
 import type { QualityFinding, Severity } from "@/services/quality";
 import { qualityScore } from "@/services/quality";
+import { useT } from "@/hooks/use-page-t";
 
 interface QualityReportProps {
   findings: QualityFinding[];
@@ -11,10 +12,10 @@ interface QualityReportProps {
 
 const severityMeta: Record<
   Severity,
-  { label: string; color: string; icon: typeof AlertTriangle }
+  { color: string; icon: typeof AlertTriangle }
 > = {
-  hard: { label: "严重", color: "text-red-500", icon: XCircle },
-  soft: { label: "提示", color: "text-amber-500", icon: AlertTriangle },
+  hard: { color: "text-red-500", icon: XCircle },
+  soft: { color: "text-amber-500", icon: AlertTriangle },
 };
 
 function scoreColor(score: number): string {
@@ -29,6 +30,7 @@ export function QualityReport({
   onAutoFix,
   onDismiss,
 }: QualityReportProps) {
+  const t = useT();
   if (findings.length === 0) return null;
 
   const score = qualityScore(findings);
@@ -43,17 +45,21 @@ export function QualityReport({
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
-            质量检查
+            {t("quality.title")}
           </span>
           <span className={`text-lg font-semibold ${scoreColor(score)}`}>
             {score}
           </span>
           <div className="flex items-center gap-1.5 text-[11px]">
             {counts.hard > 0 && (
-              <span className="text-red-500">严重 {counts.hard}</span>
+              <span className="text-red-500">
+                {t("quality.hardCount", { count: counts.hard })}
+              </span>
             )}
             {counts.soft > 0 && (
-              <span className="text-amber-500">提示 {counts.soft}</span>
+              <span className="text-amber-500">
+                {t("quality.softCount", { count: counts.soft })}
+              </span>
             )}
           </div>
         </div>
@@ -61,7 +67,7 @@ export function QualityReport({
           <button
             onClick={onDismiss}
             className="rounded p-0.5 text-text-muted transition-colors hover:bg-bg-hover hover:text-text-secondary"
-            title="关闭"
+            title={t("common.close")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -91,7 +97,9 @@ export function QualityReport({
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
         >
           <Wand2 className="h-3.5 w-3.5" />
-          {fixing ? "修复中…" : `一键修复（${autoFixableCount}）`}
+          {fixing
+            ? t("quality.fixing")
+            : t("quality.autoFix", { count: autoFixableCount })}
         </button>
       )}
     </div>

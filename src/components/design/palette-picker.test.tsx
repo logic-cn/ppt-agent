@@ -10,6 +10,6 @@ describe("PalettePicker", () => {
   it("点击新建后显示颜色表单", () => {
     render(<PalettePicker value="business-blue" onChange={() => {}} />);
     fireEvent.click(screen.getByText("＋新建配色"));
-    expect(screen.getByPlaceholderText("主色 #")).toBeTruthy();
+    expect(screen.getByPlaceholderText("主色")).toBeTruthy();
   });
 });

@@ -6,6 +6,7 @@ import type {
   StartJobInput,
   RunningJob,
 } from "@/services/jobs/types";
+import { t } from "@/services/i18n";
 
 interface JobStoreState {
   jobs: Job[];
@@ -32,7 +33,7 @@ export function classifyError(error: unknown): {
       ? error.message
       : typeof error === "string"
         ? error
-        : "未知错误";
+        : t("job.unknownError");
 
   // 用户取消：AbortError 或显式取消信号
   if (
@@ -40,7 +41,7 @@ export function classifyError(error: unknown): {
     (error as { name?: string })?.name === "AbortError" ||
     /已取消|已停止|aborted|user cancel/i.test(raw)
   ) {
-    return { category: "user_cancelled", message: "任务已取消" };
+    return { category: "user_cancelled", message: t("job.cancelled") };
   }
 
   // 网络错误
@@ -49,7 +50,7 @@ export function classifyError(error: unknown): {
       raw,
     )
   ) {
-    return { category: "network", message: `网络错误：${raw}` };
+    return { category: "network", message: t("job.networkError", { raw }) };
   }
 
   // 解析错误：AI 返回结构非法
@@ -58,7 +59,7 @@ export function classifyError(error: unknown): {
       raw,
     )
   ) {
-    return { category: "parse", message: `结果解析失败：${raw}` };
+    return { category: "parse", message: t("job.parseError", { raw }) };
   }
 
   // 模型错误：鉴权、限流、配额
@@ -67,7 +68,7 @@ export function classifyError(error: unknown): {
       raw,
     )
   ) {
-    return { category: "model", message: `模型调用失败：${raw}` };
+    return { category: "model", message: t("job.modelError", { raw }) };
   }
 
   return { category: "unknown", message: raw };

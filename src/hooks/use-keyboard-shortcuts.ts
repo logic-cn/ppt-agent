@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useToastStore } from "@/store/toast";
+import { t } from "@/services/i18n";
 
 /**
  * 编辑器键盘快捷键：
@@ -40,7 +41,7 @@ export function useKeyboardShortcuts() {
         void persist().then(() => {
           useToastStore.getState().add({
             type: "success",
-            title: "已保存",
+            title: t("common.saved"),
             duration: 1500,
           });
         });

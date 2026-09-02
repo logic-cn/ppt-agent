@@ -3,20 +3,22 @@ import type { PaletteId } from "@/types/design";
 import { getPalettes } from "@/design/palettes";
 import type { ThemeColors } from "@/design/palettes";
 import { useCustomPalettes } from "@/store/custom-palettes";
+import { useT } from "@/hooks/use-page-t";
+import type { TranslationKey } from "@/services/i18n";
 
 interface Props {
   value: PaletteId;
   onChange: (id: PaletteId) => void;
 }
 
-const COLOR_FIELDS: { key: keyof ThemeColors; label: string }[] = [
-  { key: "primary", label: "主色" },
-  { key: "secondary", label: "次色" },
-  { key: "accent", label: "强调色" },
-  { key: "background", label: "背景" },
-  { key: "surface", label: "表面" },
-  { key: "text", label: "文字" },
-  { key: "textMuted", label: "次文字" },
+const COLOR_FIELDS: { key: keyof ThemeColors; label: TranslationKey }[] = [
+  { key: "primary", label: "design.colorPrimary" },
+  { key: "secondary", label: "design.colorSecondary" },
+  { key: "accent", label: "design.colorAccent" },
+  { key: "background", label: "design.colorBackground" },
+  { key: "surface", label: "design.colorSurface" },
+  { key: "text", label: "design.colorText" },
+  { key: "textMuted", label: "design.colorTextMuted" },
 ];
 
 const DEFAULT_COLORS: ThemeColors = {
@@ -30,6 +32,7 @@ const DEFAULT_COLORS: ThemeColors = {
 };
 
 export function PalettePicker({ value, onChange }: Props) {
+  const t = useT();
   const customPalettes = useCustomPalettes((s) => s.palettes);
   const palettes = [
     ...getPalettes().filter((p) => !p.id.startsWith("custom-")),
@@ -85,12 +88,14 @@ export function PalettePicker({ value, onChange }: Props) {
                 />
               </span>
               <span className="text-sm font-medium text-text-primary">
-                {palette.name}
+                {isCustom
+                  ? palette.name
+                  : t(`palette.${palette.id}` as TranslationKey)}
               </span>
               {isCustom && (
                 <button
                   type="button"
-                  aria-label={`删除 ${palette.name}`}
+                  aria-label={t("design.deletePalette", { name: palette.name })}
                   onClick={(e) => {
                     e.stopPropagation();
                     void remove(palette.id);
@@ -111,7 +116,7 @@ export function PalettePicker({ value, onChange }: Props) {
           onClick={() => setCreating(true)}
           className="self-start rounded-md border border-dashed border-border px-3 py-1.5 text-sm text-text-muted transition hover:border-accent hover:text-accent"
         >
-          ＋新建配色
+          {t("design.newPalette")}
         </button>
       ) : (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg-surface p-3">
@@ -119,7 +124,7 @@ export function PalettePicker({ value, onChange }: Props) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="配色名称"
+            placeholder={t("design.paletteName")}
             className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent"
           />
           <div className="flex flex-wrap gap-3">
@@ -137,10 +142,10 @@ export function PalettePicker({ value, onChange }: Props) {
                       [field.key]: e.target.value,
                     }))
                   }
-                  placeholder={`${field.label} #`}
+                  placeholder={t(field.label)}
                   className="h-8 w-10 cursor-pointer rounded border border-border"
                 />
-                {field.label}
+                {t(field.label)}
               </label>
             ))}
           </div>
@@ -150,7 +155,7 @@ export function PalettePicker({ value, onChange }: Props) {
               onClick={() => void handleCreate()}
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-bg transition hover:opacity-90"
             >
-              保存
+              {t("common.save")}
             </button>
             <button
               type="button"
@@ -161,7 +166,7 @@ export function PalettePicker({ value, onChange }: Props) {
               }}
               className="rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition hover:border-accent"
             >
-              取消
+              {t("common.cancel")}
             </button>
           </div>
         </div>

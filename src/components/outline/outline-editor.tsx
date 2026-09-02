@@ -16,6 +16,7 @@ import { useQualityStore } from "@/store/quality";
 import type { Slide } from "@/types/deck";
 import { Plus } from "lucide-react";
 import { SortableSlideItem } from "./sortable-slide-item";
+import { useT } from "@/hooks/use-page-t";
 
 interface OutlineEditorProps {
   onSelectSlide?: (index: number) => void;
@@ -28,6 +29,7 @@ export function OutlineEditor({
   onSelectSlide,
   selectedIndex,
 }: OutlineEditorProps) {
+  const t = useT();
   const deck = useDeckStore((s) => s.deck);
   const moveSlide = useDeckStore((s) => s.moveSlide);
   const replaceSlides = useDeckStore((s) => s.replaceSlides);
@@ -79,11 +81,11 @@ export function OutlineEditor({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
-        大纲
+        {t("outline.title")}
         <button
           onClick={addSlide}
           className="rounded-md p-1.5 hover:bg-bg-hover transition-colors"
-          title="添加页面"
+          title={t("outline.addSlide")}
         >
           <Plus className="h-3.5 w-3.5 text-text-secondary" />
         </button>
@@ -92,7 +94,7 @@ export function OutlineEditor({
       <div className="flex-1 overflow-auto px-2 pb-3">
         {slides.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-text-muted">
-            在右侧 AI 助手聊天框中输入主题生成大纲
+            {t("outline.empty")}
           </div>
         ) : (
           <DndContext

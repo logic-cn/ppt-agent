@@ -7,6 +7,8 @@ import { useDeckStore } from "@/store/deck";
 import { resolveTheme } from "@/themes";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { SlideThumbnail } from "@/engine/preview";
+import { useT } from "@/hooks/use-page-t";
+import type { TranslationKey } from "@/services/i18n";
 
 interface Props {
   slide: Slide;
@@ -17,19 +19,19 @@ interface Props {
   qualitySeverity?: "hard" | "soft";
 }
 
-const layoutLabels: Record<string, string> = {
-  cover: "封面",
-  section: "章节",
-  content: "正文",
-  "two-column": "双栏",
-  chart: "图表",
-  image: "配图",
-  closing: "结尾",
-  "cols-2": "2列",
-  "cols-3": "3列",
-  "cols-4": "4列",
-  "cols-5": "5列",
-  "cols-6": "6列",
+const layoutLabels: Record<string, TranslationKey> = {
+  cover: "inspector.layoutCover",
+  section: "inspector.layoutSection",
+  content: "inspector.layoutContent",
+  "two-column": "inspector.layoutTwoColumn",
+  chart: "inspector.layoutChart",
+  image: "inspector.layoutImage",
+  closing: "inspector.layoutClosing",
+  "cols-2": "inspector.layoutCols2",
+  "cols-3": "inspector.layoutCols3",
+  "cols-4": "inspector.layoutCols4",
+  "cols-5": "inspector.layoutCols5",
+  "cols-6": "inspector.layoutCols6",
 };
 
 export const SortableSlideItem = memo(function SortableSlideItem({
@@ -40,6 +42,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
   onSelect,
   qualitySeverity,
 }: Props) {
+  const t = useT();
   const palette = useDeckStore((s) => s.deck?.design.palette);
   const visualStyle = useDeckStore((s) => s.deck?.design.visualStyle);
   const theme = resolveTheme(
@@ -101,7 +104,9 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           {qualitySeverity && (
             <span
               title={
-                qualitySeverity === "hard" ? "存在严重质量问题" : "存在提示"
+                qualitySeverity === "hard"
+                  ? t("outline.qHard")
+                  : t("outline.qSoft")
               }
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                 qualitySeverity === "hard" ? "bg-danger" : "bg-warning"
@@ -111,7 +116,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           <input
             value={slide.title}
             onChange={(e) => updateSlide(slide.id, { title: e.target.value })}
-            placeholder="页面标题"
+            placeholder={t("outline.pageTitle")}
             className="min-w-0 flex-1 truncate bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
           />
 
@@ -128,7 +133,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
             >
               {Object.entries(layoutLabels).map(([val, label]) => (
                 <option key={val} value={val}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
@@ -139,7 +144,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
               onClick={() => index > 0 && moveSlide(index, index - 1)}
               disabled={index === 0}
               className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
-              title="上移"
+              title={t("outline.moveUp")}
             >
               <ChevronUp className="h-3.5 w-3.5" />
             </button>
@@ -147,7 +152,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
               onClick={() => index < total - 1 && moveSlide(index, index + 1)}
               disabled={index === total - 1}
               className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
-              title="下移"
+              title={t("outline.moveDown")}
             >
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
@@ -157,7 +162,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
             <button
               onClick={() => removeSlide(slide.id)}
               className="rounded p-0.5 text-text-muted hover:bg-danger/10 hover:text-danger"
-              title="删除"
+              title={t("common.delete")}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

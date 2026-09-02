@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import type { Slide, SlideLayout } from "@/types/deck";
+import { useT } from "@/hooks/use-page-t";
+import type { TranslationKey } from "@/services/i18n";
 
-const LAYOUT_OPTIONS: { value: SlideLayout; label: string }[] = [
-  { value: "cover", label: "封面" },
-  { value: "section", label: "章节" },
-  { value: "content", label: "正文" },
-  { value: "two-column", label: "双栏" },
-  { value: "chart", label: "图表" },
-  { value: "image", label: "配图" },
-  { value: "closing", label: "结尾" },
-  { value: "cols-2", label: "两列" },
-  { value: "cols-3", label: "三列" },
-  { value: "cols-4", label: "四列" },
-  { value: "cols-5", label: "五列" },
-  { value: "cols-6", label: "六列" },
+const LAYOUT_OPTIONS: { value: SlideLayout; label: TranslationKey }[] = [
+  { value: "cover", label: "inspector.layoutCover" },
+  { value: "section", label: "inspector.layoutSection" },
+  { value: "content", label: "inspector.layoutContent" },
+  { value: "two-column", label: "inspector.layoutTwoColumn" },
+  { value: "chart", label: "inspector.layoutChart" },
+  { value: "image", label: "inspector.layoutImage" },
+  { value: "closing", label: "inspector.layoutClosing" },
+  { value: "cols-2", label: "inspector.layoutCols2" },
+  { value: "cols-3", label: "inspector.layoutCols3" },
+  { value: "cols-4", label: "inspector.layoutCols4" },
+  { value: "cols-5", label: "inspector.layoutCols5" },
+  { value: "cols-6", label: "inspector.layoutCols6" },
 ];
 
 interface Props {
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export function SlideTab({ slide, onUpdate }: Props) {
+  const t = useT();
   const [titleDraft, setTitleDraft] = useState(slide.title);
   const [subtitleDraft, setSubtitleDraft] = useState(slide.subtitle ?? "");
   const [bodyDraft, setBodyDraft] = useState(slide.body ?? "");
@@ -52,7 +55,9 @@ export function SlideTab({ slide, onUpdate }: Props) {
   return (
     <div className="space-y-3 text-sm">
       <div>
-        <label className="mb-1 block text-xs text-text-muted">标题</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.title")}
+        </label>
         <input
           value={titleDraft}
           onChange={(e) => {
@@ -64,7 +69,9 @@ export function SlideTab({ slide, onUpdate }: Props) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-text-muted">副标题</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.subtitle")}
+        </label>
         <input
           value={subtitleDraft}
           onChange={(e) => {
@@ -78,7 +85,9 @@ export function SlideTab({ slide, onUpdate }: Props) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-text-muted">布局</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.layout")}
+        </label>
         <select
           value={slide.layout}
           onChange={(e) => onUpdate({ layout: e.target.value as SlideLayout })}
@@ -86,14 +95,16 @@ export function SlideTab({ slide, onUpdate }: Props) {
         >
           {LAYOUT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {t(opt.label)}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-text-muted">正文</label>
+        <label className="mb-1 block text-xs text-text-muted">
+          {t("inspector.body")}
+        </label>
         <textarea
           value={bodyDraft}
           onChange={(e) => {
@@ -108,7 +119,7 @@ export function SlideTab({ slide, onUpdate }: Props) {
       {slide.bullets && slide.bullets.length > 0 && (
         <div>
           <label className="mb-1 block text-xs text-text-muted">
-            要点（{slide.bullets.length}条）
+            {t("inspector.bullets", { count: slide.bullets.length })}
           </label>
           <div className="space-y-1">
             {slide.bullets.map((b, i) => (

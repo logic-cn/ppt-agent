@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Slide } from "@/types/deck";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   slide: Slide;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function NotesTab({ slide, onUpdate }: Props) {
+  const t = useT();
   const [draft, setDraft] = useState(slide.notes ?? "");
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -16,9 +18,7 @@ export function NotesTab({ slide, onUpdate }: Props) {
 
   return (
     <div className="space-y-2 text-sm">
-      <p className="text-xs text-text-muted">
-        演讲者备注会导出到 PPTX 的 Speaker Notes 中。
-      </p>
+      <p className="text-xs text-text-muted">{t("inspector.notesHint")}</p>
       <textarea
         value={draft}
         onChange={(e) => {
@@ -28,7 +28,7 @@ export function NotesTab({ slide, onUpdate }: Props) {
             onUpdate({ notes: e.target.value || undefined });
           }, 300);
         }}
-        placeholder="输入演讲者备注…"
+        placeholder={t("inspector.notesPlaceholder")}
         rows={12}
         className="w-full resize-none rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
       />

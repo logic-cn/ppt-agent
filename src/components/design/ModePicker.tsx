@@ -1,6 +1,7 @@
 import type { NarrativeModeId } from "@/types/design";
 import { NARRATIVE_MODE_IDS } from "@/types/design";
 import { NARRATIVE_MODES } from "@/design/narrative-modes";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   value: NarrativeModeId;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function ModePicker({ value, onChange }: Props) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {NARRATIVE_MODE_IDS.map((id) => {
@@ -27,10 +29,10 @@ export function ModePicker({ value, onChange }: Props) {
             ].join(" ")}
           >
             <span className="text-sm font-medium text-text-primary">
-              {mode.name}
+              {t(`mode.${id}`)}
             </span>
             <span className="line-clamp-2 text-[11px] text-text-muted">
-              {mode.bestFor}
+              {t(`mode.${mode.id}.bestFor`)}
             </span>
           </button>
         );
