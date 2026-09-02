@@ -12,6 +12,8 @@
 - 📄 **文档导入**：Word / Markdown / URL → PPT
 - 💾 **本地存储**：数据不出本地，隐私安全
 - 🔌 **多模型支持**：OpenAI / Claude / 通义千问 / 智谱 GLM
+- 🌐 **多语言**：中英文界面即时切换，偏好持久化
+- 🌙 **深色模式**：浅色 / 深色 / 跟随系统
 
 ## 截图
 
@@ -49,6 +51,11 @@ pnpm tauri:build
 | Anthropic | `https://api.anthropic.com/v1`                      | `claude-sonnet-4-20250514` |
 | 通义千问  | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-max`                 |
 | 智谱 GLM  | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4-plus`               |
+
+## 语言与主题
+
+- **语言**：设置页「通用」区块可选择中文 / English，切换即时生效并持久化到 `settings.json`。
+- **主题**：浅色 / 深色 / 跟随系统三种模式；「深色」与「跟随系统」会为根元素挂载 `.dark`，全部语义色 token（背景/边框/文字/强调色）随之切换。
 
 ## 技术栈
 
