@@ -1,3 +1,5 @@
+import type { Lang, ThemeMode } from "./preferences";
+
 export type LLMProviderId =
   "openai" | "anthropic" | "qwen" | "zhipu" | "custom";
 
@@ -51,6 +53,8 @@ export interface AppSettings {
   providers: Record<LLMProviderId, LLMProviderConfig>;
   imageProvider?: LLMProviderConfig;
   imageEnabled: boolean;
+  lang: Lang;
+  theme: ThemeMode;
 }
 
 export const PROVIDER_PRESETS: Record<

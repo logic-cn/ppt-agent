@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { t } from "@/services/i18n";
+import { useT } from "@/hooks/use-page-t";
 
 export type SvgViewerStatus = "loading" | "error" | "empty" | "ready";
 
@@ -23,7 +23,7 @@ function Placeholder({
       className={`relative flex w-full items-center justify-center overflow-hidden ${className ?? ""}`}
       style={{ aspectRatio: "16 / 9", background: "#f5f5f5" }}
     >
-      <span className="text-sm text-gray-400">{t(label) as string}</span>
+      <span className="text-sm text-gray-400">{label}</span>
     </div>
   );
 }
@@ -41,18 +41,22 @@ export const SvgViewer = memo(function SvgViewer({
   status,
   errorMessage,
 }: SvgViewerProps) {
+  const t = useT();
   const resolved = status ?? (svg ? ("ready" as const) : ("empty" as const));
 
   if (resolved === "loading") {
-    return <Placeholder label="generating" className={className} />;
+    return <Placeholder label={t("common.generating")} className={className} />;
   }
   if (resolved === "error") {
     return (
-      <Placeholder label={errorMessage ?? t("error")} className={className} />
+      <Placeholder
+        label={errorMessage ?? t("common.error")}
+        className={className}
+      />
     );
   }
   if (resolved === "empty") {
-    return <Placeholder label="empty" className={className} />;
+    return <Placeholder label={t("common.empty")} className={className} />;
   }
 
   return (

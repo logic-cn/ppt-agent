@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { t } from "@/services/i18n";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   open: boolean;
@@ -15,11 +15,14 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmText = t("confirm"),
-  cancelText = t("cancel"),
+  confirmText,
+  cancelText,
   onConfirm,
   onCancel,
 }: Props) {
+  const t = useT();
+  const confirmLabel = confirmText ?? t("common.confirm");
+  const cancelLabel = cancelText ?? t("common.cancel");
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const handleKeyDown = useCallback(
@@ -60,14 +63,14 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-text-primary hover:bg-bg-hover"
           >
-            {cancelText}
+            {cancelLabel}
           </button>
           <button
             ref={btnRef}
             onClick={onConfirm}
             className="rounded-lg bg-danger px-3 py-1.5 text-sm text-white hover:bg-danger/90"
           >
-            {confirmText}
+            {confirmLabel}
           </button>
         </div>
       </div>

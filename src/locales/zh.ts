@@ -1,0 +1,27 @@
+import type { TranslationKey } from "./en";
+
+export const zh: Record<TranslationKey, string> = {
+  "app.name": "PPT 代理",
+  "common.cancel": "取消",
+  "common.confirm": "确认",
+  "common.save": "保存",
+  "common.saving": "保存中…",
+  "common.close": "关闭",
+  "common.retry": "重试",
+  "common.copy": "复制",
+  "common.loading": "加载中…",
+  "common.loaded": "已加载",
+  "common.error": "错误",
+  "common.warning": "警告",
+  "common.success": "成功",
+  "common.info": "信息",
+  "common.exportPpt": "导出 PPT",
+  "common.exporting": "正在导出…",
+  "common.settings": "设置",
+  "common.language": "语言",
+  "common.theme": "主题",
+  "common.generating": "生成中…",
+  "common.empty": "暂无内容",
+  "common.redrawSync": "重画同步",
+  "editor.pageOf": "第 {n} / {total} 页",
+};

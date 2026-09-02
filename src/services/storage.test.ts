@@ -33,6 +33,8 @@ function makeSettings(apiKey = ""): AppSettings {
     activeProvider: "openai",
     providers,
     imageEnabled: false,
+    lang: "zh",
+    theme: "system",
   };
 }
 

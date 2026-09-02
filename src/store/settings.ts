@@ -4,6 +4,7 @@ import type {
   LLMProviderConfig,
   LLMProviderId,
 } from "@/types/llm";
+import type { Lang, ThemeMode } from "@/types/preferences";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "@/services/storage";
 
@@ -50,6 +51,8 @@ function defaultSettings(): AppSettings {
     activeProvider: "openai",
     providers,
     imageEnabled: false,
+    lang: "zh",
+    theme: "system",
   };
 }
 
@@ -64,6 +67,8 @@ interface SettingsStore {
   ) => void;
   setImageEnabled: (enabled: boolean) => void;
   setImageProvider: (cfg: LLMProviderConfig) => void;
+  setLang: (lang: Lang) => void;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -109,6 +114,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setImageProvider: (cfg) => {
     set((s) => {
       const settings = { ...s.settings, imageProvider: cfg };
+      void debouncedSave(settings);
+      return { settings };
+    });
+  },
+
+  setLang: (lang) => {
+    set((s) => {
+      const settings = { ...s.settings, lang };
+      void debouncedSave(settings);
+      return { settings };
+    });
+  },
+
+  setTheme: (theme) => {
+    set((s) => {
+      const settings = { ...s.settings, theme };
       void debouncedSave(settings);
       return { settings };
     });

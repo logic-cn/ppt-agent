@@ -150,6 +150,8 @@ export async function loadSettings(): Promise<AppSettings | null> {
   try {
     const saved = JSON.parse(raw) as AppSettings;
     if (!saved.version) saved.version = CURRENT_SETTINGS_VERSION;
+    if (!saved.lang) saved.lang = "zh";
+    if (!saved.theme) saved.theme = "system";
     // 合并新预设（兼容旧版本）
     for (const id of Object.keys(
       PROVIDER_PRESETS,

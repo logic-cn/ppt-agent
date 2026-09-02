@@ -1,0 +1,27 @@
+export const en = {
+  "app.name": "PPT Agent",
+  "common.cancel": "Cancel",
+  "common.confirm": "Confirm",
+  "common.save": "Save",
+  "common.saving": "Saving…",
+  "common.close": "Close",
+  "common.retry": "Retry",
+  "common.copy": "Copy",
+  "common.loading": "Loading…",
+  "common.loaded": "Loaded",
+  "common.error": "Error",
+  "common.warning": "Warning",
+  "common.success": "Success",
+  "common.info": "Info",
+  "common.exportPpt": "Export PPT",
+  "common.exporting": "Exporting…",
+  "common.settings": "Settings",
+  "common.language": "Language",
+  "common.theme": "Theme",
+  "common.generating": "Generating…",
+  "common.empty": "No content",
+  "common.redrawSync": "Redraw Sync",
+  "editor.pageOf": "Page {n} of {total}",
+} as const;
+
+export type TranslationKey = keyof typeof en;
