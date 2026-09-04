@@ -60,11 +60,11 @@
 **方案**：引入 `SecretStore` 接口；Tauri 环境走系统 keychain（或平台安全存储），Web 降级 localStorage
 但必须显式提示。settings.json 与 apiKey 拆分。
 
+**状态**：✅ 已修复（`src/services/secret-store.ts`，commit f655b07 / 80690c1 / dac3cec）
+
 ---
 
 ## P0（续）：生成鲁棒性
-
-**状态**：✅ 已修复
 
 ### P0-4 AbortSignal 未贯穿逐页 SVG 生成
 
@@ -100,6 +100,8 @@
 **位置**：`executor.ts:94-100` 两次重画失败直接 throw → 整份 deck 生成中断，无“保留旧 SVG 占位”的降级策略。
 
 **修复**：`buildDeckSvgs` 逐页捕获错误：若某页失败，保留原 slide 的 `svg`（若有）并给 warning，继续其他页；全部失败才抛错。
+
+**状态**：✅ 已修复（`isolatePageFailures`，commit dac3cec）
 
 ---
 
@@ -148,6 +150,8 @@
 
 **修复**：补齐 `set_title`/`remove_empty_bullet`/`change_layout`/`append_closing` 的执行器并与 UI 接入。
 
+**状态**：✅ 已修复（commit bb22106 / 899dca3）
+
 ---
 
 ## P2：测试与打磨
@@ -167,6 +171,8 @@
 
 - `services/recovery.ts:13` `degrade-rulebased` 占位无调用。
 - `svgStale` 死字段（类型/schema 声明、无置 true 处）。
+
+**状态**：✅ 已修复（commit 35d40e2 清理占位；svgStale 后作为过期标记功能正式实现：f43e652 / 541430a / dac3cec）
 
 ---
 

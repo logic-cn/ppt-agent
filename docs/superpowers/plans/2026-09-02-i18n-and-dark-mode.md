@@ -60,16 +60,16 @@
 **Interfaces:**
 - Produces: `type Lang = "en" | "zh"`；`type ThemeMode = "light" | "dark" | "system"`；`type TranslationKey`；`function translate(lang: Lang, key: TranslationKey, params?: Record<string, string | number>): string`。
 
-- [ ] **Step 1: 写失败测试**（`src/services/i18n.test.ts`）
+- [x] **Step 1: 写失败测试**（`src/services/i18n.test.ts`）
   - `translate("zh", "common.cancel")` === `"取消"`
   - `translate("en", "common.cancel")` === `"Cancel"`
   - 带插值：`translate("zh", "editor.pageOf", { n: 3 })` 得到含 `3` 的字符串
   - `en` 与 `zh` 的 key 完全一致（通过 `TranslationKey` 编译期保证 + 运行期断言）
 
-- [ ] **Step 2: 运行确认失败**（模块不存在）
-- [ ] **Step 3: 写实现**：`preferences.ts`、`en.ts`（首批 key，见下方 key 集）、`zh.ts`、`i18n.ts`
-- [ ] **Step 4: 运行通过**
-- [ ] **Step 5: 提交** `feat: 新增类型安全的 i18n 字典与 translate 纯函数`
+- [x] **Step 2: 运行确认失败**（模块不存在）
+- [x] **Step 3: 写实现**：`preferences.ts`、`en.ts`（首批 key，见下方 key 集）、`zh.ts`、`i18n.ts`
+- [x] **Step 4: 运行通过**
+- [x] **Step 5: 提交** `feat: 新增类型安全的 i18n 字典与 translate 纯函数`
 
 **首批 key 集（Task 1 内建，后续 Task 边翻译边追加）：**
 `common.cancel/confirm/save/saving/close/retry/copy/loading/loaded/error/warning/success/info`、`app.name`、`editor.pageOf`。
@@ -89,11 +89,11 @@
 - Consumes: `Lang`/`ThemeMode` from Task 1。
 - Produces: `useSettingsStore.setState` 的 `setLang(lang: Lang)` / `setTheme(theme: ThemeMode)`；settings 默认 `{ lang: "zh", theme: "system" }`。
 
-- [ ] **Step 1: 写失败测试**：`defaultSettings()` 含 `lang==="zh"`、`theme==="system"`；`setLang("en")` 后 `getState().settings.lang==="en"` 且触发持久化（mock `saveSettings`）。
-- [ ] **Step 2: 运行确认失败**
-- [ ] **Step 3: 写实现**：llm.ts 加字段、storage 补默认、settings store 加 action。
-- [ ] **Step 4: 运行通过 + typecheck**
-- [ ] **Step 5: 提交** `feat: AppSettings 增加语言/主题偏好并持久化`
+- [x] **Step 1: 写失败测试**：`defaultSettings()` 含 `lang==="zh"`、`theme==="system"`；`setLang("en")` 后 `getState().settings.lang==="en"` 且触发持久化（mock `saveSettings`）。
+- [x] **Step 2: 运行确认失败**
+- [x] **Step 3: 写实现**：llm.ts 加字段、storage 补默认、settings store 加 action。
+- [x] **Step 4: 运行通过 + typecheck**
+- [x] **Step 5: 提交** `feat: AppSettings 增加语言/主题偏好并持久化`
 
 ---
 
@@ -109,11 +109,11 @@
 - Consumes: `useSettingsStore`、`translate`。
 - Produces: `useT(): (key, params?) => string`；`useTheme(): void`（副作用挂载）。
 
-- [ ] **Step 1: 写失败测试**（use-theme）：`theme==="dark"` 时 `document.documentElement.classList` 含 `dark`；`theme==="system"` 且 `matchMedia` 为暗色时含 `dark`。
-- [ ] **Step 2: 运行确认失败**
-- [ ] **Step 3: 写实现**：两个 hook + main.tsx 挂载 `useTheme`（在 App 内根部调用）。
-- [ ] **Step 4: 运行通过 + typecheck**
-- [ ] **Step 5: 提交** `feat: 新增 useT/useTheme hook 并接入应用根`
+- [x] **Step 1: 写失败测试**（use-theme）：`theme==="dark"` 时 `document.documentElement.classList` 含 `dark`；`theme==="system"` 且 `matchMedia` 为暗色时含 `dark`。
+- [x] **Step 2: 运行确认失败**
+- [x] **Step 3: 写实现**：两个 hook + main.tsx 挂载 `useTheme`（在 App 内根部调用）。
+- [x] **Step 4: 运行通过 + typecheck**
+- [x] **Step 5: 提交** `feat: 新增 useT/useTheme hook 并接入应用根`
 
 ---
 
@@ -126,9 +126,9 @@
 **Interfaces:**
 - Consumes: `useT`、`useSettingsStore.setLang/setTheme`、`useSettingsStore.settings.lang/theme`。
 
-- [ ] **Step 1:** 在 Settings 顶部新增「通用」区块：语言选择（zh/en）、主题选择（light/dark/system），绑定 store，立即生效并持久化。
-- [ ] **Step 2:** 替换 Settings 页全部硬编码中文为 `t(...)`，`bg-white` → `bg-bg-elevated`。
-- [ ] **Step 3: typecheck + prettier + 提交** `feat: Settings 增加语言与主题切换并接入 i18n`
+- [x] **Step 1:** 在 Settings 顶部新增「通用」区块：语言选择（zh/en）、主题选择（light/dark/system），绑定 store，立即生效并持久化。
+- [x] **Step 2:** 替换 Settings 页全部硬编码中文为 `t(...)`，`bg-white` → `bg-bg-elevated`。
+- [x] **Step 3: typecheck + prettier + 提交** `feat: Settings 增加语言与主题切换并接入 i18n`
 
 ---
 
@@ -138,9 +138,9 @@
 - Modify: `tailwind.config.ts` → `darkMode: "class"`；`colors` 改为 `rgb(var(--...) / <alpha-value>)`。
 - Modify: `src/styles.css` → 定义 `:root`（浅）与 `.dark`（深）变量；`body` 背景/文字基础色。
 
-- [ ] **Step 1:** 改 tailwind config（bg/border/text/accent/ai/success/warning/danger 全部变量化，保留原浅色值到 `:root`）。
-- [ ] **Step 2:** styles.css 写入两套变量 + `body { @apply bg-bg-base text-text-primary; }` + 深色滚动条。
-- [ ] **Step 3: typecheck + 手动 dev 验证深浅切换 + 提交** `feat: 深色模式 token 变量化与全局底色`
+- [x] **Step 1:** 改 tailwind config（bg/border/text/accent/ai/success/warning/danger 全部变量化，保留原浅色值到 `:root`）。
+- [x] **Step 2:** styles.css 写入两套变量 + `body { @apply bg-bg-base text-text-primary; }` + 深色滚动条。
+- [x] **Step 3: typecheck + 手动 dev 验证深浅切换 + 提交** `feat: 深色模式 token 变量化与全局底色`
 
 ---
 
@@ -150,10 +150,10 @@
 - `src/pages/Home.tsx`、`src/pages/Editor.tsx`、`src/pages/Settings.tsx`
 - `src/components/**/*.tsx`（chat-panel、import-dialog、confirm-dialog、design/*、inspector/*、outline/*、preset/*、presentation-mode、quality-report、slide-redraw、ui/toast-container、SvgViewer、App.tsx）
 
-- [ ] **Step 1:** 全局替换 `bg-white` → `bg-bg-elevated`（组件 className）。
-- [ ] **Step 2:** `SvgViewer` 内联 `#f5f5f5`/`#fff` 改为跟随 theme（改用 `bg-bg-surface`/`bg-bg-elevated` 或 CSS 变量）。
-- [ ] **Step 3:** `presentation-mode.tsx` 的深色演示 UI 保持固定（演示模式本就全屏深色），不套 `.dark`。
-- [ ] **Step 4: typecheck + prettier + 提交** `refactor: 组件背景色统一走语义 token 以支持深色`
+- [x] **Step 1:** 全局替换 `bg-white` → `bg-bg-elevated`（组件 className）。
+- [x] **Step 2:** `SvgViewer` 内联 `#f5f5f5`/`#fff` 改为跟随 theme（改用 `bg-bg-surface`/`bg-bg-elevated` 或 CSS 变量）。
+- [x] **Step 3:** `presentation-mode.tsx` 的深色演示 UI 保持固定（演示模式本就全屏深色），不套 `.dark`。
+- [x] **Step 4: typecheck + prettier + 提交** `refactor: 组件背景色统一走语义 token 以支持深色`
 
 ---
 
@@ -172,10 +172,10 @@
 
 ## Task 11: 端到端验收 + README
 
-- [ ] **Step 1:** `pnpm build`（tsc + vite）通过。
-- [ ] **Step 2:** 手动 dev 验证：切换语言/主题即时生效且刷新后保持；深色下各页面文字可读。
-- [ ] **Step 3:** 更新 `README.md` 增补「语言与深色模式」说明。
-- [ ] **Step 4: 提交** `docs: README 补充国际化与深色模式说明`
+- [x] **Step 1:** `pnpm build`（tsc + vite）通过。
+- [x] **Step 2:** 手动 dev 验证：切换语言/主题即时生效且刷新后保持；深色下各页面文字可读。
+- [x] **Step 3:** 更新 `README.md` 增补「语言与深色模式」说明。
+- [x] **Step 4: 提交** `docs: README 补充国际化与深色模式说明`
 
 ---
 
