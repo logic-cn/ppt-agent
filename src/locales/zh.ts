@@ -280,6 +280,10 @@ export const zh: Record<TranslationKey, string> = {
   "inspector.imagePosition": "位置",
   "inspector.imageDeleteConfirm": "确定删除配图？",
   "inspector.imageDelete": "删除配图",
+  "inspector.imageSearch": "网络搜图",
+  "inspector.imageSearchPlaceholder": "搜索关键词，如：城市天际线",
+  "inspector.imageSearchEmpty": "没有找到结果",
+  "inspector.imageApplyFailed": "图片加载失败：{error}",
   "inspector.notesHint": "演讲者备注会导出到 PPTX 的 Speaker Notes 中。",
   "inspector.notesPlaceholder": "输入演讲者备注…",
 

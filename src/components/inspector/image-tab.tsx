@@ -1,6 +1,12 @@
 import { useState, useRef } from "react";
-import { ImageIcon, Trash2 } from "lucide-react";
-import type { Slide, ImageSource } from "@/types/deck";
+import { ImageIcon, Trash2, Search } from "lucide-react";
+import type { Slide, ImageSource, ImageSpec } from "@/types/deck";
+import {
+  searchWebImages,
+  fetchImageAsDataUrl,
+  type WebImage,
+} from "@/services/image-search";
+import { embedImageIntoSvg } from "@/engine/svg/embed-image";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
 
@@ -9,6 +15,112 @@ const POSITION_OPTIONS: { value: string; label: TranslationKey }[] = [
   { value: "right", label: "inspector.imageRight" },
   { value: "background", label: "inspector.imageBackground" },
 ];
+
+/** 网络搜图区（B7）：Openverse 零配置源，选中后内嵌为 data URL 底图 */
+function WebImageSearchPanel({
+  onApply,
+}: {
+  onApply: (image: ImageSpec, dataUrl: string) => void;
+}) {
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<WebImage[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [applying, setApplying] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async () => {
+    if (!query.trim() || searching) return;
+    setSearching(true);
+    setError(null);
+    try {
+      setResults(await searchWebImages(query));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+      setSearched(true);
+    }
+  };
+
+  const handleApply = async (img: WebImage) => {
+    if (applying) return;
+    setApplying(img.url);
+    setError(null);
+    try {
+      const dataUrl = await fetchImageAsDataUrl(img.url);
+      onApply(
+        {
+          type: "web",
+          url: dataUrl,
+          alt: query || img.source,
+          position: "background",
+          attribution: img.attribution,
+        },
+        dataUrl,
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setApplying(null);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void handleSearch();
+          }}
+          placeholder={t("inspector.imageSearchPlaceholder")}
+          className="flex-1 rounded-lg border border-border bg-bg-elevated px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+        />
+        <button
+          onClick={() => void handleSearch()}
+          disabled={searching || !query.trim()}
+          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
+        >
+          <Search className="h-3 w-3" />
+          {t("inspector.imageSearch")}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-danger">{error}</p>}
+
+      {searched && !searching && results.length === 0 && !error && (
+        <p className="text-xs text-text-muted">
+          {t("inspector.imageSearchEmpty")}
+        </p>
+      )}
+
+      <div className="grid grid-cols-3 gap-1.5">
+        {results.map((img) => (
+          <button
+            key={img.url}
+            onClick={() => void handleApply(img)}
+            disabled={applying !== null}
+            title={`${img.attribution}（点击使用）`}
+            className="group relative aspect-video overflow-hidden rounded-md border border-border hover:border-accent disabled:opacity-50"
+          >
+            <img
+              src={img.thumb}
+              alt={img.source}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+              {img.license} · {applying === img.url ? "…" : img.source}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   slide: Slide;
@@ -23,19 +135,32 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
 
   const image = slide.image;
 
+  const handleWebApply = (img: ImageSpec, dataUrl: string) => {
+    if (slide.svg) {
+      // X1 页面：确定性嵌入为底层画面 + 遮罩（不经 LLM，走 undo 历史）
+      onUpdate({
+        image: img,
+        svg: embedImageIntoSvg(slide.svg, dataUrl),
+      });
+    } else {
+      onUpdate({ image: img });
+    }
+  };
+
   if (!image) {
     return (
-      <div className="p-3 text-center text-sm text-text-muted">
-        {t("inspector.imageEmpty")}
+      <div className="space-y-3 p-3 text-sm text-text-muted">
+        <div className="text-center">{t("inspector.imageEmpty")}</div>
         {onGenerateImage && (
           <button
             onClick={() => onGenerateImage(slide.id)}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ai/30 px-3 py-2 text-xs text-ai hover:bg-ai-soft"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ai/30 px-3 py-2 text-xs text-ai hover:bg-ai-soft"
           >
             <ImageIcon className="h-3.5 w-3.5" />
             {t("inspector.imageGenerate")}
           </button>
         )}
+        <WebImageSearchPanel onApply={handleWebApply} />
       </div>
     );
   }
@@ -125,6 +250,14 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
           ))}
         </select>
       </div>
+
+      {image.attribution && (
+        <p className="text-[10px] leading-relaxed text-text-muted">
+          © {image.attribution}
+        </p>
+      )}
+
+      <WebImageSearchPanel onApply={handleWebApply} />
 
       {confirmDelete ? (
         <div className="flex items-center gap-2">

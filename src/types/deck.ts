@@ -6,7 +6,7 @@ export type { SlideLayout } from "./layouts";
 export type ChartType = "bar" | "pie" | "line" | "doughnut";
 
 export type ImagePosition = "full" | "right" | "background";
-export type ImageSource = "ai" | "icon" | "url";
+export type ImageSource = "ai" | "icon" | "url" | "web";
 
 export interface BulletNode {
   id: string;
@@ -32,6 +32,8 @@ export interface ImageSpec {
   url?: string;
   alt: string;
   position?: ImagePosition;
+  /** 网络图片来源署名（B7 网络搜图，导出时建议保留） */
+  attribution?: string;
 }
 
 export interface SlideElement {

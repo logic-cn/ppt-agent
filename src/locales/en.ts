@@ -291,6 +291,10 @@ export const en = {
   "inspector.imagePosition": "Position",
   "inspector.imageDeleteConfirm": "Delete image?",
   "inspector.imageDelete": "Delete Image",
+  "inspector.imageSearch": "Search web images",
+  "inspector.imageSearchPlaceholder": "Search keywords, e.g. city skyline",
+  "inspector.imageSearchEmpty": "No results found",
+  "inspector.imageApplyFailed": "Failed to load image: {error}",
   "inspector.notesHint": "Speaker notes export to PPTX Speaker Notes.",
   "inspector.notesPlaceholder": "Type speaker notes…",
 

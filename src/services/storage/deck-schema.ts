@@ -53,11 +53,12 @@ const chartSpecSchema = z.object({
 });
 
 const imageSpecSchema = z.object({
-  type: z.enum(["ai", "icon", "url"]),
+  type: z.enum(["ai", "icon", "url", "web"]),
   prompt: z.string().optional(),
   url: z.string().optional(),
   alt: z.string(),
   position: z.enum(["full", "right", "background"]).optional(),
+  attribution: z.string().optional(),
 });
 
 const slideSourceRefSchema = z.object({
