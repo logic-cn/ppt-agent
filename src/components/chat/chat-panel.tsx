@@ -11,12 +11,16 @@ import {
 import { useDeckStore } from "@/store/deck";
 import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
+import { useSettingsStore } from "@/store/settings";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
 import {
   isTopicRequest,
   deriveProjectName,
 } from "@/services/generation/topic-intent";
+import { withAppLanguage } from "@/services/generation/generation-options";
+import type { GenerationOptions } from "@/types/generation";
+import { GenerationOptionsBar } from "@/components/chat/generation-options-bar";
 import { generateDeckPatches } from "@/services/deck-patch/ai";
 import { applyDeckPatches } from "@/services/deck-patch/apply";
 import { summarizePatches } from "@/services/deck-patch/summarize";
@@ -62,6 +66,9 @@ export function ChatPanel() {
   const [presetOpen, setPresetOpen] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [firstPageGateMsg, setFirstPageGateMsg] = useState<string | null>(null);
+  // 生成前参数控制（路线图 §7.3）：场景/语气/密度/受众/图表倾向/页数
+  const [showGenOptions, setShowGenOptions] = useState(false);
+  const [genOptions, setGenOptions] = useState<GenerationOptions>({});
   const qualityReport = useQualityStore((s) => s.report);
 
   const copyMessage = async (id: string, content: string) => {
@@ -148,13 +155,14 @@ export function ChatPanel() {
 
   // 生成完成后跑一次质量检查，并把报告写入全局 store
   // 若 pendingRules 存在（来自模板），则作为模板质量规则一并检查
-  const runQualityCheck = useCallback(() => {
+  // pageCount：来自生成设置，用于校验实际页数与期望页数的偏差（路线图 §7.6）
+  const runQualityCheck = useCallback((pageCount?: number) => {
     const current = useDeckStore.getState().deck;
     const qualityStore = useQualityStore.getState();
     const rules = qualityStore.pendingRules ?? undefined;
     qualityStore.clearPendingRules();
     qualityStore.setReport(
-      current ? checkDeckQuality(current, { rules }) : null,
+      current ? checkDeckQuality(current, { rules, pageCount }) : null,
     );
   }, []);
 
@@ -244,6 +252,11 @@ export function ChatPanel() {
                   {
                     topic: text,
                     pageCount: deck?.slides.length ? undefined : 8,
+                    // 生成前参数：用户设置 + 界面语言映射的输出语言
+                    options: withAppLanguage(
+                      genOptions,
+                      useSettingsStore.getState().settings.lang,
+                    ),
                     signal: job.signal,
                   },
                 );
@@ -256,7 +269,7 @@ export function ChatPanel() {
 
           if (deck) {
             await replaceSlides(slides);
-            runQualityCheck();
+            runQualityCheck(genOptions.pageCount);
             // 首屏风格锚点：仅检查首屏，hard 问题以横幅提示，不阻断生成
             const design = deck.design ?? DEFAULT_DESIGN;
             const gate = runFirstPageGate(
@@ -379,7 +392,15 @@ export function ChatPanel() {
         submittingRef.current = false;
       }
     },
-    [input, addMessage, replaceSlides, addSlide, setTitle, runQualityCheck],
+    [
+      input,
+      addMessage,
+      replaceSlides,
+      addSlide,
+      setTitle,
+      runQualityCheck,
+      genOptions,
+    ],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -549,6 +570,14 @@ export function ChatPanel() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* 生成前参数控制（场景/语气/密度/受众/图表/页数） */}
+      <GenerationOptionsBar
+        open={showGenOptions}
+        onToggle={() => setShowGenOptions((v) => !v)}
+        options={genOptions}
+        onChange={setGenOptions}
+      />
 
       {/* 预制指令 */}
       {messages.length <= 1 && !loading && (

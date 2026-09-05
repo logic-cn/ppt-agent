@@ -11,6 +11,7 @@ import {
 import type { BulletNode, Slide, SlideLayout } from "@/types/deck";
 import { SLIDE_LAYOUTS } from "@/types/layouts";
 import type { TemplateGenerationContext } from "@/presets/template-context";
+import type { GenerationOptions } from "@/types/generation";
 import type { DesignLock } from "@/types/design";
 import { isDesignLock } from "@/types/design";
 import { PagePlanItem, SEMANTIC_ROLES, SemanticRole } from "@/types/page-plan";
@@ -139,23 +140,40 @@ const slideSchema = z.object({
 export async function generatePagePlan(params: {
   topic: string;
   design: DesignLock;
+  /** 兼容字段，等价于 options.audience；与 options 同传时以 options 为准 */
   audience?: string;
+  /** 兼容字段，等价于 options.pageCount */
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
   templateCtx?: TemplateGenerationContext;
+  /** 生成前参数控制（路线图 §7.3） */
+  options?: GenerationOptions;
 }): Promise<PagePlanItem[]> {
   const design = params.design;
   if (!isDesignLock(design)) {
     throw new Error("generatePagePlan 需要合法的 DesignLock");
   }
 
+  // 合并顶层兼容字段与 options；options 中显式提供的值优先，
+  // 未提供的字段回落到顶层参数（避免 spread 把 undefined 覆盖进去）
+  const options: GenerationOptions = {
+    ...params.options,
+    audience: params.options?.audience ?? params.audience,
+    pageCount: params.options?.pageCount ?? params.pageCount,
+  };
+
   const systemPrompt = buildPagePlanSystemPrompt({
     design,
     templateCtx: params.templateCtx,
     fewShot: buildFewShotPrompt(selectFewShot(design)),
+    options,
   });
-  const userPrompt = buildPagePlanUserPrompt(params);
+  const userPrompt = buildPagePlanUserPrompt({
+    topic: params.topic,
+    docContent: params.docContent,
+    options,
+  });
 
   const res = await chat(
     {

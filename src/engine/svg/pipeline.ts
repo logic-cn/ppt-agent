@@ -1,5 +1,6 @@
 import type { Deck, Slide, BulletNode } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
+import type { GenerationOptions } from "@/types/generation";
 import { buildSpecLock } from "@/design/spec-lock";
 import { generatePagePlan } from "@/services/outline";
 import { semanticRoleToLayout } from "@/types/page-plan";
@@ -17,6 +18,8 @@ export interface BuildDeckSvgsOptions {
   pageCount?: number;
   docContent?: string;
   signal?: AbortSignal;
+  /** 生成前参数控制（场景/语气/密度/图表倾向/语言等），透传给 generatePagePlan */
+  options?: GenerationOptions;
   /** 模板生成上下文：约束 LLM 输出与模板页数/角色一致（P2 模板产品化） */
   templateCtx?: TemplateGenerationContext;
   onProgress?: DeckSvgProgress;
@@ -63,6 +66,7 @@ export async function buildDeckSvgsDetailed(
     docContent: options.docContent,
     signal: options.signal,
     templateCtx: options.templateCtx,
+    options: options.options,
   });
 
   let pages: SvgPage[] = [];

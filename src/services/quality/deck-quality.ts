@@ -11,7 +11,7 @@ export interface QualityFinding {
   autoFixable: boolean;
 }
 
-export interface GenerationOptions {
+export interface QualityCheckOptions {
   pageCount?: number;
   /** 模板推荐的额外质量规则，如 require_cover / require_charts */
   rules?: string[];
@@ -181,7 +181,7 @@ function checkGenericTitle(deck: Deck): QualityFinding[] {
 
 function checkPageCount(
   deck: Deck,
-  options?: GenerationOptions,
+  options?: QualityCheckOptions,
 ): QualityFinding[] {
   if (!options?.pageCount) return [];
   const diff = Math.abs(deck.slides.length - options.pageCount);
@@ -204,7 +204,7 @@ function checkPageCount(
  */
 export function checkDeckQuality(
   deck: Deck,
-  options?: GenerationOptions,
+  options?: QualityCheckOptions,
 ): QualityFinding[] {
   const findings: QualityFinding[] = [];
 

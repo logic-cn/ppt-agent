@@ -7,6 +7,7 @@
 
 import type { SemanticRole } from "@/types/page-plan";
 import type { SlideLayout } from "@/types/layouts";
+import type { GenerationOptions } from "@/types/generation";
 import { getPresets, getPresetById } from "./index";
 
 export interface TemplateSlidePlan {
@@ -20,10 +21,8 @@ export interface TemplateSlidePlan {
 
 export interface TemplateGenerationContext {
   templateId: string;
-  /** 模板建议的默认生成选项 */
-  defaultOptions: {
-    pageCount: number;
-  };
+  /** 模板建议的默认生成选项：页数由骨架决定，模板也可补充场景/语气等约束 */
+  defaultOptions: GenerationOptions;
   slidePlan: TemplateSlidePlan[];
   promptHints: string[];
 }

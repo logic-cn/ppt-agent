@@ -106,4 +106,23 @@ describe("generatePagePlan", () => {
       generatePagePlan({ topic: "t", design: DEFAULT_DESIGN }),
     ).rejects.toThrow();
   });
+
+  it("options 与顶层参数合并：options 显式值优先，缺省回落顶层", async () => {
+    await generatePagePlan({
+      topic: "年度增长复盘",
+      design: DEFAULT_DESIGN,
+      audience: "旧受众",
+      pageCount: 8,
+      options: { audience: "投资人", tone: "consulting" },
+    });
+    const call = (chat as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as { messages: Array<{ content: string }> };
+    const userContent = call.messages[1].content;
+    // options.audience 覆盖顶层 audience
+    expect(userContent).toContain("目标受众：投资人");
+    expect(userContent).not.toContain("旧受众");
+    expect(userContent).toContain("表达语气：");
+    // options 未提供 pageCount 时回落顶层 8
+    expect(userContent).toContain("建议页数：8 页");
+  });
 });

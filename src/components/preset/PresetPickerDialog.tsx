@@ -3,6 +3,8 @@ import { X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { PresetLibrary } from "./PresetLibrary";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { buildTemplateGenerationContext } from "@/presets/template-context";
+import { withAppLanguage } from "@/services/generation/generation-options";
+import { useSettingsStore } from "@/store/settings";
 import type { DeckPreset } from "@/types/preset";
 import type { Deck, Slide } from "@/types/deck";
 import { useT } from "@/hooks/use-page-t";
@@ -19,6 +21,7 @@ interface Props {
 
 export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
   const t = useT();
+  const lang = useSettingsStore((s) => s.settings.lang);
   const [preset, setPreset] = useState<DeckPreset | null>(null);
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -56,10 +59,14 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
         createdAt: 0,
         updatedAt: 0,
       } as unknown as Deck;
+      const templateCtx =
+        buildTemplateGenerationContext(preset.id) ?? undefined;
       const newDeck = await buildDeckSvgs(tempDeck, preset.design, {
         topic: topic.trim(),
         pageCount: Math.max(preset.slides.length, 1),
-        templateCtx: buildTemplateGenerationContext(preset.id) ?? undefined,
+        templateCtx,
+        // 模板声明的默认生成选项（场景/语气等）随 options 注入提示词
+        options: withAppLanguage(templateCtx?.defaultOptions ?? {}, lang),
         signal: controller.signal,
       });
       const slides = newDeck.slides;

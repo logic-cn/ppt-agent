@@ -1,7 +1,7 @@
 export type {
   Severity,
   QualityFinding,
-  GenerationOptions,
+  QualityCheckOptions,
   TemplateQualityRule,
 } from "./deck-quality";
 export {

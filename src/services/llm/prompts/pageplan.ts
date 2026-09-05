@@ -5,15 +5,45 @@
  */
 
 import type { DesignLock } from "../../../types/design";
+import type {
+  GenerationDensity,
+  GenerationOptions,
+  GenerationScenario,
+  GenerationTone,
+} from "../../../types/generation";
 import { getMode } from "../../../design/narrative-modes";
 import { getVisualStyle } from "../../../design/visual-styles";
 import { getPalette } from "../../../design/palettes";
 import type { TemplateGenerationContext } from "../../../presets/template-context";
 
+/** 生成选项 → 提示词描述（纯数据，导出供测试与 UI 对齐参考） */
+export const SCENARIO_PROMPT_LABEL: Record<GenerationScenario, string> = {
+  business_review: "业务复盘/经营汇报",
+  pitch: "融资路演/商业计划",
+  training: "培训课件",
+  market_analysis: "市场分析报告",
+  proposal: "方案提案",
+  custom: "通用场景",
+};
+
+export const TONE_PROMPT_LABEL: Record<GenerationTone, string> = {
+  formal: "正式严谨，用词规范",
+  consulting: "咨询顾问风格：结论先行、金字塔结构，每页给出明确观点（so-what）",
+  concise: "精简直接，短句要点",
+  storytelling: "叙事风格：有故事线和递进感",
+};
+
+export const DENSITY_PROMPT_LABEL: Record<GenerationDensity, string> = {
+  low: "低密度：每页要点不超过 3 条，每条一句话，留白充足",
+  medium: "中密度：每页 3-5 条要点",
+  high: "高密度：每页 5-7 条要点，信息饱满",
+};
+
 export function buildPagePlanSystemPrompt(opts: {
   design: DesignLock;
   fewShot?: string;
   templateCtx?: TemplateGenerationContext;
+  options?: GenerationOptions;
 }): string {
   const mode = getMode(opts.design.mode);
   const style = getVisualStyle(opts.design.visualStyle)!;
@@ -26,6 +56,12 @@ export function buildPagePlanSystemPrompt(opts: {
     `【视觉风格:${style.name}】${style.character}`,
     `【配色(仅用这些 HEX)】primary:${c.primary} secondary:${c.secondary} accent:${c.accent} bg:${c.background} surface:${c.surface} text:${c.text} muted:${c.textMuted}`,
   ].join("\n");
+
+  const langRule = opts.options?.language
+    ? opts.options.language === "zh-CN"
+      ? "4. 全部输出必须使用中文。"
+      : "4. 全部输出必须使用英文（English）。"
+    : "4. 语言与用户输入一致（中文输入则中文规划）。";
 
   let prompt = `${lockBlock}
 
@@ -46,7 +82,7 @@ export function buildPagePlanSystemPrompt(opts: {
 1. 第一页必须为 "cover"，最后一页必须为 "closing"。
 2. 根据内容逻辑关系**混用多种角色**，避免连续多页同一角色。
 3. 涉及数据/对比/趋势时，优先用 metrics / comparison / timeline 并给出 chartType。
-4. 语言与用户输入一致（中文输入则中文规划）。
+${langRule}
 
 ## 输出格式（必须是合法 JSON 对象，顶层为 {"pages": [...]}）
 {
@@ -90,10 +126,11 @@ ${promptHints.map((h) => `- ${h}`).join("\n")}`;
 
 export function buildPagePlanUserPrompt(params: {
   topic: string;
-  audience?: string;
-  pageCount?: number;
   docContent?: string;
+  /** 已合并的生成选项（generatePagePlan 负责合并顶层兼容字段） */
+  options?: GenerationOptions;
 }): string {
+  const options = params.options ?? {};
   const parts: string[] = [];
 
   if (params.docContent) {
@@ -104,12 +141,30 @@ export function buildPagePlanUserPrompt(params: {
     parts.push(`主题：${params.topic}`);
   }
 
-  if (params.audience) {
-    parts.push(`目标受众：${params.audience}`);
+  if (options.audience) {
+    parts.push(`目标受众：${options.audience}`);
   }
 
-  if (params.pageCount) {
-    parts.push(`建议页数：${params.pageCount} 页`);
+  if (options.pageCount) {
+    parts.push(`建议页数：${options.pageCount} 页`);
+  }
+
+  if (options.scenario) {
+    parts.push(`使用场景：${SCENARIO_PROMPT_LABEL[options.scenario]}`);
+  }
+
+  if (options.tone) {
+    parts.push(`表达语气：${TONE_PROMPT_LABEL[options.tone]}`);
+  }
+
+  if (options.density) {
+    parts.push(`信息密度：${DENSITY_PROMPT_LABEL[options.density]}`);
+  }
+
+  if (options.includeCharts === false) {
+    parts.push("图表倾向：尽量避免图表页，不要输出 chartType");
+  } else if (options.includeCharts === true) {
+    parts.push("图表倾向：涉及数据/对比/趋势的页面优先给出 chartType");
   }
 
   parts.push(
