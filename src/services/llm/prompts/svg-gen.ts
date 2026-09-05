@@ -1,3 +1,4 @@
+import { PRESET_VOCAB_PROMPT } from "@/engine/svg/presets";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem, SemanticRole } from "@/types/page-plan";
 
@@ -110,6 +111,8 @@ ${roleGuidance}
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
 6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。${chartRule}
 ${DEVICE_MENU}
+
+${PRESET_VOCAB_PROMPT}
 
 ${LAYOUT_GEOMETRY}${extraBlock}${briefBlock}${instructionBlock}
 

@@ -39,6 +39,36 @@ function createMockSlide(): MockSlide {
   return slide;
 }
 
+describe("translateSvgToSlide data-prst 预设形状（B2）", () => {
+  it("rect 载体 data-prst 映射为原生 prstGeom 形状", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <rect x="100" y="50" width="300" height="120" data-prst="chevron" fill="#1A56DB"/>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    expect(shapeCall).toBeDefined();
+    const [type, opts] = (shapeCall as { args: unknown[] }).args as [
+      string,
+      { x: number; y: number; w: number; h: number },
+    ];
+    expect(type).toBe("chevron");
+    expect(opts.x).toBeCloseTo(1.0416, 3);
+    expect(opts.w).toBeCloseTo(3.1249, 3);
+  });
+
+  it("path 载体 data-prst 同样映射原生形状（finalize 后的 canonical path）", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <path d="M0,0L80,0L100,50L80,100L0,100L20,50Z" data-prst="chevron" fill="#0F172A"/>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const shapeCall = slide._calls.find((c) => c.kind === "shape");
+    const [type] = (shapeCall as { args: unknown[] }).args as [string];
+    expect(type).toBe("chevron");
+  });
+});
+
 describe("translateSvgToSlide", () => {
   it("rect 经坐标换算后调用 addShape", () => {
     const slide = createMockSlide();

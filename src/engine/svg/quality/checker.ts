@@ -1,4 +1,5 @@
 import type { SpecLock } from "@/design/spec-lock";
+import { isPresetShape, PRESET_SHAPES } from "../presets";
 import { validateSvgContract } from "../spec-contract";
 
 export type SvgIssue = {
@@ -502,5 +503,28 @@ export function checkCohortConsistency(
     issues.push(...checkTypographyAnchors(svg, specLock));
   }
 
+  return issues;
+}
+
+// ---- 预设形状词表校验（data-prst）----
+
+/** 校验 data-prst 值是否在支持列表内：未知值导出端会静默降级为包围盒矩形，在此拦下重画 */
+export function checkPresetShapes(svg: string): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const re = /\bdata-prst\s*=\s*["']([^"']+)["']/gi;
+  let m: RegExpExecArray | null;
+  const seen = new Set<string>();
+  while ((m = re.exec(svg)) !== null) {
+    const id = m[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (!isPresetShape(id)) {
+      issues.push({
+        severity: "error",
+        message: `预设形状非法：data-prst="${id}" 不在支持列表（${Object.keys(PRESET_SHAPES).join("/")}）`,
+        location: "data-prst",
+      });
+    }
+  }
   return issues;
 }

@@ -7,6 +7,7 @@ import {
   type ResolvedFill,
 } from "./gradient";
 import { translateChart } from "./chart";
+import { isPresetShape } from "../svg/presets";
 import type { SpecLock } from "@/design/spec-lock";
 
 const SLIDE_W = 13.333;
@@ -327,11 +328,52 @@ export function translateSvgToSlide(
   }
 }
 
+/**
+ * data-prst 预设形状 → PowerPoint 原生 prstGeom（B2 词表）。
+ * 渐变填充无法直接写入预设形状，取 stop 中点插值色作纯色近似。
+ */
+function translatePresetShape(
+  prst: string,
+  el: Element,
+  slide: PptxGenJS.Slide,
+  defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
+  b: { x: number; y: number; w: number; h: number },
+): void {
+  const gf = resolveGradientFill({ fill: el.getAttribute("fill") }, defsById);
+  const fill = gf.gradient
+    ? {
+        color: sampleGradient(gf.gradient.stops, 0.5),
+        transparency: transparencyOf(el),
+      }
+    : shapeFill(el, defsById);
+  slide.addShape(prst as Parameters<typeof slide.addShape>[0], {
+    x: toX(b.x),
+    y: toY(b.y),
+    w: toW(b.w),
+    h: toH(b.h),
+    fill,
+    line: shapeLine(el),
+  });
+}
+
 function translateRect(
   el: Element,
   slide: PptxGenJS.Slide,
   defsById: Record<string, ReturnType<typeof collectDefs>[string]>,
 ): void {
+  // B2：data-prst 载体矩形 → 原生预设形状
+  const prst = el.getAttribute("data-prst");
+  if (prst && isPresetShape(prst)) {
+    const b = transposedBBox(
+      el,
+      num(el.getAttribute("x")),
+      num(el.getAttribute("y")),
+      num(el.getAttribute("width")),
+      num(el.getAttribute("height")),
+    );
+    translatePresetShape(prst, el, slide, defsById, b);
+    return;
+  }
   const rx = el.getAttribute("rx");
   // P1-1：transform 平移 + rotate 近似（外形不变，位置/尺寸映射）
   const b = transposedBBox(
@@ -1054,6 +1096,17 @@ function translatePath(
   const hasFill = !!fillAttr && fillAttr !== "none";
   const d = el.getAttribute("d");
   if (!d) return;
+
+  // B2：data-prst 标记优先于路径识别（finalize 后的 canonical path 仍带标记）
+  const prst = el.getAttribute("data-prst");
+  if (prst && isPresetShape(prst)) {
+    const bbox = parsePathBBox(d);
+    if (bbox && bbox.w > 0 && bbox.h > 0) {
+      const b = transposedBBox(el, bbox.x, bbox.y, bbox.w, bbox.h);
+      translatePresetShape(prst, el, slide, defsById, b);
+    }
+    return;
+  }
 
   const cls = classifyPath(d);
   if (cls.kind === "unknown") {

@@ -9,7 +9,9 @@ import {
   checkChartData,
   svgContainsChart,
   checkCohortConsistency,
+  checkPresetShapes,
 } from "./quality/checker";
+import { finalizeSvgPresets } from "./presets";
 import type { SvgPage } from "./types";
 
 /** 进度回调：已完成页数、总页数 */
@@ -139,6 +141,8 @@ export async function generateSlideSvg(
         ...checkSvg(svg, opts.specLock),
         // 图表数据完整性：LLM 声明了图表但数据缺失/损坏会在导出端静默丢图
         ...checkChartData(svg),
+        // 预设形状词表：未知 data-prst 导出端会静默降级为矩形
+        ...checkPresetShapes(svg),
         // 图表必现性：plan 要求图表页时，SVG 中必须出现原生图表标记
         ...(opts.plan.chartType && !svgContainsChart(svg)
           ? [
@@ -168,7 +172,8 @@ export async function generateSlideSvg(
           errors.map((e) => "- " + e).join("\n"),
       );
     }
-    return svg;
+    // 规范化预设形状：<rect data-prst> → canonical <path data-prst>（预览保真，导出走原生 prstGeom）
+    return finalizeSvgPresets(svg);
   } finally {
     pageLevel.cleanup();
   }
