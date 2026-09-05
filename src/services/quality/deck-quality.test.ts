@@ -87,3 +87,66 @@ describe("checkDeckQuality 分级", () => {
     expect(vague!.severity).toBe("soft");
   });
 });
+
+// ---- 图表事实校准（B4）----
+
+const CHART_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <g data-chart-type="bar" data-chart-data='[{"label":"Q1","value":970},{"label":"Q2","value":1180}]'>
+  </g>
+</svg>`;
+
+describe("checkChartFacts 图表事实校准", () => {
+  it("图表数值在来源中找得到时不告警", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "季度收入", svg: CHART_SVG },
+      ],
+    });
+    const findings = checkDeckQuality(deck, {
+      sourceText: "Q1 收入 970 万元，Q2 达到 1,180 万元",
+    });
+    expect(
+      findings.filter((f) => f.rule === "chart_data_unverified"),
+    ).toHaveLength(0);
+  });
+
+  it("图表数值在来源中找不到时报 soft 项", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "季度收入", svg: CHART_SVG },
+      ],
+    });
+    const findings = checkDeckQuality(deck, {
+      sourceText: "本季度收入平稳增长，无具体数字。",
+    });
+    const unverified = findings.filter(
+      (f) => f.rule === "chart_data_unverified",
+    );
+    expect(unverified).toHaveLength(1);
+    expect(unverified[0].severity).toBe("soft");
+    expect(unverified[0].slideId).toBe("s1");
+    expect(unverified[0].message).toContain("970");
+  });
+
+  it("未提供 sourceText 时跳过校验", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "季度收入", svg: CHART_SVG },
+      ],
+    });
+    const findings = checkDeckQuality(deck);
+    expect(
+      findings.filter((f) => f.rule === "chart_data_unverified"),
+    ).toHaveLength(0);
+  });
+
+  it("无 svg 的页面跳过校验", () => {
+    const deck = createMockDeck({
+      slides: [{ id: "s1", layout: "content", title: "纯文本页" }],
+    });
+    const findings = checkDeckQuality(deck, { sourceText: "没有任何数字" });
+    expect(
+      findings.filter((f) => f.rule === "chart_data_unverified"),
+    ).toHaveLength(0);
+  });
+});

@@ -145,9 +145,13 @@ export function ImportDialog({ open, onClose }: Props) {
       if (deck) {
         await replaceSlides(slides);
         const current = useDeckStore.getState().deck;
-        useQualityStore
-          .getState()
-          .setReport(current ? checkDeckQuality(current) : null);
+        useQualityStore.getState().setReport(
+          current
+            ? checkDeckQuality(current, {
+                sourceText: parsed?.rawText ?? undefined,
+              })
+            : null,
+        );
       }
 
       addToast({

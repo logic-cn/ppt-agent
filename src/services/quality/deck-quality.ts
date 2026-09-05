@@ -15,6 +15,8 @@ export interface QualityCheckOptions {
   pageCount?: number;
   /** 模板推荐的额外质量规则，如 require_cover / require_charts */
   rules?: string[];
+  /** 来源原文（导入生成场景）：提供时对图表数据做事实校准（B4） */
+  sourceText?: string;
 }
 
 /** 模板可声明的质量规则名 */
@@ -179,6 +181,73 @@ function checkGenericTitle(deck: Deck): QualityFinding[] {
   return findings;
 }
 
+// ---- 图表事实校准（B4，参照 PPT Master verify-charts）----
+
+/** 提取 slide SVG 中全部 data-chart-data 的数值（label/value 点集） */
+export function extractChartValues(svg: string): number[] {
+  const values: number[] = [];
+  const re = /<g\b[^>]*\bdata-chart-data\s*=\s*(['"])([\s\S]*?)\1/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null) {
+    try {
+      const points: unknown = JSON.parse(m[2]);
+      if (Array.isArray(points)) {
+        for (const p of points) {
+          const v = (p as { value?: unknown })?.value;
+          if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+        }
+      }
+    } catch {
+      // 数据损坏由 checker.checkChartData 在生成端拦截，这里跳过
+    }
+  }
+  return values;
+}
+
+/** 来源文本是否包含该数值（容忍千分位逗号/中文逗号/空白干扰与尾零精度） */
+function sourceIncludesNumber(sourceText: string, value: number): boolean {
+  const normalized = sourceText.replace(/[,，\s]/g, "");
+  const candidates = [
+    String(value),
+    // 18.0 → 18；1234.50 → 1234.5
+    String(Number(value.toFixed(2))),
+    String(Math.round(value)),
+  ];
+  return candidates.some((c) => normalized.includes(c));
+}
+
+/**
+ * 图表事实校准：导入生成场景下，校验图表数值是否能在来源材料中找到。
+ * 找不到的数值不阻断导出，但以 soft 项提示用户核对（防 LLM 编数据）。
+ */
+function checkChartFacts(
+  deck: Deck,
+  options?: QualityCheckOptions,
+): QualityFinding[] {
+  const sourceText = options?.sourceText;
+  if (!sourceText) return [];
+  const findings: QualityFinding[] = [];
+  for (const slide of deck.slides) {
+    if (!slide.svg) continue;
+    const values = extractChartValues(slide.svg);
+    if (values.length === 0) continue;
+    const unverified = values.filter(
+      (v) => !sourceIncludesNumber(sourceText, v),
+    );
+    if (unverified.length === 0) continue;
+    findings.push({
+      rule: "chart_data_unverified",
+      severity: "soft",
+      slideId: slide.id,
+      message: `页面「${slide.title}」图表数值 ${unverified
+        .slice(0, 4)
+        .join("、")} 未在来源材料中找到，请核对是否为编造数据`,
+      autoFixable: false,
+    });
+  }
+  return findings;
+}
+
 function checkPageCount(
   deck: Deck,
   options?: QualityCheckOptions,
@@ -216,6 +285,7 @@ export function checkDeckQuality(
   findings.push(...checkLayoutContentMismatch(deck));
   findings.push(...checkGenericTitle(deck));
   findings.push(...checkPageCount(deck, options));
+  findings.push(...checkChartFacts(deck, options));
 
   // 模板推荐的额外质量规则
   const rules = options?.rules ?? [];
