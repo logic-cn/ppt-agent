@@ -11,7 +11,7 @@ export interface ImportResult {
 
 // --- 文档导入增强类型 ---
 
-export type DocumentSourceType = "docx" | "markdown" | "url" | "text";
+export type DocumentSourceType = "docx" | "markdown" | "url" | "text" | "pdf";
 
 export interface DocumentSource {
   id: string;

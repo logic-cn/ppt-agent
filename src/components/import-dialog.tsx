@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Upload, Link, FileText, Loader2, X, Check } from "lucide-react";
-import { importDocx, importMarkdown, importUrl } from "@/services/importer";
+import {
+  importDocx,
+  importMarkdown,
+  importPdf,
+  importUrl,
+} from "@/services/importer";
 import {
   parseDocument,
   getDocumentStrategy,
@@ -82,7 +87,7 @@ export function ImportDialog({ open, onClose }: Props) {
   if (!open) return null;
 
   const handleParseSuccess = async (input: {
-    type: "docx" | "markdown" | "url" | "text";
+    type: "docx" | "markdown" | "url" | "text" | "pdf";
     title: string;
     ref: string;
     rawText: string;
@@ -186,6 +191,19 @@ export function ImportDialog({ open, onClose }: Props) {
         const result = await importDocx(file);
         await handleParseSuccess({
           type: "docx",
+          title: result.title,
+          ref: file.name,
+          rawText: result.text,
+          sections: result.structured.sections.map((s) => ({
+            heading: s.heading,
+            content: s.content,
+            level: 1,
+          })),
+        });
+      } else if (file.name.endsWith(".pdf")) {
+        const result = await importPdf(file);
+        await handleParseSuccess({
+          type: "pdf",
           title: result.title,
           ref: file.name,
           rawText: result.text,
@@ -460,7 +478,7 @@ export function ImportDialog({ open, onClose }: Props) {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".docx,.md"
+                accept=".docx,.md,.pdf"
                 onChange={handleFile}
                 className="hidden"
               />

@@ -186,7 +186,7 @@ export const zh: Record<TranslationKey, string> = {
   "import.generatedPages": "已生成 {count} 页大纲",
   "import.failed": "导入失败",
   "import.unsupportedFormat": "不支持的文件格式",
-  "import.unsupportedFormatMsg": "仅支持 .docx 和 .md 文件",
+  "import.unsupportedFormatMsg": "仅支持 .pdf、.docx 和 .md 文件",
   "import.parseFailed": "解析失败",
   "import.urlUnreachable": "无法访问该网页",
   "import.urlUnreachableMsg":
@@ -204,7 +204,7 @@ export const zh: Record<TranslationKey, string> = {
   "import.uploadFile": "上传文件",
   "import.webLink": "网页链接",
   "import.uploadHint": "点击上传文件",
-  "import.uploadFormats": "支持 .docx（Word 文档）和 .md（Markdown）格式",
+  "import.uploadFormats": "支持 .pdf、.docx（Word）与 .md（Markdown）格式",
   "import.urlNote":
     "注意：部分网站可能会阻止访问（CORS 限制），建议优先使用文件导入。",
   "import.parseAndImport": "解析并导入",

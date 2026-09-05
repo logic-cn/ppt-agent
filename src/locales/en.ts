@@ -195,7 +195,7 @@ export const en = {
   "import.generatedPages": "Generated a {count}-page outline",
   "import.failed": "Import failed",
   "import.unsupportedFormat": "Unsupported file format",
-  "import.unsupportedFormatMsg": "Only .docx and .md files are supported",
+  "import.unsupportedFormatMsg": "Only .pdf, .docx and .md files are supported",
   "import.parseFailed": "Parse failed",
   "import.urlUnreachable": "Cannot access this webpage",
   "import.urlUnreachableMsg":
@@ -215,7 +215,7 @@ export const en = {
   "import.webLink": "Web link",
   "import.uploadHint": "Click to upload a file",
   "import.uploadFormats":
-    "Supports .docx (Word documents) and .md (Markdown) formats",
+    "Supports .pdf, .docx (Word) and .md (Markdown) formats",
   "import.urlNote":
     "Note: some sites may block access (CORS restrictions). We recommend importing via file.",
   "import.parseAndImport": "Parse and import",

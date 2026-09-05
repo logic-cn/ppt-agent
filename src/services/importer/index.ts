@@ -1,4 +1,5 @@
 export { importDocx } from "./docx";
+export { importPdf } from "./pdf";
 export { importMarkdown } from "./markdown";
 export { importUrl } from "./url";
 export type { ImportResult, StructuredDoc } from "./types";
