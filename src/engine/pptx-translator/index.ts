@@ -1,7 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { Deck, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
-import { buildSpecLock } from "@/design/spec-lock";
+import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
 import { resolveTheme } from "@/themes";
 import { buildRenderSlides } from "@/engine/render-ir/build";
 import { renderRenderSlideAsync } from "@/engine/pptx/render-slide";
@@ -13,6 +13,41 @@ const SLIDE_H = 7.5;
 function initPptx(pptx: PptxGenJS): void {
   pptx.defineLayout({ name: "CUSTOM", width: SLIDE_W, height: SLIDE_H });
   pptx.layout = "CUSTOM";
+}
+
+/**
+ * 定义 deck 母版（参照 PPT Master 的 p:sldMaster 输出）：背景色 + 底部品牌条 + 页码字段。
+ * 幻灯片内容（全幅 SVG 背景矩形）会盖在母版对象之上——母版的价值在于
+ * PowerPoint「幻灯片母版」视图里呈现品牌结构，且页码/背景为真原生字段，
+ * 用户删除页面背景矩形后即可见。
+ */
+export function defineDeckMaster(pptx: PptxGenJS, specLock: SpecLock): string {
+  const masterName = "PPT_AGENT_MASTER";
+  pptx.defineSlideMaster({
+    title: masterName,
+    background: { color: specLock.colors.background.replace("#", "") },
+    objects: [
+      {
+        rect: {
+          x: 0,
+          y: SLIDE_H - 0.08,
+          w: SLIDE_W,
+          h: 0.08,
+          fill: { color: specLock.colors.accent.replace("#", "") },
+        },
+      },
+    ],
+    slideNumber: {
+      x: SLIDE_W - 0.7,
+      y: SLIDE_H - 0.4,
+      w: 0.5,
+      h: 0.3,
+      color: specLock.colors.textMuted.replace("#", ""),
+      fontFace: specLock.fonts.body,
+      fontSize: 10,
+    },
+  });
+  return masterName;
 }
 
 /**
@@ -30,6 +65,7 @@ export async function svgToPptx(
 
   const pptx = new PptxGenJS();
   initPptx(pptx);
+  const masterName = defineDeckMaster(pptx, specLock);
 
   // 仅当存在无 svg 页时才构建 render-ir 回退数据
   const needsFallback = slides.some((s) => !s.svg);
@@ -52,7 +88,7 @@ export async function svgToPptx(
   for (let i = 0; i < slides.length; i++) {
     if (signal?.aborted) throw new DOMException("已取消", "AbortError");
     const slide = slides[i];
-    const pptxSlide = pptx.addSlide();
+    const pptxSlide = pptx.addSlide({ masterName });
     if (slide.svg) {
       translateSvgToSlide(slide.svg, pptxSlide, specLock, slide.notes);
     } else if (renderSlides) {

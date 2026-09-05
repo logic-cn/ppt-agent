@@ -2,9 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import type PptxGenJS from "pptxgenjs";
 import { translateSvgToSlide } from "./elements";
 import { classifyPath, parseTransformAttr } from "./elements";
-import { svgToPptx } from "./index";
+import { svgToPptx, defineDeckMaster } from "./index";
 import { collectDefs, resolveFill } from "./gradient";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { buildSpecLock } from "@/design/spec-lock";
 import type { Slide } from "@/types/deck";
 
 const SAMPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
@@ -916,5 +917,35 @@ describe("svgToPptx", () => {
     const buf = new Uint8Array(await blob.arrayBuffer());
     const text = new TextDecoder().decode(buf);
     expect(text.includes("<?xml") || text.includes("ppt")).toBe(true);
+  });
+});
+
+describe("defineDeckMaster（B3 原生母版）", () => {
+  it("用设计锁定义母版：背景/品牌条/页码字段，并返回母版名", () => {
+    const calls: { title: string; props: unknown }[] = [];
+    const pptx = {
+      defineSlideMaster: vi.fn((props: { title: string }) => {
+        calls.push({ title: props.title, props });
+      }),
+    } as unknown as PptxGenJS;
+    const specLock = buildSpecLock(DEFAULT_DESIGN);
+    const name = defineDeckMaster(pptx, specLock);
+
+    expect(name).toBe("PPT_AGENT_MASTER");
+    expect(calls[0].title).toBe("PPT_AGENT_MASTER");
+    const props = calls[0].props as {
+      background: { color: string };
+      objects: { rect: { fill: { color: string } } }[];
+      slideNumber: { color: string };
+    };
+    expect(props.background.color).toBe(
+      specLock.colors.background.replace("#", ""),
+    );
+    expect(props.objects[0].rect.fill.color).toBe(
+      specLock.colors.accent.replace("#", ""),
+    );
+    expect(props.slideNumber.color).toBe(
+      specLock.colors.textMuted.replace("#", ""),
+    );
   });
 });
