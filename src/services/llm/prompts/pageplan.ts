@@ -39,6 +39,20 @@ export const DENSITY_PROMPT_LABEL: Record<GenerationDensity, string> = {
   high: "高密度：每页 5-7 条要点，信息饱满",
 };
 
+/**
+ * 场景 → 大纲义务（参照 PPT Master plan-core 的 intent→outline 义务表）：
+ * 指定场景时，大纲必须让对应义务有页面承载，防止结构性遗漏。
+ */
+export const SCENARIO_OBLIGATIONS: Record<GenerationScenario, string> = {
+  business_review: "- 基线 → 进展 → 差异归因 → 证据/数据 → 风险 → 责任与下一步",
+  pitch:
+    "- 痛点/机会 → 方案 → 证据（市场/traction）→ 预判反驳 → 明确的行动请求",
+  training: "- 前置知识 → 递进讲解 → 示例演示 → 练习/检验理解",
+  market_analysis: "- 相关事实与背景 → 驱动机制/因果 → 结论与启示",
+  proposal: "- 决策请求 → 备选方案对比 → 评估标准 → 资源与拖延代价",
+  custom: "- 无额外义务，按主题自行组织",
+};
+
 export function buildPagePlanSystemPrompt(opts: {
   design: DesignLock;
   fewShot?: string;
@@ -63,6 +77,14 @@ export function buildPagePlanSystemPrompt(opts: {
       : "4. 全部输出必须使用英文（English）。"
     : "4. 语言与用户输入一致（中文输入则中文规划）。";
 
+  // 场景 → 大纲义务（仅指定 scenario 时注入，避免无条件占用 token）
+  const scenarioObligations = opts.options?.scenario
+    ? SCENARIO_OBLIGATIONS[opts.options.scenario]
+    : undefined;
+  const obligationBlock = scenarioObligations
+    ? `\n\n## 场景大纲义务（必须逐条落实）\n本次使用场景为「${SCENARIO_PROMPT_LABEL[opts.options!.scenario!]}」，大纲必须让以下义务有对应页面承载，不得遗漏：\n${scenarioObligations}`
+    : "";
+
   let prompt = `${lockBlock}
 
 你的任务是依据主题与设计锁，规划整份 PPT 的页面结构（pagePlan）。你只做「结构规划」，不写像素坐标、不写 SVG。
@@ -83,6 +105,7 @@ export function buildPagePlanSystemPrompt(opts: {
 2. 根据内容逻辑关系**混用多种角色**，避免连续多页同一角色。
 3. 涉及数据/对比/趋势时，优先用 metrics / comparison / timeline 并给出 chartType。
 ${langRule}
+${obligationBlock}
 
 ## 输出格式（必须是合法 JSON 对象，顶层为 {"pages": [...]}）
 {
@@ -143,6 +166,12 @@ export function buildPagePlanUserPrompt(params: {
 
   if (options.audience) {
     parts.push(`目标受众：${options.audience}`);
+  }
+
+  if (options.coreMessage) {
+    parts.push(
+      `核心信息（整份 deck 必须服务于此：cover 点题、正文逐层论证、closing 回扣）：${options.coreMessage}`,
+    );
   }
 
   if (options.pageCount) {

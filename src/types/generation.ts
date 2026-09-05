@@ -24,6 +24,12 @@ export interface GenerationOptions {
   audience?: string;
   /** 使用场景，影响结构与叙事侧重 */
   scenario?: GenerationScenario;
+  /**
+   * 核心信息：一句话说清整份 deck 必须让听众记住/认同/执行的事。
+   * 参照 PPT Master 沟通契约的 core_message——
+   * cover 点题、正文论证、closing 回扣都围绕它展开。
+   */
+  coreMessage?: string;
   /** 期望页数；质量检查会据此校验页数偏差 */
   pageCount?: number;
   /** 表达语气 */

@@ -4,8 +4,10 @@ import {
   checkContentPresence,
   checkChartData,
   svgContainsChart,
+  checkTypographyAnchors,
+  checkCohortConsistency,
 } from "./checker";
-import { buildSpecLock } from "@/design/spec-lock";
+import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
 
 const specLock = buildSpecLock(DEFAULT_DESIGN);
@@ -248,5 +250,73 @@ describe("checkContentPresence", () => {
       title: "利润增长 40%",
     });
     expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+});
+
+// ---- 字号锚点 + cohort 一致性门（参照 PPT Master typography anchors / early gate）----
+
+const ANCHOR_SPEC: SpecLock = {
+  canvas: { w: 1280, h: 720 },
+  colors: {
+    primary: "#1D4ED8",
+    secondary: "#3B82F6",
+    accent: "#F59E0B",
+    background: "#FFFFFF",
+    surface: "#F3F4F6",
+    text: "#111827",
+    textMuted: "#6B7280",
+  },
+  fonts: { title: "Noto Sans SC", body: "Noto Sans SC" },
+  typography: { title: 40, section: 30, body: 20, caption: 14, hero: 72 },
+  style: "soft-rounded",
+  icons: [],
+};
+
+describe("checkTypographyAnchors", () => {
+  it("锚点字号与 ≤2 处例外不告警", () => {
+    const svg = `<svg><text font-size="40">A</text><text font-size="20">B</text><text font-size="15">c1</text><text font-size="16">c2</text></svg>`;
+    expect(checkTypographyAnchors(svg, ANCHOR_SPEC)).toHaveLength(0);
+  });
+
+  it("偏离锚点超过稀疏上限时告警", () => {
+    const svg = `<svg><text font-size="33">A</text><text font-size="33">B</text><text font-size="25">C</text></svg>`;
+    const issues = checkTypographyAnchors(svg, ANCHOR_SPEC);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toContain("25/33");
+  });
+
+  it("无 typography 定义时跳过", () => {
+    const noType = { ...ANCHOR_SPEC, typography: undefined };
+    expect(
+      checkTypographyAnchors("<svg><text font-size='9'>x</text></svg>", noType),
+    ).toHaveLength(0);
+  });
+});
+
+describe("checkCohortConsistency", () => {
+  it("越锁颜色报 error 并给出出现次数", () => {
+    const svg = `<svg><rect fill="#123456"/><rect fill="#123456"/></svg>`;
+    const issues = checkCohortConsistency([svg], ANCHOR_SPEC);
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && i.message.includes("配色越锁"),
+      ),
+    ).toBe(true);
+  });
+
+  it("越锁字体报 error", () => {
+    const svg = `<svg><text font-family="Comic Sans">x</text></svg>`;
+    const issues = checkCohortConsistency([svg], ANCHOR_SPEC);
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && i.message.includes("字体越锁"),
+      ),
+    ).toBe(true);
+  });
+
+  it("合规页面返回空", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="100" font-family="Noto Sans SC" font-size="40" fill="#111827">标题</text></svg>`;
+    expect(checkCohortConsistency([svg], ANCHOR_SPEC)).toHaveLength(0);
   });
 });

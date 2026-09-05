@@ -185,6 +185,17 @@ export function GenerationOptionsBar({
               className={CONTROL_CLS}
             />
           </label>
+
+          <label className={`${LABEL_CLS} col-span-2`}>
+            <span>{t("chat.genOptionsCoreMessage")}</span>
+            <input
+              type="text"
+              value={options.coreMessage ?? ""}
+              onChange={(e) => set("coreMessage", e.target.value || undefined)}
+              placeholder={t("chat.genOptionsCoreMessagePlaceholder")}
+              className={CONTROL_CLS}
+            />
+          </label>
         </div>
       )}
     </div>

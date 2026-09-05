@@ -167,6 +167,9 @@ export const en = {
   "chat.genOptionsDensity": "Density",
   "chat.genOptionsAudience": "Audience",
   "chat.genOptionsAudiencePlaceholder": "e.g. investors, new hires (optional)",
+  "chat.genOptionsCoreMessage": "Core message",
+  "chat.genOptionsCoreMessagePlaceholder":
+    "One sentence the whole deck must land (optional)",
   "chat.genOptionsCharts": "Charts",
   "chat.genOptionsPageCount": "Pages",
   "chat.genOptionsPageCountPlaceholder": "Auto",

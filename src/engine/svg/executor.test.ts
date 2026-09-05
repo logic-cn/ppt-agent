@@ -251,3 +251,81 @@ describe("generateDeckSvgs", () => {
     expect(calls).toBe(2);
   });
 });
+
+describe("generateDeckSvgs early gate（跨页一致性门）", () => {
+  function offPaletteSvg(title: string): string {
+    return svgWithTitle(title).replace(/#FFFFFF/g, "#123456");
+  }
+
+  it("cohort 页越锁时基于底稿修复，并向剩余页下发一致性要求", async () => {
+    const plans = makePlan(7);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => {
+      const content = (req as { messages: { content: string }[] }).messages[1]
+        .content;
+      // 修复调用（定向修改模式）：返回合规 SVG
+      if (content.includes("定向修改要求")) {
+        return { content: svgWithTitle("第 1 页") };
+      }
+      const title = titleFromPrompt(req);
+      // 首次生成的第 1 页使用越锁颜色
+      return {
+        content:
+          title === "第 1 页" ? offPaletteSvg(title) : svgWithTitle(title),
+      };
+    });
+
+    const pages = await generateDeckSvgs(plans, spec);
+
+    // 第 1 页被修复为合规颜色
+    expect(pages[0].svg).not.toContain("#123456");
+    expect(pages[0].svg).toContain("第 1 页");
+    // 剩余页（第 6、7 页）的 prompt 携带全 deck 一致性要求
+    const guided = vi
+      .mocked(chat)
+      .mock.calls.filter((c) =>
+        (
+          c[0] as { messages: { content: string }[] }
+        ).messages[1].content.includes("全 deck 一致性要求"),
+      );
+    expect(guided.length).toBe(2);
+    expect(guided[0][0]).toMatchObject({
+      messages: [
+        expect.anything(),
+        { content: expect.stringContaining("配色越锁") },
+      ],
+    });
+  });
+
+  it("skipEarlyGate 时跳过一致性门，不产生修复与指引", async () => {
+    const plans = makePlan(7);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => {
+      const title = titleFromPrompt(req);
+      return {
+        content:
+          title === "第 1 页" ? offPaletteSvg(title) : svgWithTitle(title),
+      };
+    });
+
+    const pages = await generateDeckSvgs(plans, spec, { skipEarlyGate: true });
+    expect(pages[0].svg).toContain("#123456");
+    const guided = vi
+      .mocked(chat)
+      .mock.calls.filter((c) =>
+        (
+          c[0] as { messages: { content: string }[] }
+        ).messages[1].content.includes("全 deck 一致性要求"),
+      );
+    expect(guided.length).toBe(0);
+  });
+
+  it("合规 cohort 不触发修复，正常生成全部页", async () => {
+    const plans = makePlan(7);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => ({
+      content: svgWithTitle(titleFromPrompt(req)),
+    }));
+    const pages = await generateDeckSvgs(plans, spec);
+    expect(pages).toHaveLength(7);
+    // 每页恰好调用一次 chat
+    expect(vi.mocked(chat).mock.calls.length).toBe(7);
+  });
+});

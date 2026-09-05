@@ -8,6 +8,7 @@ import {
   checkContentPresence,
   checkChartData,
   svgContainsChart,
+  checkCohortConsistency,
 } from "./quality/checker";
 import type { SvgPage } from "./types";
 
@@ -176,13 +177,19 @@ export async function generateSlideSvg(
 export interface GenerateDeckSvgsOptions {
   onProgress?: SvgProgress;
   signal?: AbortSignal;
+  /** 关闭 early gate（默认开启）。isolatePageFailures 隔离路径不经过此函数，天然不带门 */
+  skipEarlyGate?: boolean;
 }
+
+/** early gate：cohort 页数阈值——先生成前 N 页并跑跨页一致性门（参照 PPT Master P01-P05 early gate） */
+export const EARLY_GATE_PAGES = 5;
 
 /**
  * 逐页串行生成整份 deck 的 SVG（禁止 Promise.all 并行）。
- * 每生成一页调用一次 onProgress(done, total)。
- * signal 透传到每一页：用户在逐页生成中取消时，当前页的 LLM 请求会被中断，
- * 并抛出 AbortError，不继续生成后续页。
+ * 三阶段：先生成前 EARLY_GATE_PAGES 页（cohort）→ 跨页一致性门
+ * （颜色/字体越锁的页面基于底稿修复一次，并把一致性要求下发给剩余页）→
+ * 生成剩余页。每生成一页调用一次 onProgress(done, total)。
+ * signal 透传到每一页：取消时中断当前 LLM 请求并抛出 AbortError。
  */
 export async function generateDeckSvgs(
   plan: PagePlanItem[],
@@ -190,18 +197,68 @@ export async function generateDeckSvgs(
   opts?: GenerateDeckSvgsOptions,
 ): Promise<SvgPage[]> {
   const total = plan.length;
-  const pages: SvgPage[] = [];
   const onProgress = opts?.onProgress;
   const signal = opts?.signal;
-  for (let i = 0; i < total; i++) {
-    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const svg = await generateSlideSvg({
+  const gateAt = Math.min(EARLY_GATE_PAGES, total);
+  const pages: SvgPage[] = [];
+
+  const generatePage = async (
+    i: number,
+    extra?: { baseSvg?: string; instruction?: string; extraGuidance?: string },
+  ): Promise<string> =>
+    generateSlideSvg({
       specLock: spec,
       plan: plan[i],
       pageIndex: i,
       totalPages: total,
       signal,
+      ...extra,
     });
+
+  // Phase 1: cohort（前 gateAt 页）
+  for (let i = 0; i < gateAt; i++) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const svg = await generatePage(i);
+    pages.push({ index: i, role: plan[i].role, svg });
+    onProgress?.(i + 1, total);
+  }
+
+  // Phase 2: early gate —— cohort 一致性检查：错误页修复一次，全部问题下发剩余页
+  let extraGuidance: string | undefined;
+  if (!opts?.skipEarlyGate && pages.length > 0) {
+    const cohortIssues = checkCohortConsistency(
+      pages.map((p) => p.svg),
+      spec,
+    );
+    const errors = cohortIssues.filter((i) => i.severity === "error");
+    const warns = cohortIssues.filter((i) => i.severity === "warn");
+    if (errors.length > 0 || warns.length > 0) {
+      extraGuidance = [...errors, ...warns]
+        .map((i) => "- " + i.message)
+        .join("\n");
+      for (let i = 0; i < pages.length; i++) {
+        const own = checkCohortConsistency([pages[i].svg], spec).filter(
+          (x) => x.severity === "error",
+        );
+        if (own.length === 0) continue;
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+        pages[i] = {
+          ...pages[i],
+          svg: await generatePage(i, {
+            baseSvg: pages[i].svg,
+            instruction: `修正以下跨页一致性问题（保持版式与内容不变，仅落实要求）：\n${own
+              .map((x) => "- " + x.message)
+              .join("\n")}`,
+          }),
+        };
+      }
+    }
+  }
+
+  // Phase 3: 剩余页（携带 cohort 一致性纠正要求）
+  for (let i = gateAt; i < total; i++) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const svg = await generatePage(i, { extraGuidance });
     pages.push({ index: i, role: plan[i].role, svg });
     onProgress?.(i + 1, total);
   }

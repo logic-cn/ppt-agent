@@ -1,0 +1,110 @@
+// svg-gen 提示词结构测试：分层注入（角色指引/设备菜单/几何对照/条件模块）
+import { describe, it, expect } from "vitest";
+import { buildSvgGenPrompt, DEVICE_MENU } from "./svg-gen";
+import type { SpecLock } from "@/design/spec-lock";
+import type { PagePlanItem } from "@/types/page-plan";
+
+const SPEC: SpecLock = {
+  canvas: { w: 1280, h: 720 },
+  colors: {
+    primary: "#1D4ED8",
+    secondary: "#3B82F6",
+    accent: "#F59E0B",
+    background: "#FFFFFF",
+    surface: "#F3F4F6",
+    text: "#111827",
+    textMuted: "#6B7280",
+  },
+  fonts: { title: "Noto Sans SC", body: "Noto Sans SC" },
+  style: "soft-rounded",
+  icons: [],
+};
+
+function plan(overrides: Partial<PagePlanItem> = {}): PagePlanItem {
+  return {
+    role: "content",
+    title: "市场规模与增速",
+    intent: "说明市场规模与增长动力",
+    bullets: ["市场规模 970 亿美元", "近三年 CAGR 18%"],
+    ...overrides,
+  };
+}
+
+describe("buildSvgGenPrompt 分层结构", () => {
+  it("基础契约 + 设备菜单 + 几何对照始终注入", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 0,
+      totalPages: 6,
+    });
+    expect(prompt).toContain('viewBox="0 0 1280 720"');
+    expect(prompt).toContain("#1D4ED8");
+    expect(prompt).toContain(DEVICE_MENU.split("\n")[0]);
+    expect(prompt).toContain("版式几何对照");
+    expect(prompt).toContain("对称比较：1:1 双栏");
+  });
+
+  it("按角色注入对应版式指引", () => {
+    const metrics = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan({ role: "metrics", title: "核心指标" }),
+      pageIndex: 1,
+      totalPages: 6,
+    });
+    expect(metrics).toContain("唯一视觉焦点");
+
+    const timeline = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan({ role: "timeline", title: "发展阶段" }),
+      pageIndex: 2,
+      totalPages: 6,
+    });
+    expect(timeline).toContain("等距节点");
+  });
+
+  it("图表页注入 data-chart 约定，非图表页不注入", () => {
+    const withChart = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan({ chartType: "bar" }),
+      pageIndex: 0,
+      totalPages: 6,
+    });
+    expect(withChart).toContain('data-chart-type="bar"');
+
+    const without = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 0,
+      totalPages: 6,
+    });
+    expect(without).not.toContain("data-chart-type");
+  });
+
+  it("extraGuidance 作为全 deck 一致性要求注入", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 3,
+      totalPages: 6,
+      extraGuidance: "1. 只允许使用配色表中的颜色。",
+    });
+    expect(prompt).toContain("全 deck 一致性要求");
+    expect(prompt).toContain("只允许使用配色表中的颜色");
+  });
+
+  it("contentBrief 与 instruction 块保留原有行为", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 0,
+      totalPages: 6,
+      contentBrief: "必须出现：970 亿美元",
+      instruction: "把标题放大",
+    });
+    expect(prompt).toContain("本页内容素材");
+    expect(prompt).toContain("必须出现：970 亿美元");
+    expect(prompt).toContain("定向修改要求");
+    expect(prompt).toContain("把标题放大");
+  });
+});

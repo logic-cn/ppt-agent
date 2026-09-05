@@ -158,6 +158,9 @@ export const zh: Record<TranslationKey, string> = {
   "chat.genOptionsDensity": "密度",
   "chat.genOptionsAudience": "受众",
   "chat.genOptionsAudiencePlaceholder": "如：投资人、新员工（可选）",
+  "chat.genOptionsCoreMessage": "核心信息",
+  "chat.genOptionsCoreMessagePlaceholder":
+    "一句话说清整份 PPT 要让听众记住的事（可选）",
   "chat.genOptionsCharts": "图表",
   "chat.genOptionsPageCount": "页数",
   "chat.genOptionsPageCountPlaceholder": "自动",

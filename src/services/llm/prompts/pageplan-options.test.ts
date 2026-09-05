@@ -82,4 +82,27 @@ describe("pagePlan 生成选项注入（路线图 §7.3）", () => {
     const prompt = buildPagePlanSystemPrompt({ design: DESIGN });
     expect(prompt).toContain("语言与用户输入一致");
   });
+
+  it("指定 scenario 时注入大纲义务表，未指定时不注入", () => {
+    const withScenario = buildPagePlanSystemPrompt({
+      design: DESIGN,
+      options: { scenario: "pitch" },
+    });
+    expect(withScenario).toContain("场景大纲义务");
+    expect(withScenario).toContain("预判反驳");
+    expect(withScenario).toContain("行动请求");
+
+    const without = buildPagePlanSystemPrompt({ design: DESIGN });
+    expect(without).not.toContain("场景大纲义务");
+  });
+
+  it("coreMessage 注入 user prompt 并要求全篇围绕展开", () => {
+    const prompt = buildPagePlanUserPrompt({
+      topic: "t",
+      options: { coreMessage: "Q3 增长靠海外市场" },
+    });
+    expect(prompt).toContain("核心信息");
+    expect(prompt).toContain("Q3 增长靠海外市场");
+    expect(prompt).toContain("closing 回扣");
+  });
 });

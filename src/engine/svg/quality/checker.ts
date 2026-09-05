@@ -386,3 +386,121 @@ function checkBounds(
     });
   }
 }
+
+// ---- 字号锚点（参照 PPT Master typography anchors）----
+
+/** 字号锚点容差：锚点值 ±2px 内视为一致 */
+export const FONT_SIZE_ANCHOR_TOLERANCE_PX = 2;
+/** 每页偏离锚点的稀疏例外上限（装饰性字号），超出才告警 */
+export const SPARSE_OFF_ANCHOR_MAX = 2;
+
+/** 提取 SVG 中所有显式 font-size 值（text/tspan） */
+export function extractFontSizes(svg: string): number[] {
+  const sizes: number[] = [];
+  const re = /<(?:text|tspan)\b[^>]*\bfont-size\s*=\s*["']?(\d+(?:\.\d+)?)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null) {
+    const v = Number.parseFloat(m[1]);
+    if (Number.isFinite(v) && v > 0) sizes.push(v);
+  }
+  return sizes;
+}
+
+/**
+ * 字号锚点校验：页面上除稀疏例外（≤2 处装饰性字号）外，
+ * 所有 font-size 都必须落在锚点 ±2px 内。跨页同层级字号一致是
+ * AI 生成 deck 最易穿帮的破绽，此规则为 cohort 一致性门提供依据。
+ */
+export function checkTypographyAnchors(
+  svg: string,
+  specLock: SpecLock,
+): SvgIssue[] {
+  const anchors = specLock.typography;
+  if (!anchors) return [];
+  const anchorValues = Object.values(anchors);
+  const offAnchor = extractFontSizes(svg).filter(
+    (size) =>
+      !anchorValues.some(
+        (a) => Math.abs(a - size) <= FONT_SIZE_ANCHOR_TOLERANCE_PX,
+      ),
+  );
+  if (offAnchor.length <= SPARSE_OFF_ANCHOR_MAX) return [];
+  const uniq = [...new Set(offAnchor)].sort((a, b) => a - b);
+  return [
+    {
+      severity: "warn",
+      message: `字号偏离锚点：${uniq.join("/")}px 不在锚点 ${anchorValues.join("/")} ±${FONT_SIZE_ANCHOR_TOLERANCE_PX}px 内（${offAnchor.length} 处），请统一到锚点字号`,
+      location: "text",
+    },
+  ];
+}
+
+// ---- cohort 一致性门（early gate，参照 PPT Master P01-P05 early gate）----
+
+/**
+ * 跨页一致性检查：对已生成的一组页面做系统性校验——
+ * 颜色/字体是否越出设计锁、字号是否遵循锚点。
+ * 单页检查无法发现的「整体走样」在这里拦截。
+ */
+export function checkCohortConsistency(
+  svgs: string[],
+  specLock: SpecLock,
+): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const allowedColors = new Set(
+    Object.values(specLock.colors).map((c) => c.replace("#", "").toUpperCase()),
+  );
+  const allowedFonts = new Set(
+    Object.values(specLock.fonts).map((f) => f.toLowerCase()),
+  );
+
+  const colorCounts = new Map<string, number>();
+  const fontCounts = new Map<string, number>();
+  for (const svg of svgs) {
+    // 颜色：hex 字面量（渐变 stop/填充/描边）
+    const hexes = svg.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g) ?? [];
+    for (const raw of hexes) {
+      const hex = raw.replace("#", "").toUpperCase();
+      colorCounts.set(hex, (colorCounts.get(hex) ?? 0) + 1);
+    }
+    const fonts = svg.match(/font-family\s*=\s*["']([^"']+)["']/gi) ?? [];
+    for (const f of fonts) {
+      const name = (f.split("=")[1] ?? "").replace(/["']/g, "").trim();
+      if (name) fontCounts.set(name, (fontCounts.get(name) ?? 0) + 1);
+    }
+  }
+
+  const offColors = [...colorCounts.entries()]
+    .filter(([hex]) => !allowedColors.has(hex))
+    .sort((a, b) => b[1] - a[1]);
+  if (offColors.length > 0) {
+    issues.push({
+      severity: "error",
+      message: `配色越锁：使用了设计锁之外的颜色 ${offColors
+        .slice(0, 3)
+        .map(([hex, n]) => `#${hex}(×${n})`)
+        .join("、")}，只允许使用配色表中的颜色`,
+      location: "cohort",
+    });
+  }
+
+  const offFonts = [...fontCounts.entries()].filter(
+    ([name]) => !allowedFonts.has(name.toLowerCase()),
+  );
+  if (offFonts.length > 0) {
+    issues.push({
+      severity: "error",
+      message: `字体越锁：使用了 ${offFonts
+        .slice(0, 3)
+        .map(([name]) => name)
+        .join("、")}，只允许 ${[...allowedFonts].join(" / ")}`,
+      location: "cohort",
+    });
+  }
+
+  for (const svg of svgs) {
+    issues.push(...checkTypographyAnchors(svg, specLock));
+  }
+
+  return issues;
+}
