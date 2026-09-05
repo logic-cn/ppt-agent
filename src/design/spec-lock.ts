@@ -1,9 +1,12 @@
 import type { DesignLock } from "@/types/design";
+import { getCanvasFormat } from "@/types/canvas";
 import { getVisualStyle } from "./visual-styles";
 import { getPalette } from "./palettes";
 
 export interface SpecLock {
   canvas: { w: number; h: number };
+  /** 画布格式 id（translator 据此换算 PPTX 版面）；缺省 16:9 */
+  canvasFormat?: string;
   colors: {
     primary: string;
     secondary: string;
@@ -40,8 +43,10 @@ export function buildSpecLock(design: DesignLock): SpecLock {
   const palette = getPalette(design.palette)!;
   const c = palette.colors;
   const fs = style.fontSize;
+  const canvas = getCanvasFormat(design.canvasFormat);
   return {
-    canvas: { w: 1280, h: 720 },
+    canvas: { w: canvas.w, h: canvas.h },
+    canvasFormat: canvas.id,
     colors: {
       primary: c.primary,
       secondary: c.secondary,

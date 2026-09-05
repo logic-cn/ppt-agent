@@ -40,8 +40,13 @@ export const DEVICE_MENU = `## 常用页面载体（按内容职责选用，不�
 - 时间线/步骤条：有序事件——基线 <line> + 等距节点圆点，标签上下交替
 - 对比双栏：两方案对比——1:1 分栏，两栏内部结构一致`;
 
-/** 版式几何对照：内容关系 → 结构与参考像素（1280×720，安全区 40px 边距） */
-export const LAYOUT_GEOMETRY = `## 版式几何对照（安全区：四周 40px 边距内）
+/** 版式几何对照：内容关系 → 结构与参考像素（以 1280 宽为基准，其他画布等比换算） */
+export function layoutGeometryText(canvasW: number): string {
+  const k = canvasW / 1280;
+  if (k === 1) return LAYOUT_GEOMETRY_1280;
+  return `${LAYOUT_GEOMETRY_1280}\n（本画布宽 ${canvasW}px，上述数值按 ${Math.round(k * 100) / 100}× 等比换算）`;
+}
+const LAYOUT_GEOMETRY_1280 = `## 版式几何对照（安全区：四周 40px 边距内）
 - 单一焦点论点：居中单栏或大留白——主栏 800-1000px 宽，留白 40-60%
 - 对称比较：1:1 双栏或四象限——栏间距 40-60px，象限约 560×250
 - 证据主导 + 结论：不对称分栏 3:7 或 2:8——重侧 840-1024px
@@ -59,6 +64,8 @@ export function buildSvgGenPrompt(opts: {
   extraGuidance?: string;
 }): string {
   const { specLock, plan, pageIndex, totalPages } = opts;
+  const cw = specLock.canvas.w;
+  const ch = specLock.canvas.h;
   // 图表约定：当 pagePlan 指定了图表类型，要求用结构化 <g data-chart-type> 标记，
   // 翻译器会将其转为原生可编辑图表，避免用零散 rect 模拟。
   const chartRule = plan.chartType
@@ -85,7 +92,7 @@ export function buildSvgGenPrompt(opts: {
     plan.chartType ? `，建议图表类型：${plan.chartType}` : ""
   }）的 SVG。
 
-画布：viewBox="0 0 1280 720"，像素坐标系，单页。
+画布：viewBox="0 0 ${cw} ${ch}"，像素坐标系，单页。
 
 配色（只能从以下取值，禁止其他颜色）：
 - primary  ${specLock.colors.primary}
@@ -104,17 +111,17 @@ ${typographyBlock}
 ${roleGuidance}
 
 硬性要求：
- 1. 只输出一个根元素 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">...</svg>，不要任何解释文字，绝对禁止用 \`\`\` 代码块或任何标记语言包裹，必须以 <svg 开头、以 </svg> 结尾。
+ 1. 只输出一个根元素 <svg viewBox="0 0 ${cw} ${ch}" xmlns="http://www.w3.org/2000/svg">...</svg>，不要任何解释文字，绝对禁止用 \`\`\` 代码块或任何标记语言包裹，必须以 <svg 开头、以 </svg> 结尾。
 2. 只使用白名单元素：svg、g、defs、rect、circle、ellipse、path、text、tspan、line、polygon、polyline、image、linearGradient、radialGradient、stop。
 3. 绝对禁止 foreignObject、script、use、a 以及任何外部资源引用（除 # 锚点与 data: 内嵌）。
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
-6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..1280 / 0..720 范围内。${chartRule}
+6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..${cw} / 0..${ch} 范围内。${chartRule}
 ${DEVICE_MENU}
 
 ${PRESET_VOCAB_PROMPT}
 
-${LAYOUT_GEOMETRY}${extraBlock}${briefBlock}${instructionBlock}
+${layoutGeometryText(cw)}${extraBlock}${briefBlock}${instructionBlock}
 
  只输出 <svg>...</svg>。`;
 }

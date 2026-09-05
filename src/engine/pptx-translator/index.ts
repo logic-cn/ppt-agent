@@ -2,16 +2,14 @@ import PptxGenJS from "pptxgenjs";
 import type { Deck, Slide } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
 import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
+import { canvasToInches, getCanvasFormat } from "@/types/canvas";
 import { resolveTheme } from "@/themes";
 import { buildRenderSlides } from "@/engine/render-ir/build";
 import { renderRenderSlideAsync } from "@/engine/pptx/render-slide";
 import { translateSvgToSlide } from "./elements";
 
-const SLIDE_W = 13.333;
-const SLIDE_H = 7.5;
-
-function initPptx(pptx: PptxGenJS): void {
-  pptx.defineLayout({ name: "CUSTOM", width: SLIDE_W, height: SLIDE_H });
+function initPptx(pptx: PptxGenJS, inches: { w: number; h: number }): void {
+  pptx.defineLayout({ name: "CUSTOM", width: inches.w, height: inches.h });
   pptx.layout = "CUSTOM";
 }
 
@@ -21,7 +19,11 @@ function initPptx(pptx: PptxGenJS): void {
  * PowerPoint「幻灯片母版」视图里呈现品牌结构，且页码/背景为真原生字段，
  * 用户删除页面背景矩形后即可见。
  */
-export function defineDeckMaster(pptx: PptxGenJS, specLock: SpecLock): string {
+export function defineDeckMaster(
+  pptx: PptxGenJS,
+  specLock: SpecLock,
+  inches: { w: number; h: number },
+): string {
   const masterName = "PPT_AGENT_MASTER";
   pptx.defineSlideMaster({
     title: masterName,
@@ -30,16 +32,16 @@ export function defineDeckMaster(pptx: PptxGenJS, specLock: SpecLock): string {
       {
         rect: {
           x: 0,
-          y: SLIDE_H - 0.08,
-          w: SLIDE_W,
+          y: inches.h - 0.08,
+          w: inches.w,
           h: 0.08,
           fill: { color: specLock.colors.accent.replace("#", "") },
         },
       },
     ],
     slideNumber: {
-      x: SLIDE_W - 0.7,
-      y: SLIDE_H - 0.4,
+      x: inches.w - 0.7,
+      y: inches.h - 0.4,
       w: 0.5,
       h: 0.3,
       color: specLock.colors.textMuted.replace("#", ""),
@@ -62,13 +64,16 @@ export async function svgToPptx(
 ): Promise<Blob> {
   // 由 design 构建 specLock 设计契约，注入图表配色等
   const specLock = buildSpecLock(design);
+  const canvas = getCanvasFormat(design.canvasFormat);
+  const inches = canvasToInches(canvas);
 
   const pptx = new PptxGenJS();
-  initPptx(pptx);
-  const masterName = defineDeckMaster(pptx, specLock);
+  initPptx(pptx, inches);
+  const masterName = defineDeckMaster(pptx, specLock, inches);
 
-  // 仅当存在无 svg 页时才构建 render-ir 回退数据
-  const needsFallback = slides.some((s) => !s.svg);
+  // 仅当存在无 svg 页时才构建 render-ir 回退数据；
+  // render-ir 主题布局按 1280×720 设计，非 16:9 画布不回退（无 svg 页留空，导出后可手补）
+  const needsFallback = canvas.id === "ppt-16-9" && slides.some((s) => !s.svg);
   const fallbackDeck: Deck = {
     id: "export",
     version: 2,

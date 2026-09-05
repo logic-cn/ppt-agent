@@ -1,5 +1,6 @@
 import type { DesignLock } from "@/types/design";
 import { NARRATIVE_MODE_IDS, VISUAL_STYLE_IDS } from "@/types/design";
+import { CANVAS_FORMATS } from "@/types/canvas";
 import { PalettePicker } from "./PalettePicker";
 import { useT } from "@/hooks/use-page-t";
 
@@ -60,6 +61,36 @@ export function DesignPanel({ design, onChange }: Props) {
                 ].join(" ")}
               >
                 {t(`style.${id}`)}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-medium text-text-muted">
+          {t("design.canvas")}
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {CANVAS_FORMATS.map((f) => {
+            const selected = (design.canvasFormat ?? "ppt-16-9") === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => onChange({ ...design, canvasFormat: f.id })}
+                aria-pressed={selected}
+                className={[
+                  "rounded-md border px-2.5 py-1.5 text-sm transition",
+                  selected
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-bg-surface text-text-secondary hover:border-accent hover:bg-bg-hover",
+                ].join(" ")}
+              >
+                {t(`canvas.${f.id}`)}
+                <span className="ml-1 text-xs text-text-muted">
+                  {f.w}×{f.h}
+                </span>
               </button>
             );
           })}

@@ -8,6 +8,7 @@ const designSchema = z.object({
   mode: z.enum(NARRATIVE_MODE_IDS as [string, ...string[]]),
   visualStyle: z.enum(VISUAL_STYLE_IDS as [string, ...string[]]),
   palette: z.string(),
+  canvasFormat: z.string().optional(),
   templateId: z.string().optional(),
   modeBehavior: z.string().optional(),
   visualStyleBehavior: z.string().optional(),

@@ -929,7 +929,7 @@ describe("defineDeckMaster（B3 原生母版）", () => {
       }),
     } as unknown as PptxGenJS;
     const specLock = buildSpecLock(DEFAULT_DESIGN);
-    const name = defineDeckMaster(pptx, specLock);
+    const name = defineDeckMaster(pptx, specLock, { w: 13.3333, h: 7.5 });
 
     expect(name).toBe("PPT_AGENT_MASTER");
     expect(calls[0].title).toBe("PPT_AGENT_MASTER");

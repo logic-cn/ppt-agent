@@ -165,7 +165,7 @@ export async function generateSlideSvg(
       svg = (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim();
     }
 
-    const errors = validateSvgContract(svg);
+    const errors = validateSvgContract(svg, opts.specLock.canvas);
     if (errors.length > 0) {
       throw new Error(
         `SVG 契约校验未通过（第 ${opts.pageIndex + 1} 页）：\n` +

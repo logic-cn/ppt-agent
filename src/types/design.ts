@@ -20,6 +20,8 @@ export interface DesignLock {
   mode: NarrativeModeId;
   visualStyle: VisualStyleId;
   palette: PaletteId;
+  /** 画布格式（B5 画布格式系统）；缺省 16:9，历史 deck 兼容 */
+  canvasFormat?: import("./canvas").CanvasFormatId;
   templateId?: string;
   modeBehavior?: string;
   visualStyleBehavior?: string;

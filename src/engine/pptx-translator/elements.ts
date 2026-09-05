@@ -10,16 +10,24 @@ import { translateChart } from "./chart";
 import { isPresetShape } from "../svg/presets";
 import type { SpecLock } from "@/design/spec-lock";
 
-const SLIDE_W = 13.333;
-const SLIDE_H = 7.5;
-const SVG_W = 1280;
-const SVG_H = 720;
-// SVG font-size 是 viewBox 像素：1280px ↔ 13.333in = 960pt，故 1px = 0.75pt
-const PX_TO_PT = (SLIDE_W * 72) / SVG_W;
+// 画布作用域（B5）：SVG viewBox 像素 ↔ PPTX 英寸。默认 16:9，
+// translateSvgToSlide 入口按 specLock.canvas 切换（同步函数，单线程安全）。
+// 换算关系：英寸 = 像素 / 96，故 PX_TO_PT 恒为 0.75，与格式无关。
+let SLIDE_W = 13.3333;
+let SLIDE_H = 7.5;
+let SVG_W = 1280;
+let SVG_H = 720;
+const PX_TO_PT = 72 / 96;
+
+/** 切换换算作用域：SVG 画布像素 → PPTX 版面英寸（= 像素/96） */
+export function setCanvasScope(svgW: number, svgH: number): void {
+  SVG_W = svgW;
+  SVG_H = svgH;
+  SLIDE_W = svgW / 96;
+  SLIDE_H = svgH / 96;
+}
 // SVG text 的 y 是基线；pptx 文本框以框顶定位。近似上伸比例，消除系统性垂直偏移
 const BASELINE_ASCENT = 0.78;
-
-export const CANVAS = { w: SLIDE_W, h: SLIDE_H };
 
 function toX(x: number): number {
   return (x / SVG_W) * SLIDE_W;
@@ -238,6 +246,10 @@ export function translateSvgToSlide(
   specLock?: SpecLock,
   notes?: string,
 ): void {
+  // B5：按 deck 画布格式切转换作用域（未传 specLock 时保持当前/默认作用域）
+  if (specLock) {
+    setCanvasScope(specLock.canvas.w, specLock.canvas.h);
+  }
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   const root = doc.documentElement;
   if (!root || root.nodeName.toLowerCase() !== "svg") return;

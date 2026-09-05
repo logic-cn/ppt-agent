@@ -1,5 +1,6 @@
 import type PptxGenJS from "pptxgenjs";
 import type { SpecLock } from "@/design/spec-lock";
+import { setCanvasScope } from "./elements";
 
 /*
  * 图表标记约定（供 SVG 生成端 svg-gen prompt 同步）：
@@ -36,10 +37,10 @@ const DEFAULT_PALETTE = [
   "#0EA5E9",
 ];
 
-const SVG_W = 1280;
-const SVG_H = 720;
-const SLIDE_W = 13.333;
-const SLIDE_H = 7.5;
+let SVG_W = 1280;
+let SVG_H = 720;
+let SLIDE_W = 13.3333;
+let SLIDE_H = 7.5;
 
 // 读取 SVG 像素属性，NaN/缺失时用 fallback（保留合法的 0 坐标）。
 function numAttr(el: Element, name: string, fallback: number): number {
@@ -68,6 +69,10 @@ export function translateChart(
   pptxSlide: PptxGenJS.Slide,
   specLock?: SpecLock,
 ): void {
+  // B5：与 elements 同步画布作用域
+  if (specLock) {
+    setCanvasScope(specLock.canvas.w, specLock.canvas.h);
+  }
   const typeAttr = gEl.getAttribute("data-chart-type");
   const dataAttr = gEl.getAttribute("data-chart-data");
   if (!typeAttr || !dataAttr)

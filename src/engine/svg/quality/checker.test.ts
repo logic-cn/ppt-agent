@@ -320,3 +320,28 @@ describe("checkCohortConsistency", () => {
     expect(checkCohortConsistency([svg], ANCHOR_SPEC)).toHaveLength(0);
   });
 });
+
+describe("画布格式参数化（B5）", () => {
+  it("非 16:9 画布：viewBox 与越界判定按 specLock.canvas", () => {
+    const specXhs: SpecLock = {
+      ...ANCHOR_SPEC,
+      canvas: { w: 1080, h: 1440 },
+      canvasFormat: "xhs-3-4",
+    };
+    const good = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1440"><rect x="0" y="0" width="1080" height="1440" fill="#FFFFFF"/><text x="100" y="200" font-size="40" fill="#111827">标题</text></svg>`;
+    expect(
+      checkSvg(good, specXhs).filter((i) => i.severity === "error"),
+    ).toHaveLength(0);
+
+    // 16:9 的 viewBox 在 3:4 画布下应为契约错误
+    const wrong = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/></svg>`;
+    const issues = checkSvg(wrong, specXhs);
+    expect(issues.some((i) => i.message.includes("viewBox 必须为"))).toBe(true);
+
+    // 越界判定用 3:4 画布：y 超出 1440 才算越界
+    const overflow = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1440"><rect x="0" y="1300" width="100" height="100" fill="#FFFFFF"/></svg>`;
+    expect(
+      checkSvg(overflow, specXhs).filter((i) => i.severity === "error"),
+    ).toHaveLength(0);
+  });
+});

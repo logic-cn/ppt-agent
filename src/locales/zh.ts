@@ -222,6 +222,10 @@ export const zh: Record<TranslationKey, string> = {
   "design.deletePalette": "删除 {name}",
   "design.newPalette": "＋新建配色",
   "design.paletteName": "配色名称",
+  "design.canvas": "画布格式",
+  "canvas.ppt-16-9": "PPT 16:9",
+  "canvas.xhs-3-4": "小红书 3:4",
+  "canvas.square-1-1": "方图 1:1",
 
   "inspector.tabSlide": "页面",
   "inspector.tabChart": "图表",

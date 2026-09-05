@@ -26,12 +26,17 @@ export const SVG_CONTRACT = {
   forbiddenElements: FORBIDDEN,
 };
 
-const REQUIRED_VIEWBOX = "0 0 1280 720";
+const DEFAULT_CANVAS = { w: 1280, h: 720 };
 
 // 注意：当前实现使用正则解析而非 DOMParser，已知边界——注释内文本、
 // 以及 `<text>10 < 5</text>` 这类含 `<` 的文本节点可能被误匹配为标签。
 // 仅作说明，不需改动现有逻辑。
-export function validateSvgContract(svg: string): string[] {
+export function validateSvgContract(
+  svg: string,
+  expected?: { w: number; h: number },
+): string[] {
+  const canvas = expected ?? DEFAULT_CANVAS;
+  const requiredViewBox = `0 0 ${canvas.w} ${canvas.h}`;
   const errors: string[] = [];
 
   const rootMatch = svg.match(/<svg[^>]*>/i);
@@ -47,8 +52,8 @@ export function validateSvgContract(svg: string): string[] {
     return errors;
   }
   const normalized = vb[1].trim().replace(/,/g, " ").replace(/\s+/g, " ");
-  if (normalized !== REQUIRED_VIEWBOX) {
-    errors.push(`viewBox 必须为 "0 0 1280 720"，实际 "${vb[1].trim()}"`);
+  if (normalized !== requiredViewBox) {
+    errors.push(`viewBox 必须为 "${requiredViewBox}"，实际 "${vb[1].trim()}"`);
   }
 
   const tags = svg.match(/<([a-zA-Z][\w:-]*)(?:\s[^>]*?)?\/?>/g) ?? [];

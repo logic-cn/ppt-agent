@@ -233,6 +233,10 @@ export const en = {
   "design.deletePalette": "Delete {name}",
   "design.newPalette": "+ New Palette",
   "design.paletteName": "Palette Name",
+  "design.canvas": "Canvas format",
+  "canvas.ppt-16-9": "PPT 16:9",
+  "canvas.xhs-3-4": "Xiaohongshu 3:4",
+  "canvas.square-1-1": "Square 1:1",
 
   "inspector.tabSlide": "Slide",
   "inspector.tabChart": "Chart",

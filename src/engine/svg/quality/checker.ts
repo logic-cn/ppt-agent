@@ -83,7 +83,10 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
   const canvasW = specLock.canvas.w;
   const canvasH = specLock.canvas.h;
 
-  const contractErrors = validateSvgContract(svg);
+  const contractErrors = validateSvgContract(svg, {
+    w: canvasW,
+    h: canvasH,
+  });
   for (const e of contractErrors) {
     issues.push({ severity: "error", message: e });
   }
