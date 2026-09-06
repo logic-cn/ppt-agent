@@ -7,6 +7,7 @@ import {
   type WebImage,
 } from "@/services/image-search";
 import { embedImageIntoSvg } from "@/engine/svg/embed-image";
+import { useSettingsStore } from "@/store/settings";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
 
@@ -35,7 +36,11 @@ function WebImageSearchPanel({
     setSearching(true);
     setError(null);
     try {
-      setResults(await searchWebImages(query));
+      setResults(
+        await searchWebImages(query, {
+          pexelsApiKey: useSettingsStore.getState().settings.pexelsApiKey,
+        }),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -140,7 +145,9 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
       // X1 页面：确定性嵌入为底层画面 + 遮罩（不经 LLM，走 undo 历史）
       onUpdate({
         image: img,
-        svg: embedImageIntoSvg(slide.svg, dataUrl),
+        svg: embedImageIntoSvg(slide.svg, dataUrl, {
+          attribution: img.attribution,
+        }),
       });
     } else {
       onUpdate({ image: img });

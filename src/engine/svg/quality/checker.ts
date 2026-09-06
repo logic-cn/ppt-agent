@@ -1,5 +1,6 @@
 import type { SpecLock } from "@/design/spec-lock";
 import { isPresetShape, PRESET_SHAPES } from "../presets";
+import { isIcon, ICONS } from "../icons";
 import { validateSvgContract } from "../spec-contract";
 
 export type SvgIssue = {
@@ -526,6 +527,29 @@ export function checkPresetShapes(svg: string): SvgIssue[] {
         severity: "error",
         message: `预设形状非法：data-prst="${id}" 不在支持列表（${Object.keys(PRESET_SHAPES).join("/")}）`,
         location: "data-prst",
+      });
+    }
+  }
+  return issues;
+}
+
+// ---- 内置图标词表校验（data-icon，C1）----
+
+/** 校验 data-icon 值是否在图标库内：未知 id 导出端会降级为矩形，在此拦下重画 */
+export function checkSvgIcons(svg: string): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const re = /\bdata-icon\s*=\s*["']([^"']+)["']/gi;
+  let m: RegExpExecArray | null;
+  const seen = new Set<string>();
+  while ((m = re.exec(svg)) !== null) {
+    const id = m[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (!isIcon(id)) {
+      issues.push({
+        severity: "error",
+        message: `图标非法：data-icon="${id}" 不在图标库（${Object.keys(ICONS).join("/")}）`,
+        location: "data-icon",
       });
     }
   }

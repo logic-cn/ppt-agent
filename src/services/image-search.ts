@@ -107,12 +107,70 @@ export async function fetchImageAsDataUrl(
   return dataUrl;
 }
 
-/** 聚合搜索：当前仅 Openverse 零配置源，保留多源扩展点 */
+// ---- Pexels（可选源，需 API Key；商业摄影质量更稳）----
+
+interface PexelsPhoto {
+  src?: { large?: string; medium?: string };
+  alt?: string;
+  photographer?: string;
+  width?: number;
+  height?: number;
+}
+
+async function searchPexels(
+  query: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<WebImage[]> {
+  const url = new URL("https://api.pexels.com/v1/search");
+  url.searchParams.set("query", query);
+  url.searchParams.set("per_page", "12");
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: apiKey },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`图片搜索失败（Pexels ${res.status}）`);
+  }
+  const data = (await res.json()) as { photos?: PexelsPhoto[] };
+  return (data.photos ?? [])
+    .filter((p) => p.src?.large)
+    .map((p) => ({
+      url: p.src!.large!,
+      thumb: p.src?.medium ?? p.src!.large!,
+      width: p.width,
+      height: p.height,
+      source: "pexels",
+      license: "Pexels License",
+      attribution: `Photo by ${p.photographer ?? "unknown"} on Pexels`,
+    }));
+}
+
+/**
+ * 聚合搜索（C4）：配置 Pexels Key 时 Pexels 结果优先（现代商业摄影质量更稳），
+ * 其后并入 Openverse 零配置源（CC 授权库），按 URL 去重。
+ */
 export async function searchWebImages(
   query: string,
-  signal?: AbortSignal,
+  opts: { pexelsApiKey?: string; signal?: AbortSignal } = {},
 ): Promise<WebImage[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
-  return searchOpenverse(trimmed, signal);
+  const results: WebImage[] = [];
+  if (opts.pexelsApiKey?.trim()) {
+    try {
+      results.push(
+        ...(await searchPexels(trimmed, opts.pexelsApiKey.trim(), opts.signal)),
+      );
+    } catch (e) {
+      // 可选源失败不阻断：继续用 Openverse 兜底
+      console.warn("Pexels 搜索失败，回退 Openverse", e);
+    }
+  }
+  const openverse = await searchOpenverse(trimmed, opts.signal);
+  const seen = new Set(results.map((r) => r.url));
+  for (const r of openverse) {
+    if (!seen.has(r.url)) results.push(r);
+  }
+  return results;
 }

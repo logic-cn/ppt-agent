@@ -32,6 +32,7 @@ export default function Settings() {
     updateProvider,
     setImageEnabled,
     setImageProvider,
+    setPexelsApiKey,
     setLang,
     setTheme,
   } = useSettingsStore();
@@ -255,6 +256,19 @@ export default function Settings() {
                       className="h-4 w-4 rounded border-border accent-accent"
                     />
                   </label>
+                </div>
+
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs text-text-muted">
+                    {t("settings.pexelsKey")}
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.pexelsApiKey ?? ""}
+                    onChange={(e) => setPexelsApiKey(e.target.value)}
+                    placeholder={t("settings.pexelsKeyPlaceholder")}
+                    className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                  />
                 </div>
 
                 {settings.imageEnabled && (

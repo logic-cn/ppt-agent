@@ -51,6 +51,7 @@ function defaultSettings(): AppSettings {
     activeProvider: "openai",
     providers,
     imageEnabled: false,
+    pexelsApiKey: "",
     lang: "zh",
     theme: "system",
   };
@@ -66,6 +67,7 @@ interface SettingsStore {
     patch: Partial<LLMProviderConfig>,
   ) => void;
   setImageEnabled: (enabled: boolean) => void;
+  setPexelsApiKey: (key: string) => void;
   setImageProvider: (cfg: LLMProviderConfig) => void;
   setLang: (lang: Lang) => void;
   setTheme: (theme: ThemeMode) => void;
@@ -103,6 +105,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 
+  setPexelsApiKey: (key) => {
+    set((s) => ({
+      settings: { ...s.settings, pexelsApiKey: key },
+      dirty: true,
+    }));
+  },
   setImageEnabled: (enabled) => {
     set((s) => {
       const settings = { ...s.settings, imageEnabled: enabled };

@@ -18,6 +18,7 @@ import { useJobStore, runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { useToastStore } from "@/store/toast";
 import { checkDeckQuality } from "@/services/quality";
+import { appendErrorSuggestion } from "@/services/error-suggest";
 import { useT } from "@/hooks/use-page-t";
 
 interface Props {
@@ -170,7 +171,9 @@ export function ImportDialog({ open, onClose }: Props) {
       addToast({
         type: "error",
         title: t("import.failed"),
-        message: (e as Error).message,
+        message:
+          (e as Error).message +
+          appendErrorSuggestion((e as Error).message, (key) => t(key)),
       });
       if (doc) {
         setStep("parsed");

@@ -10,8 +10,10 @@ import {
   svgContainsChart,
   checkCohortConsistency,
   checkPresetShapes,
+  checkSvgIcons,
 } from "./quality/checker";
 import { finalizeSvgPresets } from "./presets";
+import { finalizeSvgIcons } from "./icons";
 import type { SvgPage } from "./types";
 
 /** 进度回调：已完成页数、总页数 */
@@ -19,6 +21,19 @@ export type SvgProgress = (done: number, total: number) => void;
 
 /** 每页 SVG 生成的软超时（不含 LLM 自身传输层重试），超时按单页失败抛出 */
 const PAGE_TIME_LIMIT_MS = 90_000;
+
+/**
+ * 压缩回传给 LLM 的底稿 SVG（参照 PPT Master compact_svg_coordinates/styles）：
+ * 去注释、折叠标签间空白与连续空白——不改变任何结构与文本内容，
+ * 显著降低定向修改调用的输入 token。
+ */
+export function compactSvgForPrompt(svg: string): string {
+  return svg
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/>\s+</g, "><")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 /**
  * 将外部取消信号与超时合并为一个页面级 AbortSignal。
@@ -72,7 +87,7 @@ export async function generateSlideSvg(
   // 有底稿的定向修改用低温度保证稳定；从零生成保持多样性
   const temperature = opts.baseSvg ? 0.4 : 0.7;
   const baseBlock = opts.baseSvg
-    ? `\n\n以下是该页当前的 SVG 设计稿，请在其基础上修改（保持整体版式、元素结构与风格不变，仅落实上述要求），输出修改后的完整 SVG：\n${opts.baseSvg}`
+    ? `\n\n以下是该页当前的 SVG 设计稿，请在其基础上修改（保持整体版式、元素结构与风格不变，仅落实上述要求），输出修改后的完整 SVG：\n${compactSvgForPrompt(opts.baseSvg)}`
     : "";
 
   // 页面级取消：合并用户取消信号 + 软超时（超时按取消处理）
@@ -141,8 +156,9 @@ export async function generateSlideSvg(
         ...checkSvg(svg, opts.specLock),
         // 图表数据完整性：LLM 声明了图表但数据缺失/损坏会在导出端静默丢图
         ...checkChartData(svg),
-        // 预设形状词表：未知 data-prst 导出端会静默降级为矩形
+        // 预设形状/图标词表：未知标记导出端会静默降级为矩形
         ...checkPresetShapes(svg),
+        ...checkSvgIcons(svg),
         // 图表必现性：plan 要求图表页时，SVG 中必须出现原生图表标记
         ...(opts.plan.chartType && !svgContainsChart(svg)
           ? [
@@ -172,8 +188,9 @@ export async function generateSlideSvg(
           errors.map((e) => "- " + e).join("\n"),
       );
     }
-    // 规范化预设形状：<rect data-prst> → canonical <path data-prst>（预览保真，导出走原生 prstGeom）
-    return finalizeSvgPresets(svg);
+    // 规范化标记元素：data-icon 展开为形状序列、data-prst → canonical path
+    //（预览保真，导出走原生形状/prstGeom）
+    return finalizeSvgPresets(finalizeSvgIcons(svg));
   } finally {
     pageLevel.cleanup();
   }

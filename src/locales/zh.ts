@@ -41,6 +41,9 @@ export const zh: Record<TranslationKey, string> = {
   "settings.imageHelp":
     "使用 OpenAI 兼容 API 生成配图（如 DALL·E）。未单独配置时将使用当前 LLM Provider。",
   "settings.imageGen": "图片生成",
+  "settings.pexelsKey": "Pexels API Key（可选，用于网络搜图）",
+  "settings.pexelsKeyPlaceholder":
+    "在 pexels.com/api 免费申请；不填仅用 Openverse",
 
   "home.slideCountSummary": "{slidesCount} 页",
   "home.startCreating": "开始制作",
@@ -132,6 +135,12 @@ export const zh: Record<TranslationKey, string> = {
   "chat.errorWithApiKey":
     "出错了：{error}。请检查设置页的 API Key 是否正确配置。",
   "chat.unknownError": "未知错误",
+  "errorSuggest.apiKey": "请到设置页检查 API Key 是否正确。",
+  "errorSuggest.rateLimit": "请求过于频繁，请稍后重试或更换模型。",
+  "errorSuggest.timeout": "模型响应过慢：可重试、更换更快的模型，或减少页数。",
+  "errorSuggest.network":
+    "网络异常：请检查网络连接、代理或 Base URL 是否可达。",
+  "errorSuggest.model": "模型不可用：请到设置页更换模型。",
   "chat.generateFromTemplateJob": "按模板生成：{name}",
   "chat.regeneratedFromTemplate": "已按模板「{name}」重新生成 {count} 页大纲！",
   "chat.templateFailed": "模板生成失败：{error}",

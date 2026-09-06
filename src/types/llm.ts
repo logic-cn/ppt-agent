@@ -53,6 +53,8 @@ export interface AppSettings {
   providers: Record<LLMProviderId, LLMProviderConfig>;
   imageProvider?: LLMProviderConfig;
   imageEnabled: boolean;
+  /** 网络搜图 Pexels API Key（可选；缺省仅用 Openverse 零配置源，C4） */
+  pexelsApiKey?: string;
   lang: Lang;
   theme: ThemeMode;
 }

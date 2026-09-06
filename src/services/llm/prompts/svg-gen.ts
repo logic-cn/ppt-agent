@@ -1,4 +1,5 @@
 import { PRESET_VOCAB_PROMPT } from "@/engine/svg/presets";
+import { ICON_VOCAB_PROMPT } from "@/engine/svg/icons";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem, SemanticRole } from "@/types/page-plan";
 
@@ -120,6 +121,8 @@ ${roleGuidance}
 ${DEVICE_MENU}
 
 ${PRESET_VOCAB_PROMPT}
+
+${ICON_VOCAB_PROMPT}
 
 ${layoutGeometryText(cw)}${extraBlock}${briefBlock}${instructionBlock}
 

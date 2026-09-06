@@ -24,11 +24,15 @@ function escapeAttr(value: string): string {
 
 const EMBED_MARK = 'data-embed="web"';
 
-/** 移除既有嵌入层（重复应用时替换而非叠加） */
+/** 移除既有嵌入层（image/遮罩/署名，重复应用时替换而非叠加） */
 function stripEmbeddedLayers(svg: string): string {
   return svg
     .replace(new RegExp(`<image\\b[^>]*\\b${EMBED_MARK}[^>]*/>`, "gi"), "")
-    .replace(new RegExp(`<rect\\b[^>]*\\b${EMBED_MARK}[^>]*/>`, "gi"), "");
+    .replace(new RegExp(`<rect\\b[^>]*\\b${EMBED_MARK}[^>]*/>`, "gi"), "")
+    .replace(
+      new RegExp(`<text\\b[^>]*\\b${EMBED_MARK}[^>]*>[^<]*</text>`, "gi"),
+      "",
+    );
 }
 
 /**
@@ -41,16 +45,27 @@ function stripEmbeddedLayers(svg: string): string {
 export function embedImageIntoSvg(
   svg: string,
   dataUrl: string,
-  scrimColor = "#000000",
-  scrimOpacity = 0.45,
+  opts: {
+    attribution?: string;
+    scrimColor?: string;
+    scrimOpacity?: number;
+  } = {},
 ): string {
   const rootMatch = svg.match(/^(\s*<svg\b[^>]*>)/i);
   if (!rootMatch) return svg;
+  const scrimColor = opts.scrimColor ?? "#000000";
+  const scrimOpacity = opts.scrimOpacity ?? 0.45;
   const { w, h } = canvasSizeOf(svg);
-  const layer =
+  let layer =
     `<image href="${escapeAttr(dataUrl)}" x="0" y="0" width="${w}" height="${h}" ` +
     `preserveAspectRatio="xMidYMid slice" ${EMBED_MARK}/>` +
     `<rect x="0" y="0" width="${w}" height="${h}" fill="${scrimColor}" fill-opacity="${scrimOpacity}" ${EMBED_MARK}/>`;
+  if (opts.attribution?.trim()) {
+    // 署名上屏（参照 PPT Master：需署名许可的图片在页面角落自动加小字）
+    layer +=
+      `<text x="${w - 16}" y="${h - 10}" text-anchor="end" font-size="11" ` +
+      `fill="#FFFFFF" fill-opacity="0.8" ${EMBED_MARK}>${escapeAttr(`© ${opts.attribution.trim()}`)}</text>`;
+  }
   const root = rootMatch[1];
   const body = svg.slice(root.length);
   // 新层插在最前（位于全部内容之下），并移除旧的嵌入层（替换语义）

@@ -39,6 +39,9 @@ export const en = {
   "settings.imageHelp":
     "Generate images via an OpenAI-compatible API (e.g. DALL·E). Falls back to the current LLM provider if not configured separately.",
   "settings.imageGen": "Image generation",
+  "settings.pexelsKey": "Pexels API Key (optional, for web image search)",
+  "settings.pexelsKeyPlaceholder":
+    "Free key at pexels.com/api — Openverse works without one",
 
   "home.slideCountSummary": "{slidesCount} pages",
   "home.startCreating": "Start Creating",
@@ -139,6 +142,14 @@ export const en = {
   "chat.errorWithApiKey":
     "Something went wrong: {error}. Please check that the API Key in Settings is configured correctly.",
   "chat.unknownError": "Unknown error",
+  "errorSuggest.apiKey": "Check that your API Key is correct in Settings.",
+  "errorSuggest.rateLimit":
+    "Too many requests — wait a moment or switch models.",
+  "errorSuggest.timeout":
+    "Model responded too slowly — retry, pick a faster model, or reduce the page count.",
+  "errorSuggest.network":
+    "Network issue — check your connection, proxy, or Base URL.",
+  "errorSuggest.model": "Model not available — pick another model in Settings.",
   "chat.generateFromTemplateJob": "Generate from template: {name}",
   "chat.regeneratedFromTemplate":
     'Regenerated a {count}-page outline from template "{name}"!',
