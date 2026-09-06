@@ -329,3 +329,31 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
     expect(vi.mocked(chat).mock.calls.length).toBe(7);
   });
 });
+
+describe("generateDeckSvgs onPageReady（D2 流式预览）", () => {
+  it("每页就绪即回调，修复页以修复后 SVG 二次回调", async () => {
+    const plans = makePlan(3);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => ({
+      content: svgWithTitle(titleFromPrompt(req)),
+    }));
+    const ready: [number, string][] = [];
+    await generateDeckSvgs(plans, spec, {
+      onPageReady: (i, svg) => ready.push([i, svg]),
+    });
+    expect(ready.map(([i]) => i)).toEqual([0, 1, 2]);
+    expect(ready[2][1]).toContain("第 3 页");
+  });
+
+  it("skipEarlyGate 路径同样回调", async () => {
+    const plans = makePlan(2);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => ({
+      content: svgWithTitle(titleFromPrompt(req)),
+    }));
+    const ready: number[] = [];
+    await generateDeckSvgs(plans, spec, {
+      skipEarlyGate: true,
+      onPageReady: (i) => ready.push(i),
+    });
+    expect(ready).toEqual([0, 1]);
+  });
+});

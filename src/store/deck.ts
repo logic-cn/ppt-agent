@@ -33,6 +33,13 @@ interface DeckStore {
   removeSlide: (id: string) => void;
   moveSlide: (from: number, to: number) => void;
   replaceSlides: (slides: Deck["slides"]) => Promise<void>;
+  /** D2 流式生成：静默更新单页 SVG（不产生历史条目；索引越界为 no-op） */
+  updateSlideSvgLive: (index: number, svg: string) => void;
+  setPlayback: (patch: {
+    transition?: Deck["transition"];
+    entranceAnimation?: boolean;
+    narration?: boolean;
+  }) => void;
   // 单页重画：基于当前 deck.design 重新生成该页 SVG 并写回
   regenerateSlide: (slideId: string, signal?: AbortSignal) => Promise<void>;
 
@@ -170,6 +177,52 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
               slides: s.deck.slides.map((sl) =>
                 sl.svg ? { ...sl, svgStale: true } : sl,
               ),
+              updatedAt: Date.now(),
+            }
+          : null,
+        dirty: true,
+        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        future: [],
+        canUndo: true,
+        canRedo: false,
+      };
+    });
+  },
+
+  updateSlideSvgLive: (index, svg) => {
+    set((s) => {
+      if (!s.deck || !s.deck.slides[index]) return s;
+      debouncedPersist(get);
+      return {
+        deck: {
+          ...s.deck,
+          slides: s.deck.slides.map((sl, i) =>
+            i === index ? { ...sl, svg, svgStale: false } : sl,
+          ),
+          updatedAt: Date.now(),
+        },
+        dirty: true,
+      };
+    });
+  },
+
+  /** 放映偏好（转场/入场动画/旁白，D1）：一次字段编辑合并为一次历史 */
+  setPlayback: (patch: {
+    transition?: Deck["transition"];
+    entranceAnimation?: boolean;
+    narration?: boolean;
+  }) => {
+    set((s) => {
+      const snap = snapshot(s.deck);
+      debouncedPersist(get);
+      return {
+        deck: s.deck
+          ? {
+              ...s.deck,
+              transition: patch.transition ?? s.deck.transition,
+              entranceAnimation:
+                patch.entranceAnimation ?? s.deck.entranceAnimation,
+              narration: patch.narration ?? s.deck.narration,
               updatedAt: Date.now(),
             }
           : null,

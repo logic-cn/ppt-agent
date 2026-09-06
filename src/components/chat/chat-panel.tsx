@@ -18,7 +18,9 @@ import {
   isTopicRequest,
   deriveProjectName,
 } from "@/services/generation/topic-intent";
+import { researchTopic } from "@/services/research";
 import { withAppLanguage } from "@/services/generation/generation-options";
+import { semanticRoleToLayout } from "@/types/page-plan";
 import type { GenerationOptions } from "@/types/generation";
 import { GenerationOptionsBar } from "@/components/chat/generation-options-bar";
 import { generateDeckPatches } from "@/services/deck-patch/ai";
@@ -34,6 +36,9 @@ import {
   getHardFindings,
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
+import { reviewSlideVisual } from "@/services/quality/visual-review";
+import { generateSlideSvg } from "@/engine/svg/executor";
+import { buildSpecLock } from "@/design/spec-lock";
 import type { DeckPreset } from "@/types/preset";
 import type { Slide } from "@/types/deck";
 import { PresetPickerDialog } from "@/components/preset/PresetPickerDialog";
@@ -66,6 +71,7 @@ export function ChatPanel() {
   const [presetOpen, setPresetOpen] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [firstPageGateMsg, setFirstPageGateMsg] = useState<string | null>(null);
+  const [visualReviewing, setVisualReviewing] = useState(false);
   // 生成前参数控制（路线图 §7.3）：场景/语气/密度/受众/图表倾向/页数
   const [showGenOptions, setShowGenOptions] = useState(false);
   const [genOptions, setGenOptions] = useState<GenerationOptions>({});
@@ -156,15 +162,101 @@ export function ChatPanel() {
   // 生成完成后跑一次质量检查，并把报告写入全局 store
   // 若 pendingRules 存在（来自模板），则作为模板质量规则一并检查
   // pageCount：来自生成设置，用于校验实际页数与期望页数的偏差（路线图 §7.6）
-  const runQualityCheck = useCallback((pageCount?: number) => {
+  const runQualityCheck = useCallback(
+    (pageCount?: number, sourceText?: string) => {
+      const current = useDeckStore.getState().deck;
+      const qualityStore = useQualityStore.getState();
+      const rules = qualityStore.pendingRules ?? undefined;
+      qualityStore.clearPendingRules();
+      qualityStore.setReport(
+        current
+          ? checkDeckQuality(current, { rules, pageCount, sourceText })
+          : null,
+      );
+    },
+    [],
+  );
+
+  // D3 视觉自检：逐页截图送视觉模型审查，不通过页携带问题定向重画一轮
+  const handleVisualReview = useCallback(async () => {
     const current = useDeckStore.getState().deck;
-    const qualityStore = useQualityStore.getState();
-    const rules = qualityStore.pendingRules ?? undefined;
-    qualityStore.clearPendingRules();
-    qualityStore.setReport(
-      current ? checkDeckQuality(current, { rules, pageCount }) : null,
-    );
-  }, []);
+    if (!current || visualReviewing) return;
+    setVisualReviewing(true);
+    try {
+      await runJob(
+        {
+          type: "content.generate",
+          title: t("chat.visualReviewJob"),
+          canCancel: true,
+        },
+        async (job) => {
+          const spec = buildSpecLock(current.design);
+          const fixed = [...current.slides];
+          let fixedCount = 0;
+          for (let i = 0; i < fixed.length; i++) {
+            if (job.signal.aborted)
+              throw new DOMException("Aborted", "AbortError");
+            const slide = fixed[i];
+            if (!slide.svg) continue;
+            job.update({
+              message: t("chat.visualReviewProgress", {
+                n: i + 1,
+                total: fixed.length,
+              }),
+            });
+            const review = await reviewSlideVisual({
+              svg: slide.svg,
+              specLock: spec,
+              signal: job.signal,
+            });
+            if (review.pass || review.issues.length === 0) continue;
+            // 不通过：以审查发现为定向指令重画一轮（失败保留原稿）
+            try {
+              const svg = await generateSlideSvg({
+                specLock: spec,
+                plan: {
+                  role: "content",
+                  title: slide.title,
+                  intent: slide.title,
+                  bullets: (slide.bullets ?? []).map((b) => b.text),
+                },
+                pageIndex: i,
+                totalPages: fixed.length,
+                baseSvg: slide.svg,
+                instruction: review.issues.join("；"),
+                signal: job.signal,
+              });
+              fixed[i] = { ...slide, svg, svgStale: false };
+              fixedCount += 1;
+            } catch {
+              // 单页修复失败保留原稿
+            }
+          }
+          if (fixedCount > 0) {
+            await replaceSlides(fixed);
+            runQualityCheck();
+          }
+          addMessage(
+            "assistant",
+            t("chat.visualReviewDone", {
+              total: current.slides.length,
+              fixed: fixedCount,
+            }),
+          );
+          return fixedCount;
+        },
+      );
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        addMessage(
+          "assistant",
+          t("chat.visualReviewFailed", { error: (e as Error).message }),
+        );
+      }
+    } finally {
+      setVisualReviewing(false);
+    }
+  }, [visualReviewing, replaceSlides, runQualityCheck, addMessage]);
 
   const handleAutoFix = useCallback(async () => {
     const current = useDeckStore.getState().deck;
@@ -226,6 +318,7 @@ export function ChatPanel() {
       setLoading(true);
       setFirstPageGateMsg(null);
 
+      let researchSourceText: string | undefined;
       try {
         // 检查是否包含主题相关的生成意图
         const isTopic = isTopicRequest(text);
@@ -235,6 +328,7 @@ export function ChatPanel() {
           addMessage("assistant", t("chat.generatingOutline"));
 
           let slides;
+          let streamed = false;
           try {
             slides = await runJob(
               {
@@ -246,11 +340,45 @@ export function ChatPanel() {
                 // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
                 const targetDeck =
                   deck ?? (await useDeckStore.getState().createDeck());
+                // D4 联网补料：开启研究时先检索资料作为 docContent（失败静默跳过）
+                let docContent: string | undefined;
+                const settings = useSettingsStore.getState().settings;
+                if (settings.researchEnabled && settings.tavilyApiKey?.trim()) {
+                  job.update({
+                    message: t("chat.researching"),
+                  });
+                  try {
+                    const research = await researchTopic(text, {
+                      apiKey: settings.tavilyApiKey.trim(),
+                      signal: job.signal,
+                    });
+                    if (research.text) {
+                      docContent = research.text.slice(0, 12000);
+                      researchSourceText = research.text;
+                      addMessage(
+                        "assistant",
+                        t("chat.researchDone", {
+                          n: research.sources.length,
+                        }),
+                      );
+                    }
+                  } catch (e) {
+                    if (job.signal.aborted) throw e;
+                    // 检索失败不阻断生成
+                    addMessage(
+                      "assistant",
+                      t("chat.researchFailed", {
+                        error: (e as Error).message,
+                      }),
+                    );
+                  }
+                }
                 const newDeck = await buildDeckSvgs(
                   targetDeck,
                   deck?.design ?? DEFAULT_DESIGN,
                   {
                     topic: text,
+                    docContent,
                     pageCount: deck?.slides.length ? undefined : 8,
                     // 生成前参数：用户设置 + 界面语言映射的输出语言
                     options: withAppLanguage(
@@ -258,18 +386,69 @@ export function ChatPanel() {
                       useSettingsStore.getState().settings.lang,
                     ),
                     signal: job.signal,
+                    // D2 流式预览：规划完成即上屏占位页（历史快照=生成前状态），
+                    // 之后每页 SVG 就绪时静默填充，编辑器预览随生成逐步呈现
+                    onPlanReady: (pages) => {
+                      if (job.signal.aborted) return;
+                      replaceSlides(
+                        pages.map((p, i) => ({
+                          id: `s${i + 1}`,
+                          layout: semanticRoleToLayout(p.role),
+                          title: p.title,
+                        })),
+                      );
+                      streamed = true;
+                    },
+                    onPageReady: (i, svg) => {
+                      if (job.signal.aborted) return;
+                      useDeckStore.getState().updateSlideSvgLive(i, svg);
+                    },
                   },
                 );
-                return newDeck.slides;
+                return { slides: newDeck.slides, streamed };
               },
             );
           } catch {
             return;
           }
+          // 流式路径中 slides 已经在 deck 里（onPlanReady/onPageReady 上屏）
+          const generatedSlides = Array.isArray(slides)
+            ? slides
+            : slides.slides;
+          streamed = !Array.isArray(slides) && slides.streamed;
+
+          if (streamed) {
+            // 流式路径：内容已在 deck，仅做质量检查/首屏门/命名
+            runQualityCheck(genOptions.pageCount, researchSourceText);
+            const currentDeck = useDeckStore.getState().deck!;
+            const gate = runFirstPageGate(
+              currentDeck,
+              deck?.design ?? DEFAULT_DESIGN,
+            );
+            const hardMsgs = gate
+              .filter((f) => f.severity === "hard")
+              .map((f) => f.message);
+            setFirstPageGateMsg(
+              hardMsgs.length > 0
+                ? t("chat.firstPageGateFailed", {
+                    issues: hardMsgs.join("；"),
+                  })
+                : null,
+            );
+            if (deck?.title === "未命名项目") {
+              const name = deriveProjectName(text);
+              if (name) setTitle(name);
+            }
+            addMessage(
+              "assistant",
+              t("chat.outlineGenerated", { count: generatedSlides.length }),
+            );
+            return;
+          }
 
           if (deck) {
-            await replaceSlides(slides);
-            runQualityCheck(genOptions.pageCount);
+            await replaceSlides(generatedSlides);
+            runQualityCheck(genOptions.pageCount, researchSourceText);
             // 首屏风格锚点：仅检查首屏，hard 问题以横幅提示，不阻断生成
             const design = deck.design ?? DEFAULT_DESIGN;
             const gate = runFirstPageGate(
@@ -291,12 +470,12 @@ export function ChatPanel() {
               if (name) setTitle(name);
             }
           } else {
-            slides.forEach((s) => addSlide(s));
+            generatedSlides.forEach((s) => addSlide(s));
           }
 
           addMessage(
             "assistant",
-            t("chat.outlineGenerated", { count: slides.length }),
+            t("chat.outlineGenerated", { count: generatedSlides.length }),
           );
         } else if (deck && deck.slides.length > 0) {
           // 已有 deck，优先 AI DeckPatch 编辑；失败/无 Key 时回退本地 intent-parser
@@ -478,6 +657,8 @@ export function ChatPanel() {
               fixing={fixing}
               onAutoFix={() => void handleAutoFix()}
               onDismiss={() => useQualityStore.getState().clear()}
+              onVisualReview={() => void handleVisualReview()}
+              visualReviewing={visualReviewing}
             />
           )}
           {firstPageGateMsg && (

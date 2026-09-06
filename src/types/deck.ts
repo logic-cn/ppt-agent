@@ -8,6 +8,9 @@ export type ChartType = "bar" | "pie" | "line" | "doughnut";
 export type ImagePosition = "full" | "right" | "background";
 export type ImageSource = "ai" | "icon" | "url" | "web";
 
+/** 幻灯片转场样式（D1 放映效果，none=不加转场） */
+export type TransitionStyle = "none" | "fade" | "push" | "wipe" | "cut";
+
 export interface BulletNode {
   id: string;
   text: string;
@@ -132,7 +135,15 @@ export interface Deck {
   slides: Slide[];
   createdAt: number;
   updatedAt: number;
-  source?: { type: DeckSource; ref: string };
+  source?: {
+    type: DeckSource;
+    ref: string;
+  }; /** 转场样式（导出时注入 OOXML，缺省 none 不注入） */
+  transition?: TransitionStyle;
+  /** 对象入场动画（逐形状淡入，单击推进；缺省关闭） */
+  entranceAnimation?: boolean;
+  /** 导出时用备注生成旁白音频（需设置页开启 TTS） */
+  narration?: boolean;
 }
 
 export interface DeckMeta {

@@ -12,9 +12,14 @@ export interface LLMProviderConfig {
   enabled: boolean;
 }
 
+/** 视觉消息内容块（OpenAI 兼容格式；D3 视觉自检使用） */
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatContentPart[];
 }
 
 export interface ChatRequest {
@@ -55,6 +60,12 @@ export interface AppSettings {
   imageEnabled: boolean;
   /** 网络搜图 Pexels API Key（可选；缺省仅用 Openverse 零配置源，C4） */
   pexelsApiKey?: string;
+  /** 旁白 TTS（OpenAI 兼容 /audio/speech，使用当前激活 Provider 的 BaseURL/Key，D1） */
+  ttsEnabled?: boolean;
+  ttsVoice?: string;
+  /** 联网资料补全（Tavily，D4）：topic-only 生成前检索资料作为上下文 */
+  researchEnabled?: boolean;
+  tavilyApiKey?: string;
   lang: Lang;
   theme: ThemeMode;
 }

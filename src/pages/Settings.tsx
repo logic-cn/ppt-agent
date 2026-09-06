@@ -33,6 +33,9 @@ export default function Settings() {
     setImageEnabled,
     setImageProvider,
     setPexelsApiKey,
+    setTtsEnabled,
+    setTtsVoice,
+    setResearch,
     setLang,
     setTheme,
   } = useSettingsStore();
@@ -235,6 +238,100 @@ export default function Settings() {
                   )}
                 </div>
               )}
+
+              {/* 旁白 TTS */}
+              <div className="border-t border-border pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-text-primary">
+                      {t("settings.ttsSection")}
+                    </h3>
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <span className="text-sm text-text-muted">
+                      {t("settings.enable")}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.ttsEnabled ?? false}
+                      onChange={(e) => setTtsEnabled(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </label>
+                </div>
+                {settings.ttsEnabled && (
+                  <div className="space-y-3 rounded-xl border border-border bg-bg-surface p-4">
+                    <p className="text-sm text-text-muted">
+                      {t("settings.ttsHelp")}
+                    </p>
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">
+                        {t("settings.ttsVoice")}
+                      </label>
+                      <select
+                        value={settings.ttsVoice ?? "alloy"}
+                        onChange={(e) => setTtsVoice(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                      >
+                        {[
+                          "alloy",
+                          "echo",
+                          "fable",
+                          "onyx",
+                          "nova",
+                          "shimmer",
+                        ].map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 联网资料补全 */}
+              <div className="border-t border-border pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-text-primary">
+                    {t("settings.researchSection")}
+                  </h3>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <span className="text-sm text-text-muted">
+                      {t("settings.researchEnable")}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.researchEnabled ?? false}
+                      onChange={(e) =>
+                        setResearch({ enabled: e.target.checked })
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </label>
+                </div>
+                {settings.researchEnabled && (
+                  <div className="space-y-3 rounded-xl border border-border bg-bg-surface p-4">
+                    <p className="text-sm text-text-muted">
+                      {t("settings.researchHelp")}
+                    </p>
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">
+                        {t("settings.tavilyKey")}
+                      </label>
+                      <input
+                        type="password"
+                        value={settings.tavilyApiKey ?? ""}
+                        onChange={(e) =>
+                          setResearch({ apiKey: e.target.value })
+                        }
+                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* AI 配图 */}
               <div className="border-t border-border pt-5">

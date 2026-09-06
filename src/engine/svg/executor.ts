@@ -201,6 +201,8 @@ export interface GenerateDeckSvgsOptions {
   signal?: AbortSignal;
   /** 关闭 early gate（默认开启）。isolatePageFailures 隔离路径不经过此函数，天然不带门 */
   skipEarlyGate?: boolean;
+  /** 单页 SVG 就绪（含修复后的覆盖）——D2 流式预览 */
+  onPageReady?: (index: number, svg: string) => void;
 }
 
 /** early gate：cohort 页数阈值——先生成前 N 页并跑跨页一致性门（参照 PPT Master P01-P05 early gate） */
@@ -224,11 +226,12 @@ export async function generateDeckSvgs(
   const gateAt = Math.min(EARLY_GATE_PAGES, total);
   const pages: SvgPage[] = [];
 
+  const { onPageReady } = opts ?? {};
   const generatePage = async (
     i: number,
     extra?: { baseSvg?: string; instruction?: string; extraGuidance?: string },
-  ): Promise<string> =>
-    generateSlideSvg({
+  ): Promise<string> => {
+    const svg = await generateSlideSvg({
       specLock: spec,
       plan: plan[i],
       pageIndex: i,
@@ -236,6 +239,9 @@ export async function generateDeckSvgs(
       signal,
       ...extra,
     });
+    onPageReady?.(i, svg);
+    return svg;
+  };
 
   // Phase 1: cohort（前 gateAt 页）
   for (let i = 0; i < gateAt; i++) {

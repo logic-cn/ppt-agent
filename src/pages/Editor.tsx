@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
+import { useSettingsStore } from "@/store/settings";
+import { buildNarrations } from "@/services/tts";
 import { useJobStore, runJob } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
@@ -30,7 +32,12 @@ import { checkDeckQuality, hasHardError } from "@/services/quality";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
-import { exportDeck, exportDeckToBlob } from "@/engine/pptx";
+import type { Deck, Slide } from "@/types/deck";
+import {
+  exportDeck,
+  exportDeckToBlob,
+  type ExportEffectsOptions,
+} from "@/engine/pptx";
 import { generateImage } from "@/services/image";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { useT } from "@/hooks/use-page-t";
@@ -190,6 +197,50 @@ export default function Editor() {
     }
   };
 
+  // D1：导出效果组装——转场/入场动画取 deck 放映偏好，旁白逐页合成（单页失败跳过）
+  const buildExportEffects = async (
+    currentDeck: Deck,
+    job: Parameters<Parameters<typeof runJob>[1]>[0],
+  ): Promise<ExportEffectsOptions> => {
+    const settings = useSettingsStore.getState().settings;
+    const provider = settings.providers[settings.activeProvider];
+    const effects: ExportEffectsOptions = {
+      transition:
+        currentDeck.transition && currentDeck.transition !== "none"
+          ? currentDeck.transition
+          : undefined,
+      entranceAnimation: currentDeck.entranceAnimation,
+    };
+    if (!currentDeck.narration || !settings.ttsEnabled || !provider?.baseUrl) {
+      return effects;
+    }
+    const { narrations, durations, failures } = await buildNarrations(
+      currentDeck.slides.map((sl: Slide) => sl.notes),
+      {
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey,
+        voice: settings.ttsVoice,
+        signal: job.signal,
+        onProgress: (done, total) =>
+          job.update({
+            message: t("editor.generatingNarration", { n: done, total }),
+          }),
+      },
+    );
+    if (narrations.some(Boolean)) {
+      effects.narrations = narrations;
+      effects.narrationDurations = durations;
+      if (failures > 0) {
+        addToast({
+          type: "warning",
+          title: t("editor.narrationPartialTitle"),
+          message: t("editor.narrationPartialMessage", { n: failures }),
+        });
+      }
+    }
+    return effects;
+  };
+
   const handleExport = async () => {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
@@ -212,6 +263,8 @@ export default function Editor() {
           canCancel: true,
         },
         async (job) => {
+          // D1 旁白：开启 narration 且设置页启用 TTS 时，逐页把备注合成为音频
+          const effects = await buildExportEffects(deck, job);
           let savePath: string | null = null;
           try {
             const { save } = await import("@tauri-apps/plugin-dialog");
@@ -221,7 +274,7 @@ export default function Editor() {
             });
           } catch {
             // 非 Tauri 环境：下载到浏览器
-            const blob = await exportDeckToBlob(deck, job.signal);
+            const blob = await exportDeckToBlob(deck, job.signal, effects);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -231,7 +284,7 @@ export default function Editor() {
             return "download" as const;
           }
           if (savePath) {
-            await exportDeck(deck, savePath, job.signal);
+            await exportDeck(deck, savePath, job.signal, effects);
             return "saved" as const;
           }
           return null;
@@ -391,6 +444,23 @@ export default function Editor() {
                   <DesignPanel
                     design={deck?.design ?? DEFAULT_DESIGN}
                     onChange={(d) => setDesign(d)}
+                    transition={deck?.transition}
+                    entranceAnimation={deck?.entranceAnimation}
+                    narration={deck?.narration}
+                    narrationAvailable={
+                      useSettingsStore.getState().settings.ttsEnabled
+                    }
+                    onTransitionChange={(tr) =>
+                      useDeckStore.getState().setPlayback({ transition: tr })
+                    }
+                    onEntranceAnimationChange={(v) =>
+                      useDeckStore.getState().setPlayback({
+                        entranceAnimation: v,
+                      })
+                    }
+                    onNarrationChange={(v) =>
+                      useDeckStore.getState().setPlayback({ narration: v })
+                    }
                   />
                 </div>
               </>

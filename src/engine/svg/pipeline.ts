@@ -20,6 +20,10 @@ export interface BuildDeckSvgsOptions {
   signal?: AbortSignal;
   /** 生成前参数控制（场景/语气/密度/图表倾向/语言等），透传给 generatePagePlan */
   options?: GenerationOptions;
+  /** 页面结构规划完成（D2 流式预览：上屏占位页） */
+  onPlanReady?: (pages: import("@/types/page-plan").PagePlanItem[]) => void;
+  /** 单页 SVG 就绪（含修复后覆盖）——D2 流式预览 */
+  onPageReady?: (index: number, svg: string) => void;
   /** 模板生成上下文：约束 LLM 输出与模板页数/角色一致（P2 模板产品化） */
   templateCtx?: TemplateGenerationContext;
   onProgress?: DeckSvgProgress;
@@ -69,6 +73,8 @@ export async function buildDeckSvgsDetailed(
     options: options.options,
   });
 
+  options.onPlanReady?.(plan);
+
   let pages: SvgPage[] = [];
   let failedPages: number[] = [];
   if (options.isolatePageFailures) {
@@ -87,6 +93,7 @@ export async function buildDeckSvgsDetailed(
           signal,
         });
         pages.push({ index: i, role: plan[i].role, svg });
+        options.onPageReady?.(i, svg);
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") throw e;
         failedPages.push(i);
@@ -100,6 +107,7 @@ export async function buildDeckSvgsDetailed(
     pages = await generateDeckSvgs(plan, spec, {
       onProgress: options.onProgress,
       signal: options.signal,
+      onPageReady: options.onPageReady,
     });
   }
 

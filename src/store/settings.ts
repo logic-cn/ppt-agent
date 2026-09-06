@@ -52,6 +52,10 @@ function defaultSettings(): AppSettings {
     providers,
     imageEnabled: false,
     pexelsApiKey: "",
+    ttsEnabled: false,
+    ttsVoice: "alloy",
+    researchEnabled: false,
+    tavilyApiKey: "",
     lang: "zh",
     theme: "system",
   };
@@ -68,6 +72,9 @@ interface SettingsStore {
   ) => void;
   setImageEnabled: (enabled: boolean) => void;
   setPexelsApiKey: (key: string) => void;
+  setTtsEnabled: (enabled: boolean) => void;
+  setTtsVoice: (voice: string) => void;
+  setResearch: (patch: { enabled?: boolean; apiKey?: string }) => void;
   setImageProvider: (cfg: LLMProviderConfig) => void;
   setLang: (lang: Lang) => void;
   setTheme: (theme: ThemeMode) => void;
@@ -105,6 +112,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 
+  setTtsEnabled: (enabled) => {
+    set((s) => ({
+      settings: { ...s.settings, ttsEnabled: enabled },
+      dirty: true,
+    }));
+  },
+  setTtsVoice: (voice) => {
+    set((s) => ({ settings: { ...s.settings, ttsVoice: voice }, dirty: true }));
+  },
+  setResearch: (patch) => {
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        researchEnabled: patch.enabled ?? s.settings.researchEnabled,
+        tavilyApiKey: patch.apiKey ?? s.settings.tavilyApiKey,
+      },
+      dirty: true,
+    }));
+  },
   setPexelsApiKey: (key) => {
     set((s) => ({
       settings: { ...s.settings, pexelsApiKey: key },

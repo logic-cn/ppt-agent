@@ -254,3 +254,62 @@ describe("undo/redo 与历史", () => {
     expect(useDeckStore.getState().deck!.slides[0].title).toBe("修改 4");
   });
 });
+
+describe("updateSlideSvgLive（D2 流式预览）", () => {
+  it("静默更新单页 SVG 且不产生历史条目", () => {
+    const slide = { id: "s1", layout: "content" as const, title: "标题" };
+    useDeckStore.setState({
+      deck: {
+        id: "d",
+        version: 2,
+        title: "t",
+        design: {
+          mode: "briefing",
+          visualStyle: "soft-rounded",
+          palette: "business-blue",
+        },
+        slides: [
+          slide,
+          { id: "s2", layout: "content" as const, title: "第二页" },
+        ],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      past: [],
+      future: [],
+      canUndo: false,
+      canRedo: false,
+    });
+    useDeckStore.getState().updateSlideSvgLive(0, "<svg/>");
+    const state = useDeckStore.getState();
+    expect(state.deck!.slides[0].svg).toBe("<svg/>");
+    expect(state.deck!.slides[0].svgStale).toBe(false);
+    expect(state.deck!.slides[1].svg).toBeUndefined();
+    // 静默：不进入历史
+    expect(state.past).toHaveLength(0);
+    expect(state.canUndo).toBe(false);
+  });
+
+  it("索引越界为 no-op", () => {
+    const slide = { id: "s1", layout: "content" as const, title: "标题" };
+    useDeckStore.setState({
+      deck: {
+        id: "d",
+        version: 2,
+        title: "t",
+        design: {
+          mode: "briefing",
+          visualStyle: "soft-rounded",
+          palette: "business-blue",
+        },
+        slides: [slide],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      past: [],
+      future: [],
+    });
+    useDeckStore.getState().updateSlideSvgLive(5, "<svg/>");
+    expect(useDeckStore.getState().deck!.slides[0].svg).toBeUndefined();
+  });
+});

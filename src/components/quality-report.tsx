@@ -1,4 +1,4 @@
-import { AlertTriangle, XCircle, Wand2, X } from "lucide-react";
+import { AlertTriangle, XCircle, Wand2, X, Eye } from "lucide-react";
 import type { QualityFinding, Severity } from "@/services/quality";
 import { qualityScore } from "@/services/quality";
 import { useT } from "@/hooks/use-page-t";
@@ -8,6 +8,9 @@ interface QualityReportProps {
   fixing?: boolean;
   onAutoFix?: () => void;
   onDismiss?: () => void;
+  /** D3 视觉自检：提供时显示入口按钮 */
+  onVisualReview?: () => void;
+  visualReviewing?: boolean;
 }
 
 const severityMeta: Record<
@@ -29,6 +32,8 @@ export function QualityReport({
   fixing = false,
   onAutoFix,
   onDismiss,
+  onVisualReview,
+  visualReviewing = false,
 }: QualityReportProps) {
   const t = useT();
   if (findings.length === 0) return null;
@@ -89,6 +94,19 @@ export function QualityReport({
           );
         })}
       </ul>
+
+      {onVisualReview && (
+        <button
+          onClick={onVisualReview}
+          disabled={visualReviewing || fixing}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          {visualReviewing
+            ? t("quality.visualReviewing")
+            : t("quality.visualReview")}
+        </button>
+      )}
 
       {onAutoFix && (
         <button
