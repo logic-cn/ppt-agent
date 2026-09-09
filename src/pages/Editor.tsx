@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
-import { useSettingsStore } from "@/store/settings";
-import { buildNarrations } from "@/services/tts";
+import { useGenerationFollowStore } from "@/store/generation-follow";
+import { generateSlideSvg } from "@/engine/svg/executor";
+import { buildSpecLock } from "@/design/spec-lock";
+import type { ElementContext } from "@/engine/preview/svg-editor-canvas";
 import { useJobStore, runJob } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
@@ -32,13 +34,12 @@ import { checkDeckQuality, hasHardError } from "@/services/quality";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
-import type { Deck, Slide } from "@/types/deck";
+import type { Deck } from "@/types/deck";
 import {
   exportDeck,
   exportDeckToBlob,
   type ExportEffectsOptions,
 } from "@/engine/pptx";
-import { generateImage } from "@/services/image";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { useT } from "@/hooks/use-page-t";
 
@@ -53,6 +54,8 @@ export default function Editor() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [annotating, setAnnotating] = useState(false);
+  const generatingIndex = useGenerationFollowStore((s) => s.generatingIndex);
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
   const [designOpen, setDesignOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -155,90 +158,69 @@ export default function Editor() {
 
   const addToast = useToastStore((s) => s.add);
 
-  const handleGenerateImage = async (slideId: string) => {
-    if (!deck) return;
-    const slide = deck.slides.find((s) => s.id === slideId);
-    if (!slide) return;
-
+  // E1.5 批注流：选中元素 + 一句话 → baseSvg+instruction 定向重画（只动该元素相关的部分）
+  const handleAnnotateElement = async (
+    slideId: string,
+    instruction: string,
+    ctx: ElementContext,
+  ) => {
+    const deck = useDeckStore.getState().deck;
+    const slide = deck?.slides.find((sl) => sl.id === slideId);
+    if (!deck || !slide?.svg || annotating) return;
+    setAnnotating(true);
     try {
       await runJob(
-        {
-          type: "image.generate",
-          title: t("editor.generateImageJob", { title: slide.title }),
-          canCancel: true,
-        },
+        { type: "deck.patch", title: t("editor.annotating"), canCancel: true },
         async (job) => {
-          const result = await generateImage(
-            {
-              prompt: [
-                slide.title,
-                ...(slide.bullets ?? []).map((b) => b.text),
-              ].join("；"),
-              size: "1024x1024",
+          const svg = await generateSlideSvg({
+            specLock: buildSpecLock(deck.design),
+            plan: {
+              role: "content",
+              title: slide.title,
+              intent: slide.title,
+              bullets: (slide.bullets ?? []).map((b) => b.text),
             },
-            deck.design ?? DEFAULT_DESIGN,
-            job.signal,
-          );
+            pageIndex: deck.slides.indexOf(slide),
+            totalPages: deck.slides.length,
+            baseSvg: slide.svg,
+            instruction: `仅修改以下指定元素，页面其余部分保持原样不变。\n目标元素（${ctx.tag}${ctx.bbox ? `，位于 (${Math.round(ctx.bbox.x)},${Math.round(ctx.bbox.y)})，尺寸 ${Math.round(ctx.bbox.w)}×${Math.round(ctx.bbox.h)}` : ""}）：${ctx.markup}\n修改要求：${instruction}`,
+            signal: job.signal,
+          });
           useDeckStore.getState().updateSlide(slideId, {
-            image: {
-              type: "ai" as const,
-              url: result.url,
-              alt: result.revisedPrompt ?? slide.title,
-            },
+            svg,
+            svgStale: false,
           });
         },
       );
-    } catch (e) {
       addToast({
-        type: "error",
-        title: t("editor.imageGenerationFailed"),
-        message: (e as Error).message,
+        type: "success",
+        title: t("editor.annotateApplied"),
+        message: instruction.slice(0, 80),
       });
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        addToast({
+          type: "error",
+          title: t("editor.annotateFailed"),
+          message: (e as Error).message,
+        });
+      }
+    } finally {
+      setAnnotating(false);
     }
   };
 
-  // D1：导出效果组装——转场/入场动画取 deck 放映偏好，旁白逐页合成（单页失败跳过）
+  // D1：导出效果组装——转场/入场动画取 deck 放映偏好
   const buildExportEffects = async (
     currentDeck: Deck,
-    job: Parameters<Parameters<typeof runJob>[1]>[0],
   ): Promise<ExportEffectsOptions> => {
-    const settings = useSettingsStore.getState().settings;
-    const provider = settings.providers[settings.activeProvider];
-    const effects: ExportEffectsOptions = {
+    return {
       transition:
         currentDeck.transition && currentDeck.transition !== "none"
           ? currentDeck.transition
           : undefined,
       entranceAnimation: currentDeck.entranceAnimation,
     };
-    if (!currentDeck.narration || !settings.ttsEnabled || !provider?.baseUrl) {
-      return effects;
-    }
-    const { narrations, durations, failures } = await buildNarrations(
-      currentDeck.slides.map((sl: Slide) => sl.notes),
-      {
-        baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
-        voice: settings.ttsVoice,
-        signal: job.signal,
-        onProgress: (done, total) =>
-          job.update({
-            message: t("editor.generatingNarration", { n: done, total }),
-          }),
-      },
-    );
-    if (narrations.some(Boolean)) {
-      effects.narrations = narrations;
-      effects.narrationDurations = durations;
-      if (failures > 0) {
-        addToast({
-          type: "warning",
-          title: t("editor.narrationPartialTitle"),
-          message: t("editor.narrationPartialMessage", { n: failures }),
-        });
-      }
-    }
-    return effects;
   };
 
   const handleExport = async () => {
@@ -263,8 +245,7 @@ export default function Editor() {
           canCancel: true,
         },
         async (job) => {
-          // D1 旁白：开启 narration 且设置页启用 TTS 时，逐页把备注合成为音频
-          const effects = await buildExportEffects(deck, job);
+          const effects = await buildExportEffects(deck);
           let savePath: string | null = null;
           try {
             const { save } = await import("@tauri-apps/plugin-dialog");
@@ -446,10 +427,6 @@ export default function Editor() {
                     onChange={(d) => setDesign(d)}
                     transition={deck?.transition}
                     entranceAnimation={deck?.entranceAnimation}
-                    narration={deck?.narration}
-                    narrationAvailable={
-                      useSettingsStore.getState().settings.ttsEnabled
-                    }
                     onTransitionChange={(tr) =>
                       useDeckStore.getState().setPlayback({ transition: tr })
                     }
@@ -457,9 +434,6 @@ export default function Editor() {
                       useDeckStore.getState().setPlayback({
                         entranceAnimation: v,
                       })
-                    }
-                    onNarrationChange={(v) =>
-                      useDeckStore.getState().setPlayback({ narration: v })
                     }
                   />
                 </div>
@@ -609,7 +583,13 @@ export default function Editor() {
               deck={deck}
               currentIndex={selectedIndex}
               onIndexChange={setSelectedIndex}
-              onGenerateImage={handleGenerateImage}
+              onUpdateSlideSvg={(slideId, svg) =>
+                useDeckStore.getState().updateSlide(slideId, { svg, svgStale: false })
+              }
+              onAnnotateElement={(slideId, instruction, ctx) =>
+                void handleAnnotateElement(slideId, instruction, ctx)
+              }
+              generatingIndex={generatingIndex}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-text-muted">
@@ -624,7 +604,6 @@ export default function Editor() {
             <InspectorPanel
               deck={deck}
               selectedIndex={selectedIndex}
-              onGenerateImage={handleGenerateImage}
             />
           </aside>
         ) : (

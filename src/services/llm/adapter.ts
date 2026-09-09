@@ -257,10 +257,6 @@ export async function createProviderAsync(
       `Provider「${config.label}」未配置 API Key，请前往设置页填写。`,
     );
   }
-  if (config.id === "anthropic") {
-    const { AnthropicProvider } = await import("./providers/anthropic");
-    return new AnthropicProvider(config);
-  }
   return new OpenAICompatProvider(config);
 }
 

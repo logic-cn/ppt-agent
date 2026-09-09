@@ -138,12 +138,10 @@ export interface Deck {
   source?: {
     type: DeckSource;
     ref: string;
-  }; /** 转场样式（导出时注入 OOXML，缺省 none 不注入） */
+  };   /** 转场样式（导出时注入 OOXML，缺省 none 不注入） */
   transition?: TransitionStyle;
   /** 对象入场动画（逐形状淡入，单击推进；缺省关闭） */
   entranceAnimation?: boolean;
-  /** 导出时用备注生成旁白音频（需设置页开启 TTS） */
-  narration?: boolean;
 }
 
 export interface DeckMeta {

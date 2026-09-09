@@ -11,9 +11,8 @@ import type { AppSettings } from "@/types/llm";
 function baseSettings(): AppSettings {
   return {
     version: 1,
-    activeProvider: "openai",
+    activeProvider: "deepseek",
     providers: {} as AppSettings["providers"],
-    imageEnabled: false,
     lang: "zh",
     theme: "system",
   };
@@ -29,11 +28,34 @@ describe("useSettingsStore 语言/主题", () => {
     useSettingsStore.getState().setLang("en");
     const s = useSettingsStore.getState().settings;
     expect(s.lang).toBe("en");
-    expect(s.activeProvider).toBe("openai");
+    expect(s.activeProvider).toBe("deepseek");
   });
 
   it("setTheme 更新主题", () => {
     useSettingsStore.getState().setTheme("dark");
     expect(useSettingsStore.getState().settings.theme).toBe("dark");
+  });
+});
+
+describe("useSettingsStore 自定义模型", () => {
+  it("addCustomProvider 新增 custom-* 提供商", () => {
+    const id = useSettingsStore.getState().addCustomProvider();
+    expect(id).toMatch(/^custom-/);
+    const cfg = useSettingsStore.getState().settings.providers[id];
+    expect(cfg).toBeDefined();
+    expect(cfg.baseUrl).toBe("");
+    expect(cfg.model).toBe("");
+  });
+
+  it("removeCustomProvider 删除并回退激活 provider", () => {
+    const store = useSettingsStore.getState();
+    const id = store.addCustomProvider();
+    useSettingsStore.setState((s) => ({
+      settings: { ...s.settings, activeProvider: id },
+    }));
+    useSettingsStore.getState().removeCustomProvider(id);
+    const s = useSettingsStore.getState().settings;
+    expect(s.providers[id]).toBeUndefined();
+    expect(s.activeProvider).toBe("deepseek");
   });
 });

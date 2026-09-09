@@ -17,15 +17,15 @@ function setSettings(apiKey: string | null) {
   useSettingsStore.setState({
     settings: {
       ...useSettingsStore.getState().settings,
-      activeProvider: "openai",
+      activeProvider: "deepseek",
       providers: {
         ...useSettingsStore.getState().settings.providers,
-        openai: {
-          ...useSettingsStore.getState().settings.providers.openai,
+        deepseek: {
+          ...useSettingsStore.getState().settings.providers.deepseek,
           apiKey: apiKey ?? "",
-          model: "gpt-4o-mini",
-          baseUrl: "https://api.openai.com/v1",
-          label: "OpenAI",
+          model: "deepseek-chat",
+          baseUrl: "https://api.deepseek.com/v1",
+          label: "DeepSeek",
           enabled: true,
         },
       },
@@ -43,7 +43,7 @@ describe("getActiveProviderConfig", () => {
     setSettings("sk-test");
     const config = getActiveProviderConfig();
     expect(config.apiKey).toBe("sk-test");
-    expect(config.model).toBe("gpt-4o-mini");
+    expect(config.model).toBe("deepseek-chat");
   });
 });
 
@@ -60,7 +60,7 @@ describe("chat", () => {
     expect(res.content).toBe("回答");
     expect(vi.mocked(createProviderAsync)).toHaveBeenCalledTimes(1);
     expect(providerMock.chat).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-4o-mini" }),
+      expect.objectContaining({ model: "deepseek-chat" }),
       "outline",
     );
   });

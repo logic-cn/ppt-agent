@@ -14,6 +14,7 @@ import { useProjectStore } from "@/store/project";
 import { deleteDeck } from "@/services/storage";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresetLibraryDialog } from "@/components/preset/PresetLibraryDialog";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import type { DeckPreset } from "@/types/preset";
 import type { Slide } from "@/types/deck";
 import { useT } from "@/hooks/use-page-t";
@@ -25,6 +26,7 @@ export default function Home() {
   const { recent, loading, loadRecent } = useProjectStore();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     void loadRecent();
@@ -69,7 +71,7 @@ export default function Home() {
           <span className="text-lg font-semibold">PPT Agent</span>
         </div>
         <button
-          onClick={() => navigate("/settings")}
+          onClick={() => setSettingsOpen(true)}
           className="text-text-secondary hover:text-text-primary"
         >
           <Settings className="h-5 w-5" />
@@ -243,6 +245,11 @@ export default function Home() {
             onGenerate={(params) =>
               handlePresetGenerate(params.preset, params.topic, params.slides)
             }
+          />
+
+          <SettingsDialog
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
           />
         </div>
       </main>

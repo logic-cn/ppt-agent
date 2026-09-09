@@ -33,17 +33,16 @@ export const en = {
   "settings.currentModel": "Current default model",
   "settings.missingApiKey": "Missing API Key",
   "settings.inUse": "In use",
+  "settings.useModel": "Use",
+  "settings.addCustomModel": "Add custom model",
+  "settings.removeCustomModel": "Remove custom model",
+  "settings.removeCustomConfirm":
+    "Remove this custom model? Its API key will also be cleared.",
+  "settings.customNamePlaceholder": "Name (e.g. Moonshot)",
+  "settings.customBaseUrlPlaceholder": "https://api.example.com/v1",
+  "settings.customModelPlaceholder": "Model name (e.g. moonshot-v1-32k)",
   "settings.modelName": "Model",
-  "settings.imageSection": "AI Image",
-  "settings.enable": "Enable",
-  "settings.imageHelp":
-    "Generate images via an OpenAI-compatible API (e.g. DALL·E). Falls back to the current LLM provider if not configured separately.",
-  "settings.imageGen": "Image generation",
   "settings.pexelsKey": "Pexels API Key (optional, for web image search)",
-  "settings.ttsSection": "Narration TTS",
-  "settings.ttsHelp":
-    "Generates per-slide narration audio from speaker notes on export, via the active provider's OpenAI-compatible /audio/speech endpoint.",
-  "settings.ttsVoice": "Voice",
   "settings.researchSection": "Web Research (topic supplements)",
   "settings.researchHelp":
     "Before generating from a topic, search the web via Tavily and feed the results as source material. Get a free key at tavily.com.",
@@ -86,15 +85,12 @@ export const en = {
   "editor.projectNotFound": "Project not found",
   "editor.projectNotFoundMessage":
     "The project you tried to load does not exist. A new project will be created instead.",
-  "editor.generateImageJob": 'Generate illustration for "{title}"',
-  "editor.imageGenerationFailed": "Image generation failed",
   "editor.pagesStaleTitle": "Some pages have changed",
   "editor.pagesStaleMessage":
     '{n} page(s) were edited but not re-rendered. The export will contain outdated visuals; consider running "Redraw Sync" first.',
-  "editor.generatingNarration": "Generating narration {n}/{total}…",
-  "editor.narrationPartialTitle": "Some narration pages skipped",
-  "editor.narrationPartialMessage":
-    "{n} page(s) failed to synthesize narration and were exported without audio.",
+  "editor.annotating": "AI editing element",
+  "editor.annotateApplied": "Element updated",
+  "editor.annotateFailed": "AI element edit failed",
   "editor.exportJob": 'Export "{title}"',
   "editor.exportSuccess": "Export succeeded",
   "editor.exportDownloaded": "File downloaded to your device",
@@ -121,6 +117,14 @@ export const en = {
   "editor.statusSucceeded": "Completed",
   "editor.copyError": "Copy error",
   "editor.expandOutline": "Expand outline",
+  "preview.textContent": "Text",
+  "preview.fontSize": "Font size (px)",
+  "preview.fill": "Fill color",
+  "preview.nudgeHint": "Drag to move · Arrow keys nudge (Shift ×10) · Right-click to pick overlapping elements · Esc to deselect",
+  "preview.editMode": "Edit on canvas",
+  "preview.exitEditMode": "Exit editing",
+  "preview.aiEditPlaceholder": "Describe how to change this element…",
+  "preview.aiEditSubmit": "AI edit this element",
   "editor.previewPlaceholder":
     "The preview will appear here once an outline is generated",
   "editor.expandAiPanel": "Expand AI panel",
@@ -265,9 +269,6 @@ export const en = {
   "design.playback": "Playback Effects",
   "design.entranceAnimation":
     "Entrance animation (fade in per object, click to advance)",
-  "design.narration":
-    "Narration audio from speaker notes (requires TTS in Settings)",
-  "design.narrationHint": "Enable TTS in Settings first",
   "transition.none": "None",
   "transition.fade": "Fade",
   "transition.push": "Push",
@@ -321,7 +322,6 @@ export const en = {
   "inspector.imageRight": "Right",
   "inspector.imageBackground": "Background",
   "inspector.imageEmpty": "This page has no image.",
-  "inspector.imageGenerate": "AI Generate Image",
   "inspector.imageSource": "Image Source",
   "inspector.imageSourceAi": "AI Generated",
   "inspector.imageSourceIcon": "Icon",

@@ -13,11 +13,8 @@ interface Props {
   /** 放映偏好（存于 deck，不属设计契约；D1） */
   transition?: TransitionStyle;
   entranceAnimation?: boolean;
-  narration?: boolean;
-  narrationAvailable?: boolean;
   onTransitionChange?: (t: TransitionStyle) => void;
   onEntranceAnimationChange?: (v: boolean) => void;
-  onNarrationChange?: (v: boolean) => void;
 }
 
 export function DesignPanel({
@@ -25,11 +22,8 @@ export function DesignPanel({
   onChange,
   transition,
   entranceAnimation,
-  narration,
-  narrationAvailable,
   onTransitionChange,
   onEntranceAnimationChange,
-  onNarrationChange,
 }: Props) {
   const t = useT();
   return (
@@ -152,19 +146,6 @@ export function DesignPanel({
               className="h-4 w-4 rounded border-border accent-accent"
             />
             {t("design.entranceAnimation")}
-          </label>
-          <label
-            className="flex cursor-pointer items-center gap-2"
-            title={narrationAvailable ? undefined : t("design.narrationHint")}
-          >
-            <input
-              type="checkbox"
-              checked={narration ?? false}
-              disabled={!narrationAvailable}
-              onChange={(e) => onNarrationChange?.(e.target.checked)}
-              className="h-4 w-4 rounded border-border accent-accent disabled:opacity-40"
-            />
-            {t("design.narration")}
           </label>
         </div>
       </section>

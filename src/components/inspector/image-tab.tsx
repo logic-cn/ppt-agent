@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ImageIcon, Trash2, Search } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import type { Slide, ImageSource, ImageSpec } from "@/types/deck";
 import {
   searchWebImages,
@@ -130,10 +130,9 @@ function WebImageSearchPanel({
 interface Props {
   slide: Slide;
   onUpdate: (patch: Partial<Slide>) => void;
-  onGenerateImage?: (slideId: string) => void;
 }
 
-export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
+export function ImageTab({ slide, onUpdate }: Props) {
   const t = useT();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const urlTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -158,15 +157,6 @@ export function ImageTab({ slide, onUpdate, onGenerateImage }: Props) {
     return (
       <div className="space-y-3 p-3 text-sm text-text-muted">
         <div className="text-center">{t("inspector.imageEmpty")}</div>
-        {onGenerateImage && (
-          <button
-            onClick={() => onGenerateImage(slide.id)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ai/30 px-3 py-2 text-xs text-ai hover:bg-ai-soft"
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            {t("inspector.imageGenerate")}
-          </button>
-        )}
         <WebImageSearchPanel onApply={handleWebApply} />
       </div>
     );

@@ -1,10 +1,14 @@
 import type { Lang, ThemeMode } from "./preferences";
 
-export type LLMProviderId =
-  "openai" | "anthropic" | "qwen" | "zhipu" | "custom";
+/** 内置提供商（预设固定） */
+export type BuiltinProviderId = "deepseek";
+/** 自定义提供商 id 约定：custom- 前缀 + 随机串 */
+export type CustomProviderId = `custom-${string}`;
+
+export type LLMProviderId = BuiltinProviderId | CustomProviderId;
 
 export interface LLMProviderConfig {
-  id: LLMProviderId;
+  id: string;
   label: string;
   baseUrl: string;
   apiKey: string;
@@ -40,29 +44,13 @@ export interface ChatResponse {
   };
 }
 
-export interface ImageGenRequest {
-  prompt: string;
-  size?: "1024x1024" | "1792x1024" | "1024x1792";
-}
-
-export interface ImageGenResponse {
-  url: string;
-  revisedPrompt?: string;
-  /** 图片生成失败降级为占位图时为 true，调用方应继续而非中断整份演示 */
-  placeholder?: boolean;
-}
-
 export interface AppSettings {
   version: number;
   activeProvider: LLMProviderId;
-  providers: Record<LLMProviderId, LLMProviderConfig>;
-  imageProvider?: LLMProviderConfig;
-  imageEnabled: boolean;
+  /** 内置 + 自定义提供商统一存放在此 map，key 为 provider id */
+  providers: Record<string, LLMProviderConfig>;
   /** 网络搜图 Pexels API Key（可选；缺省仅用 Openverse 零配置源，C4） */
   pexelsApiKey?: string;
-  /** 旁白 TTS（OpenAI 兼容 /audio/speech，使用当前激活 Provider 的 BaseURL/Key，D1） */
-  ttsEnabled?: boolean;
-  ttsVoice?: string;
   /** 联网资料补全（Tavily，D4）：topic-only 生成前检索资料作为上下文 */
   researchEnabled?: boolean;
   tavilyApiKey?: string;
@@ -71,37 +59,13 @@ export interface AppSettings {
 }
 
 export const PROVIDER_PRESETS: Record<
-  LLMProviderId,
+  BuiltinProviderId,
   Omit<LLMProviderConfig, "apiKey" | "enabled">
 > = {
-  openai: {
-    id: "openai",
-    label: "OpenAI",
-    baseUrl: "https://api.openai.com/v1",
-    model: "gpt-4o",
-  },
-  anthropic: {
-    id: "anthropic",
-    label: "Anthropic Claude",
-    baseUrl: "https://api.anthropic.com/v1",
-    model: "claude-sonnet-4-20250514",
-  },
-  qwen: {
-    id: "qwen",
-    label: "通义千问",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    model: "qwen-max",
-  },
-  zhipu: {
-    id: "zhipu",
-    label: "智谱 GLM",
-    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
-    model: "glm-4-plus",
-  },
-  custom: {
-    id: "custom",
-    label: "自定义",
-    baseUrl: "",
-    model: "",
+  deepseek: {
+    id: "deepseek",
+    label: "DeepSeek",
+    baseUrl: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
   },
 };

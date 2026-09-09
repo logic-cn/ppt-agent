@@ -20,13 +20,11 @@ interface Props {
   deck: Deck;
   selectedIndex: number;
   onSelectIndex?: (index: number) => void;
-  onGenerateImage?: (slideId: string) => void;
 }
 
 export function InspectorPanel({
   deck,
   selectedIndex,
-  onGenerateImage,
 }: Props) {
   const t = useT();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
@@ -206,11 +204,7 @@ export function InspectorPanel({
         ) : null}
 
         {activeTab === "image" && slide ? (
-          <ImageTab
-            slide={slide}
-            onUpdate={handleUpdate}
-            onGenerateImage={onGenerateImage}
-          />
+          <ImageTab slide={slide} onUpdate={handleUpdate} />
         ) : activeTab === "image" ? (
           <EmptyState message={t("inspector.selectPage")} />
         ) : null}

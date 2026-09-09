@@ -7,9 +7,8 @@ import type { AppSettings } from "@/types/llm";
 function baseSettings(): AppSettings {
   return {
     version: 1,
-    activeProvider: "openai",
+    activeProvider: "deepseek",
     providers: {} as AppSettings["providers"],
-    imageEnabled: false,
     lang: "zh",
     theme: "light",
   };

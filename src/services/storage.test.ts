@@ -30,9 +30,8 @@ function makeSettings(apiKey = ""): AppSettings {
   }
   return {
     version: 1,
-    activeProvider: "openai",
+    activeProvider: "deepseek",
     providers,
-    imageEnabled: false,
     lang: "zh",
     theme: "system",
   };
@@ -55,11 +54,11 @@ describe("settings 存储（密钥拆分）", () => {
     expect(raw!.match(/"apiKey"\s*:\s*"[^"]+"/)).toBeNull();
 
     const persisted = JSON.parse(raw!) as AppSettings;
-    expect(persisted.providers.openai.apiKey).toBe("");
-    expect(persisted.providers.openai.enabled).toBe(true);
+    expect(persisted.providers.deepseek.apiKey).toBe("");
+    expect(persisted.providers.deepseek.enabled).toBe(true);
 
     const store = getSecretStore();
-    expect(await store.get(secretKey("provider", "openai"))).toBe(
+    expect(await store.get(secretKey("provider", "deepseek"))).toBe(
       "sk-secret-1",
     );
   });
@@ -67,18 +66,18 @@ describe("settings 存储（密钥拆分）", () => {
   it("loadSettings 从 SecretStore 合并回 apiKey", async () => {
     await saveSettings(makeSettings("sk-secret-2"));
     const loaded = await loadSettings();
-    expect(loaded!.providers.openai.apiKey).toBe("sk-secret-2");
+    expect(loaded!.providers.deepseek.apiKey).toBe("sk-secret-2");
   });
 
   it("清空 apiKey 后 SecretStore 残留被清除（密钥失效）", async () => {
     await saveSettings(makeSettings("sk-to-clear"));
-    expect(await getSecretStore().get(secretKey("provider", "openai"))).toBe(
+    expect(await getSecretStore().get(secretKey("provider", "deepseek"))).toBe(
       "sk-to-clear",
     );
 
     await saveSettings(makeSettings(""));
     expect(
-      await getSecretStore().get(secretKey("provider", "openai")),
+      await getSecretStore().get(secretKey("provider", "deepseek")),
     ).toBeNull();
   });
 
@@ -90,9 +89,9 @@ describe("settings 存储（密钥拆分）", () => {
     );
 
     const loaded = await loadSettings();
-    expect(loaded!.providers.openai.apiKey).toBe("sk-legacy");
+    expect(loaded!.providers.deepseek.apiKey).toBe("sk-legacy");
     // 明文已迁入密钥存储
-    expect(await getSecretStore().get(secretKey("provider", "openai"))).toBe(
+    expect(await getSecretStore().get(secretKey("provider", "deepseek"))).toBe(
       "sk-legacy",
     );
   });
@@ -110,6 +109,89 @@ describe("settings 存储（密钥拆分）", () => {
     expect(raw).not.toBeNull();
     expect(raw!).not.toContain("sk-legacy");
     const persisted = JSON.parse(raw!) as AppSettings;
-    expect(persisted.providers.openai.apiKey).toBe("");
+    expect(persisted.providers.deepseek.apiKey).toBe("");
+  });
+
+  it("迁移：旧版内置 custom provider 转为 custom-legacy，密钥 key 同步迁移", async () => {
+    const legacy = makeSettings("sk-custom");
+    legacy.providers["custom"] = {
+      id: "custom",
+      label: "自定义",
+      baseUrl: "https://api.example.com/v1",
+      apiKey: "sk-custom",
+      model: "my-model",
+      enabled: true,
+    };
+    legacy.activeProvider = "custom" as AppSettings["activeProvider"];
+    localStorage.setItem(
+      "ppt-agent-data/settings.json",
+      JSON.stringify(legacy),
+    );
+
+    const loaded = await loadSettings();
+    expect(loaded!.providers["custom"]).toBeUndefined();
+    expect(loaded!.providers["custom-legacy"]?.baseUrl).toBe(
+      "https://api.example.com/v1",
+    );
+    expect(loaded!.providers["custom-legacy"]?.apiKey).toBe("sk-custom");
+    expect(loaded!.activeProvider).toBe("custom-legacy");
+    expect(
+      await getSecretStore().get(secretKey("provider", "custom-legacy")),
+    ).toBe("sk-custom");
+  });
+
+  it("迁移：旧版空的 custom provider 直接丢弃", async () => {
+    const legacy = makeSettings("");
+    legacy.providers["custom"] = {
+      id: "custom",
+      label: "自定义",
+      baseUrl: "",
+      apiKey: "",
+      model: "",
+      enabled: false,
+    };
+    legacy.activeProvider = "custom" as AppSettings["activeProvider"];
+    localStorage.setItem(
+      "ppt-agent-data/settings.json",
+      JSON.stringify(legacy),
+    );
+
+    const loaded = await loadSettings();
+    expect(loaded!.providers["custom"]).toBeUndefined();
+    expect(loaded!.providers["custom-legacy"]).toBeUndefined();
+    expect(loaded!.activeProvider).toBe("deepseek");
+  });
+
+  it("迁移：已下线的内置 provider（qwen/zhipu）被移除且密钥被清除", async () => {
+    const legacy = makeSettings("");
+    legacy.providers["qwen"] = {
+      id: "qwen",
+      label: "通义千问",
+      baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      apiKey: "sk-qwen",
+      model: "qwen-max",
+      enabled: true,
+    };
+    legacy.providers["zhipu"] = {
+      id: "zhipu",
+      label: "智谱 GLM",
+      baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+      apiKey: "sk-zhipu",
+      model: "glm-4-plus",
+      enabled: true,
+    };
+    legacy.activeProvider = "zhipu" as AppSettings["activeProvider"];
+    localStorage.setItem(
+      "ppt-agent-data/settings.json",
+      JSON.stringify(legacy),
+    );
+
+    const loaded = await loadSettings();
+    expect(loaded!.providers["qwen"]).toBeUndefined();
+    expect(loaded!.providers["zhipu"]).toBeUndefined();
+    expect(loaded!.activeProvider).toBe("deepseek");
+    const store = getSecretStore();
+    expect(await store.get(secretKey("provider", "qwen"))).toBeNull();
+    expect(await store.get(secretKey("provider", "zhipu"))).toBeNull();
   });
 });

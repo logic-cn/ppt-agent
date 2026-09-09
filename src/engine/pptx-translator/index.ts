@@ -61,7 +61,6 @@ export async function svgToPptx(
   slides: Slide[],
   design: DesignLock,
   signal?: AbortSignal,
-  effects?: { narrations?: (string | undefined)[] },
 ): Promise<Blob> {
   // 由 design 构建 specLock 设计契约，注入图表配色等
   const specLock = buildSpecLock(design);
@@ -99,18 +98,6 @@ export async function svgToPptx(
       translateSvgToSlide(slide.svg, pptxSlide, specLock, slide.notes);
     } else if (renderSlides) {
       await renderRenderSlideAsync(pptxSlide, renderSlides[i]);
-    }
-    // D1 旁白：备注音频内嵌为媒体对象（播放器小图标置于左下角）
-    const narration = effects?.narrations?.[i];
-    if (narration) {
-      pptxSlide.addMedia({
-        type: "audio",
-        data: narration.replace(/^data:/, ""),
-        x: 0.3,
-        y: inches.h - 0.7,
-        w: 0.4,
-        h: 0.4,
-      });
     }
   }
 

@@ -1,6 +1,6 @@
 import type { AppSettings, Deck, DeckMeta } from "@/types";
 import type { Palette } from "@/design/palettes";
-import { PROVIDER_PRESETS, type LLMProviderId } from "@/types/llm";
+import { PROVIDER_PRESETS } from "@/types/llm";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { getSecretStore, secretKey } from "./secret-store";
 import { parseStoredDeck } from "./storage/deck-parse";
@@ -72,21 +72,15 @@ async function joinPath(...segments: string[]): Promise<string> {
 
 // ---- 公共 API ----
 
-const IMAGE_SECRET_ID = "default";
-
-/** 剥离所有 provider/image 的 apiKey（密钥不落盘） */
+/** 剥离所有 provider 的 apiKey（密钥不落盘） */
 function stripApiKeys(settings: AppSettings): AppSettings {
   const persisted: AppSettings = {
     ...settings,
     providers: {} as AppSettings["providers"],
   };
-  for (const id of Object.keys(settings.providers) as LLMProviderId[]) {
+  for (const id of Object.keys(settings.providers) as string[]) {
     const { apiKey, ...rest } = settings.providers[id];
     persisted.providers[id] = { ...rest, apiKey: "" };
-  }
-  if (settings.imageProvider) {
-    const { apiKey, ...rest } = settings.imageProvider;
-    persisted.imageProvider = { ...rest, apiKey: "" };
   }
   return persisted;
 }
@@ -99,7 +93,7 @@ function stripApiKeys(settings: AppSettings): AppSettings {
 async function hydrateSecrets(settings: AppSettings): Promise<boolean> {
   const store = getSecretStore();
   let migrated = false;
-  const providerIds = Object.keys(settings.providers) as LLMProviderId[];
+  const providerIds = Object.keys(settings.providers) as string[];
   for (const id of providerIds) {
     const cfg = settings.providers[id];
     if (cfg.apiKey) {
@@ -116,26 +110,6 @@ async function hydrateSecrets(settings: AppSettings): Promise<boolean> {
         if (stored) cfg.apiKey = stored;
       } catch (e) {
         console.warn(`读取 ${id} apiKey 失败：`, e);
-      }
-    }
-  }
-  if (settings.imageProvider) {
-    if (settings.imageProvider.apiKey) {
-      try {
-        await store.set(
-          secretKey("image", IMAGE_SECRET_ID),
-          settings.imageProvider.apiKey,
-        );
-        migrated = true;
-      } catch (e) {
-        console.warn("迁移 image apiKey 到密钥存储失败：", e);
-      }
-    } else {
-      try {
-        const stored = await store.get(secretKey("image", IMAGE_SECRET_ID));
-        if (stored) settings.imageProvider.apiKey = stored;
-      } catch (e) {
-        console.warn("读取 image apiKey 失败：", e);
       }
     }
   }
@@ -164,6 +138,53 @@ export async function loadSettings(): Promise<AppSettings | null> {
         };
       }
     }
+    // 移除已下线的内置 provider（如 qwen/zhipu），并清除其密钥残留
+    // （旧版 custom 由下方迁移逻辑单独处理，不在此删除）
+    const staleIds = Object.keys(saved.providers).filter(
+      (id) =>
+        !(id in PROVIDER_PRESETS) && !id.startsWith("custom-") && id !== "custom",
+    );
+    if (staleIds.length > 0) {
+      const store = getSecretStore();
+      for (const id of staleIds) {
+        delete saved.providers[id];
+        try {
+          await store.delete(secretKey("provider", id));
+        } catch (e) {
+          console.warn(`清除 ${id} 密钥失败：`, e);
+        }
+      }
+      if (staleIds.includes(saved.activeProvider as string)) {
+        saved.activeProvider = "deepseek";
+      }
+    }
+    // 旧版内置「自定义」provider → 迁移为 custom- 列表项（含密钥存储 key）
+    const legacyCustom = saved.providers["custom"];
+    if (legacyCustom) {
+      delete saved.providers["custom"];
+      const hasContent =
+        legacyCustom.baseUrl || legacyCustom.model || legacyCustom.apiKey;
+      if (hasContent && !saved.providers["custom-legacy"]) {
+        saved.providers["custom-legacy"] = {
+          ...legacyCustom,
+          id: "custom-legacy",
+        };
+        if ((saved.activeProvider as string) === "custom") {
+          saved.activeProvider = "custom-legacy";
+        }
+        try {
+          const store = getSecretStore();
+          const stored = await store.get(secretKey("provider", "custom"));
+          if (stored) {
+            await store.set(secretKey("provider", "custom-legacy"), stored);
+          }
+        } catch (e) {
+          console.warn("迁移 custom provider 密钥失败：", e);
+        }
+      } else if ((saved.activeProvider as string) === "custom") {
+        saved.activeProvider = "deepseek";
+      }
+    }
     // 迁移时发现明文：立即剥离重写，避免 apiKey 滞留 settings.json 磁盘明文
     const migrated = await hydrateSecrets(saved);
     if (migrated) {
@@ -184,7 +205,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   const dir = await getDataDir();
 
   // 剥离 apiKey：非敏感配置落盘，密钥单独进 SecretStore（空值则清除残留）
-  for (const id of Object.keys(settings.providers) as LLMProviderId[]) {
+  for (const id of Object.keys(settings.providers) as string[]) {
     const apiKey = settings.providers[id].apiKey;
     try {
       if (apiKey) {
@@ -194,18 +215,6 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       }
     } catch (e) {
       console.warn(`保存 ${id} apiKey 到密钥存储失败：`, e);
-    }
-  }
-  if (settings.imageProvider) {
-    const apiKey = settings.imageProvider.apiKey;
-    try {
-      if (apiKey) {
-        await store.set(secretKey("image", IMAGE_SECRET_ID), apiKey);
-      } else {
-        await store.delete(secretKey("image", IMAGE_SECRET_ID));
-      }
-    } catch (e) {
-      console.warn("保存 image apiKey 到密钥存储失败：", e);
     }
   }
 

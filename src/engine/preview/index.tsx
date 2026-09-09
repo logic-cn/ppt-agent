@@ -1,4 +1,6 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
+import { useT } from "@/hooks/use-page-t";
+import type { ElementContext } from "./svg-editor-canvas";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -7,13 +9,24 @@ import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
 import { SvgViewer } from "@/components/SvgViewer";
 import { SlideRedrawButton } from "@/components/slide-redraw";
+import { SvgEditorCanvas } from "./svg-editor-canvas";
+import { Pencil } from "lucide-react";
 
 interface Props {
   deck: Deck;
   className?: string;
   currentIndex?: number;
   onIndexChange?: (index: number) => void;
-  onGenerateImage?: (slideId: string) => void;
+  /** 预览原位编辑（E）：提供时可开启画布编辑模式 */
+  onUpdateSlideSvg?: (slideId: string, svg: string) => void;
+  /** V1.5 批注流：选中元素的 AI 定向修改 */
+  onAnnotateElement?: (
+    slideId: string,
+    instruction: string,
+    ctx: ElementContext,
+  ) => void;
+  /** 生成跟随：正在生成的页索引（非空时画布自动切到该页） */
+  generatingIndex?: number | null;
 }
 
 export const SlidePreview = memo(function SlidePreview({
@@ -21,9 +34,13 @@ export const SlidePreview = memo(function SlidePreview({
   className,
   currentIndex: controlledIndex,
   onIndexChange,
-  onGenerateImage,
+  onUpdateSlideSvg,
+  onAnnotateElement,
+  generatingIndex,
 }: Props) {
   const [internalIndex, setInternalIndex] = useState(0);
+  const [editMode, setEditMode] = useState(false);
+  const t = useT();
   const currentIndex = controlledIndex ?? internalIndex;
   const setCurrentIndex = onIndexChange ?? setInternalIndex;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +61,11 @@ export const SlidePreview = memo(function SlidePreview({
       currentSlide ? buildRenderSlideCached(currentSlide, deck, theme) : null,
     [currentSlide, theme, rendererMode],
   );
+
+  // E3：生成期间自动跟随当前正在生成的页
+  useEffect(() => {
+    if (generatingIndex != null) setCurrentIndex(generatingIndex);
+  }, [generatingIndex, setCurrentIndex]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -83,8 +105,36 @@ export const SlidePreview = memo(function SlidePreview({
           className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10"
           style={{ width: slideWidth, height: slideHeight }}
         >
+          {currentSlide.svg && onUpdateSlideSvg && (
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              className={`absolute right-2 top-2 z-30 flex items-center gap-1 rounded-md px-2 py-1 text-xs backdrop-blur transition ${
+                editMode
+                  ? "bg-accent text-white"
+                  : "bg-black/40 text-white/90 hover:bg-black/60"
+              }`}
+              title={editMode ? t("preview.exitEditMode") : t("preview.editMode")}
+            >
+              <Pencil className="h-3 w-3" />
+              {editMode ? t("preview.exitEditMode") : t("preview.editMode")}
+            </button>
+          )}
           {currentSlide.svg ? (
-            <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+            editMode && onUpdateSlideSvg ? (
+              <SvgEditorCanvas
+                svg={currentSlide.svg}
+                onUpdate={(next) => onUpdateSlideSvg(currentSlide.id, next)}
+                onAnnotate={
+                  onAnnotateElement
+                    ? (instruction, ctx) =>
+                        onAnnotateElement(currentSlide.id, instruction, ctx)
+                    : undefined
+                }
+                className="h-full w-full"
+              />
+            ) : (
+              <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+            )
           ) : (
             currentRenderSlide && (
               <RenderSlideViewer
@@ -92,7 +142,6 @@ export const SlidePreview = memo(function SlidePreview({
                 slide={currentSlide}
                 theme={theme}
                 width={slideWidth}
-                onGenerateImage={onGenerateImage}
               />
             )
           )}

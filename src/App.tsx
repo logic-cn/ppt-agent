@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
-import Settings from "./pages/Settings";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { useTheme } from "@/hooks/use-theme";
 import { useT } from "@/hooks/use-page-t";
@@ -29,7 +28,6 @@ export default function App() {
             </Suspense>
           }
         />
-        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastContainer />

@@ -19,6 +19,7 @@ import {
   deriveProjectName,
 } from "@/services/generation/topic-intent";
 import { researchTopic } from "@/services/research";
+import { useGenerationFollowStore } from "@/store/generation-follow";
 import { withAppLanguage } from "@/services/generation/generation-options";
 import { semanticRoleToLayout } from "@/types/page-plan";
 import type { GenerationOptions } from "@/types/generation";
@@ -390,6 +391,9 @@ export function ChatPanel() {
                     // 之后每页 SVG 就绪时静默填充，编辑器预览随生成逐步呈现
                     onPlanReady: (pages) => {
                       if (job.signal.aborted) return;
+                      useGenerationFollowStore
+                        .getState()
+                        .setGeneratingIndex(0);
                       replaceSlides(
                         pages.map((p, i) => ({
                           id: `s${i + 1}`,
@@ -401,6 +405,7 @@ export function ChatPanel() {
                     },
                     onPageReady: (i, svg) => {
                       if (job.signal.aborted) return;
+                      useGenerationFollowStore.getState().setGeneratingIndex(i);
                       useDeckStore.getState().updateSlideSvgLive(i, svg);
                     },
                   },
@@ -569,6 +574,7 @@ export function ChatPanel() {
       } finally {
         setLoading(false);
         submittingRef.current = false;
+        useGenerationFollowStore.getState().setGeneratingIndex(null);
       }
     },
     [

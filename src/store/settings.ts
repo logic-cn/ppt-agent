@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import type {
   AppSettings,
+  BuiltinProviderId,
+  CustomProviderId,
   LLMProviderConfig,
   LLMProviderId,
 } from "@/types/llm";
 import type { Lang, ThemeMode } from "@/types/preferences";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import { loadSettings, saveSettings } from "@/services/storage";
+import { getSecretStore, secretKey } from "@/services/secret-store";
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSettings: AppSettings | null = null;
@@ -41,19 +44,16 @@ if (typeof window !== "undefined") {
 }
 
 function defaultSettings(): AppSettings {
-  const providers = {} as Record<LLMProviderId, LLMProviderConfig>;
-  (Object.keys(PROVIDER_PRESETS) as LLMProviderId[]).forEach((id) => {
+  const providers = {} as AppSettings["providers"];
+  (Object.keys(PROVIDER_PRESETS) as BuiltinProviderId[]).forEach((id) => {
     const preset = PROVIDER_PRESETS[id];
     providers[id] = { ...preset, apiKey: "", enabled: false };
   });
   return {
     version: 1,
-    activeProvider: "openai",
+    activeProvider: "deepseek",
     providers,
-    imageEnabled: false,
     pexelsApiKey: "",
-    ttsEnabled: false,
-    ttsVoice: "alloy",
     researchEnabled: false,
     tavilyApiKey: "",
     lang: "zh",
@@ -70,12 +70,11 @@ interface SettingsStore {
     id: LLMProviderId,
     patch: Partial<LLMProviderConfig>,
   ) => void;
-  setImageEnabled: (enabled: boolean) => void;
+  /** 新增一个自定义提供商，返回其 id */
+  addCustomProvider: () => CustomProviderId;
+  removeCustomProvider: (id: CustomProviderId) => void;
   setPexelsApiKey: (key: string) => void;
-  setTtsEnabled: (enabled: boolean) => void;
-  setTtsVoice: (voice: string) => void;
   setResearch: (patch: { enabled?: boolean; apiKey?: string }) => void;
-  setImageProvider: (cfg: LLMProviderConfig) => void;
   setLang: (lang: Lang) => void;
   setTheme: (theme: ThemeMode) => void;
 }
@@ -86,6 +85,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   load: async () => {
     const settings = (await loadSettings()) ?? get().settings;
+    // 兼容旧版本：activeProvider 指向已不存在的 provider（如被移除的内置项）时回退默认值
+    if (!settings.providers[settings.activeProvider]) {
+      settings.activeProvider = "deepseek";
+    }
     set({ settings, loaded: true });
   },
 
@@ -112,15 +115,51 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 
-  setTtsEnabled: (enabled) => {
-    set((s) => ({
-      settings: { ...s.settings, ttsEnabled: enabled },
-      dirty: true,
-    }));
+  addCustomProvider: () => {
+    const id = `custom-${crypto.randomUUID()}` as CustomProviderId;
+    set((s) => {
+      const settings = {
+        ...s.settings,
+        providers: {
+          ...s.settings.providers,
+          [id]: {
+            id,
+            label: "",
+            baseUrl: "",
+            model: "",
+            apiKey: "",
+            enabled: false,
+          },
+        },
+      };
+      void debouncedSave(settings);
+      return { settings };
+    });
+    return id;
   },
-  setTtsVoice: (voice) => {
-    set((s) => ({ settings: { ...s.settings, ttsVoice: voice }, dirty: true }));
+
+  removeCustomProvider: (id) => {
+    set((s) => {
+      const providers = { ...s.settings.providers };
+      delete providers[id];
+      const settings = {
+        ...s.settings,
+        providers,
+        // 删除的正好是激活 provider 时回退到内置默认
+        activeProvider:
+          s.settings.activeProvider === id
+            ? "deepseek"
+            : s.settings.activeProvider,
+      };
+      void debouncedSave(settings);
+      return { settings };
+    });
+    // 密钥存储中的残留一并清除（saveSettings 只清理仍在 map 里的 provider）
+    getSecretStore()
+      .delete(secretKey("provider", id))
+      .catch((e) => console.warn(`清除 ${id} 密钥失败：`, e));
   },
+
   setResearch: (patch) => {
     set((s) => ({
       settings: {
@@ -136,21 +175,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       settings: { ...s.settings, pexelsApiKey: key },
       dirty: true,
     }));
-  },
-  setImageEnabled: (enabled) => {
-    set((s) => {
-      const settings = { ...s.settings, imageEnabled: enabled };
-      void debouncedSave(settings);
-      return { settings };
-    });
-  },
-
-  setImageProvider: (cfg) => {
-    set((s) => {
-      const settings = { ...s.settings, imageProvider: cfg };
-      void debouncedSave(settings);
-      return { settings };
-    });
   },
 
   setLang: (lang) => {

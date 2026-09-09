@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { ImageIcon } from "lucide-react";
 import type {
   RenderSlide,
   RenderNode,
@@ -8,14 +7,12 @@ import type {
 } from "@/engine/render-ir/types";
 import type { Theme } from "@/types/theme";
 import type { Slide } from "@/types/deck";
-import { getLayoutRects } from "@/engine/layout-geometry";
 
 interface Props {
   renderSlide: RenderSlide;
   slide: Slide;
   theme: Theme;
   width: number;
-  onGenerateImage?: (slideId: string) => void;
 }
 
 function rectToStyle(rect: Rect) {
@@ -33,17 +30,8 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
   slide,
   theme,
   width,
-  onGenerateImage,
 }: Props) {
   if (!renderSlide) return null;
-  const hasVisual =
-    slide.layout === "two-column" ||
-    slide.layout === "chart" ||
-    slide.layout === "image";
-  const hasImageOrChart = renderSlide.nodes.some(
-    (n) => n.type === "image" || n.type === "chart",
-  );
-  const layout = getLayoutRects(slide.layout);
 
   return (
     <div
@@ -53,28 +41,6 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
       {renderSlide.nodes.map((node) => (
         <NodeViewer key={node.id} node={node} theme={theme} width={width} />
       ))}
-
-      {hasVisual && !hasImageOrChart && layout.visual && onGenerateImage && (
-        <div
-          style={rectToStyle(layout.visual)}
-          className="flex items-center justify-center"
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onGenerateImage(slide.id);
-            }}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed px-4 py-2 text-sm transition hover:border-accent hover:bg-bg-hover"
-            style={{
-              borderColor: `${theme.colors.textMuted}40`,
-              color: theme.colors.textMuted,
-            }}
-          >
-            <ImageIcon className="h-4 w-4" />
-            AI 生成配图
-          </button>
-        </div>
-      )}
 
       {slide.layout === "closing" && !slide.title && (
         <div

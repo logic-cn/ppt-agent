@@ -38,7 +38,6 @@ interface DeckStore {
   setPlayback: (patch: {
     transition?: Deck["transition"];
     entranceAnimation?: boolean;
-    narration?: boolean;
   }) => void;
   // 单页重画：基于当前 deck.design 重新生成该页 SVG 并写回
   regenerateSlide: (slideId: string, signal?: AbortSignal) => Promise<void>;
@@ -206,11 +205,10 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     });
   },
 
-  /** 放映偏好（转场/入场动画/旁白，D1）：一次字段编辑合并为一次历史 */
+  /** 放映偏好（转场/入场动画，D1）：一次字段编辑合并为一次历史 */
   setPlayback: (patch: {
     transition?: Deck["transition"];
     entranceAnimation?: boolean;
-    narration?: boolean;
   }) => {
     set((s) => {
       const snap = snapshot(s.deck);
@@ -222,7 +220,6 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
               transition: patch.transition ?? s.deck.transition,
               entranceAnimation:
                 patch.entranceAnimation ?? s.deck.entranceAnimation,
-              narration: patch.narration ?? s.deck.narration,
               updatedAt: Date.now(),
             }
           : null,

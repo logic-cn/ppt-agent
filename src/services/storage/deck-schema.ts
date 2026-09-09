@@ -104,7 +104,6 @@ export const deckSchema = z.object({
   design: designSchema,
   transition: z.string().optional(),
   entranceAnimation: z.boolean().optional(),
-  narration: z.boolean().optional(),
   slides: z.array(slideSchema),
   createdAt: z.number(),
   updatedAt: z.number(),
