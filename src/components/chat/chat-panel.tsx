@@ -14,7 +14,6 @@ import { useQualityStore } from "@/store/quality";
 import { useSettingsStore } from "@/store/settings";
 import { useModelStore } from "@/store/model";
 import { isLocalProviderConfig } from "@/types/llm";
-import { ModelGateCard } from "@/components/settings/LocalModelSection";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
 import {
@@ -774,9 +773,6 @@ export function ChatPanel() {
           <div ref={messagesEndRef} />
         </div>
       </div>
-
-      {/* 本地模型门控卡片：激活本地模型且未就绪时显示下载/加载进度 */}
-      <ModelGateCard />
 
       {/* 本地模型逐 token 实时输出（仅生成期间可见） */}
       <LocalLiveOutput />

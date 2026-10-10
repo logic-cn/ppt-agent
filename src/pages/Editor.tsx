@@ -319,7 +319,6 @@ export default function Editor() {
       {/* 顶部工具栏 */}
       <header className="flex items-center justify-between border-b border-border bg-bg-elevated px-4 h-10">
         <div className="flex items-center gap-3">
-          <ModelStatusChip />
           <button
             onClick={() => navigate("/")}
             className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -376,6 +375,7 @@ export default function Editor() {
             </button>
           )}
 
+          <ModelStatusChip />
           <button
             onClick={() => setLeftOpen((v) => !v)}
             className={`rounded-md p-1.5 hover:bg-bg-hover ${
