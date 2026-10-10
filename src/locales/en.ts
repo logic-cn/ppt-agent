@@ -50,6 +50,17 @@ export const en = {
   "settings.tavilyKey": "Tavily API Key",
   "settings.pexelsKeyPlaceholder":
     "Free key at pexels.com/api — Openverse works without one",
+  "settings.aboutSection": "About & Updates",
+  "settings.appVersion": "Current version",
+  "settings.checkUpdate": "Check for updates",
+  "settings.checkingUpdate": "Checking for updates…",
+  "settings.upToDate": "You are on the latest version",
+  "settings.updateAvailable": "New version {version} available",
+  "settings.installUpdate": "Download & install",
+  "settings.installingUpdate": "Downloading {percent}%",
+  "settings.updateInstalled": "Update installed — restart the app to apply",
+  "settings.updateUnsupported": "Auto-update is available in the desktop app only",
+  "settings.updateFailed": "Update check failed: {message}",
 
   "home.slideCountSummary": "{slidesCount} pages",
   "home.startCreating": "Start Creating",

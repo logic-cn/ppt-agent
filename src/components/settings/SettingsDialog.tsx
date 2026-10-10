@@ -5,8 +5,17 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  Download,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { useSettingsStore } from "@/store/settings";
+import {
+  checkForUpdate,
+  getAppVersion,
+  installUpdate,
+  type UpdateCheckOutcome,
+} from "@/services/updater";
 import { PROVIDER_PRESETS } from "@/types/llm";
 import type {
   AppSettings,
@@ -238,7 +247,157 @@ function GeneralPanel({
           </div>
         </div>
       </section>
+
+      <AboutUpdateSection t={t} />
     </div>
+  );
+}
+
+/* ===== 关于与自动更新 ===== */
+
+type UpdateUiState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "upToDate" }
+  | { kind: "available"; version: string; notes: string }
+  | { kind: "installing"; percent: number }
+  | { kind: "installed" }
+  | { kind: "unsupported" }
+  | { kind: "error"; message: string };
+
+function AboutUpdateSection({ t }: { t: ReturnType<typeof useT> }) {
+  const [version, setVersion] = useState<string | null>(null);
+  const [state, setState] = useState<UpdateUiState>({ kind: "idle" });
+  const [pending, setPending] = useState<
+    Extract<UpdateCheckOutcome, { status: "available" }> | null
+  >(null);
+
+  useEffect(() => {
+    void getAppVersion().then((v) => setVersion(v));
+  }, []);
+
+  const busy = state.kind === "checking" || state.kind === "installing";
+
+  const onCheck = async () => {
+    setState({ kind: "checking" });
+    const outcome = await checkForUpdate();
+    switch (outcome.status) {
+      case "up-to-date":
+        setState({ kind: "upToDate" });
+        break;
+      case "available":
+        setPending(outcome);
+        setState({
+          kind: "available",
+          version: outcome.version,
+          notes: outcome.notes,
+        });
+        break;
+      case "unsupported":
+        setState({ kind: "unsupported" });
+        break;
+      case "error":
+        setState({ kind: "error", message: outcome.message });
+        break;
+    }
+  };
+
+  const onInstall = async () => {
+    if (!pending) return;
+    setState({ kind: "installing", percent: 0 });
+    const result = await installUpdate(pending.update, (percent) =>
+      setState({ kind: "installing", percent }),
+    );
+    if (result.status === "success") {
+      setPending(null);
+      setState({ kind: "installed" });
+    } else {
+      setState({ kind: "error", message: result.message });
+    }
+  };
+
+  const statusText = (() => {
+    switch (state.kind) {
+      case "checking":
+        return t("settings.checkingUpdate");
+      case "upToDate":
+        return t("settings.upToDate");
+      case "available":
+        return t("settings.updateAvailable", { version: state.version });
+      case "installing":
+        return t("settings.installingUpdate", {
+          percent: String(state.percent),
+        });
+      case "installed":
+        return t("settings.updateInstalled");
+      case "unsupported":
+        return t("settings.updateUnsupported");
+      case "error":
+        return t("settings.updateFailed", { message: state.message });
+      case "idle":
+        return null;
+    }
+  })();
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-bg-elevated">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+        <Info className="h-5 w-5 text-accent" />
+        <h2 className="text-lg font-semibold">{t("settings.aboutSection")}</h2>
+      </div>
+      <div className="space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-text-muted">
+            {t("settings.appVersion")}
+          </span>
+          <span className="text-sm font-medium text-text-primary">
+            {version ?? "-"}
+          </span>
+        </div>
+
+        {statusText && (
+          <div
+            className={
+              state.kind === "error"
+                ? "text-sm text-red-500"
+                : "text-sm text-text-secondary"
+            }
+          >
+            {statusText}
+          </div>
+        )}
+        {state.kind === "available" && state.notes && (
+          <p className="max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-bg-surface p-3 text-xs text-text-muted">
+            {state.notes}
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void onCheck()}
+            disabled={busy}
+            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${state.kind === "checking" ? "animate-spin" : ""}`}
+            />
+            {t("settings.checkUpdate")}
+          </button>
+          {state.kind === "available" && (
+            <button
+              type="button"
+              onClick={() => void onInstall()}
+              disabled={busy}
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-text-secondary transition hover:border-accent/50 hover:text-text-primary disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              {t("settings.installUpdate")}
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

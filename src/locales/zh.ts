@@ -51,6 +51,17 @@ export const zh: Record<TranslationKey, string> = {
   "settings.tavilyKey": "Tavily API Key",
   "settings.pexelsKeyPlaceholder":
     "在 pexels.com/api 免费申请；不填仅用 Openverse",
+  "settings.aboutSection": "关于与更新",
+  "settings.appVersion": "当前版本",
+  "settings.checkUpdate": "检查更新",
+  "settings.checkingUpdate": "正在检查更新…",
+  "settings.upToDate": "已是最新版本",
+  "settings.updateAvailable": "发现新版本 {version}",
+  "settings.installUpdate": "下载并安装",
+  "settings.installingUpdate": "正在下载 {percent}%",
+  "settings.updateInstalled": "更新已安装，重启应用后生效",
+  "settings.updateUnsupported": "自动更新仅在桌面端可用",
+  "settings.updateFailed": "检查更新失败：{message}",
 
   "home.slideCountSummary": "{slidesCount} 页",
   "home.startCreating": "开始制作",

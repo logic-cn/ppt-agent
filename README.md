@@ -35,6 +35,23 @@ pnpm tauri:dev
 pnpm tauri:build
 ```
 
+## 自动更新
+
+应用已接入 Tauri updater（设置 → 通用 → 关于与更新，可检查并安装更新）。发布新版本时：
+
+1. 构建时用签名密钥对产物签名（密钥文件 `src-tauri/updater.key` 已 gitignore，密码见密钥保管处）：
+
+   ```bash
+   export TAURI_SIGNING_PRIVATE_KEY_PATH=src-tauri/updater.key
+   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD='<密钥密码>'
+   pnpm tauri:build
+   ```
+
+2. 将构建产物（macOS `.app.tar.gz` / Windows `.msi`）、对应的 `.sig` 文件与 `latest.json`（平台更新清单）一起上传到 GitHub Release，端点为 `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`。
+3. `latest.json` 中的 `version` 高于当前安装版本时，用户端即可检测到更新。
+
+> 国内分发可在 `src-tauri/tauri.conf.json` 的 `plugins.updater.endpoints` 中增加指向自有 CDN/OSS 的 `latest.json` 地址；公钥（`pubkey`）不变。
+
 ## 使用
 
 1. 打开应用，点击「新建空白项目」
