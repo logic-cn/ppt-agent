@@ -16,6 +16,10 @@ import {
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useGenerationFollowStore } from "@/store/generation-follow";
+import { useSettingsStore } from "@/store/settings";
+import { useModelStore } from "@/store/model";
+import { isLocalProviderConfig } from "@/types/llm";
+import { MODEL_REGISTRY } from "@/services/model-manager";
 import { generateSlideSvg } from "@/engine/svg/executor";
 import { buildSpecLock } from "@/design/spec-lock";
 import type { ElementContext } from "@/engine/preview/svg-editor-canvas";
@@ -315,6 +319,7 @@ export default function Editor() {
       {/* 顶部工具栏 */}
       <header className="flex items-center justify-between border-b border-border bg-bg-elevated px-4 h-10">
         <div className="flex items-center gap-3">
+          <ModelStatusChip />
           <button
             onClick={() => navigate("/")}
             className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -645,5 +650,64 @@ export default function Editor() {
         onCancel={() => setDeleteConfirm(false)}
       />
     </div>
+  );
+}
+
+/**
+ * 顶栏模型状态 chip：状态点（绿=就绪/灰=未加载）+ 当前模型名称。
+ * 本地模型按「实际已加载的模型路径」判定（tier 切换后未重载不误报绿）；
+ * 远程模型无加载概念，配置了 API Key 即绿点。
+ */
+function ModelStatusChip() {
+  const t = useT();
+  const settings = useSettingsStore((s) => s.settings);
+  const modelState = useModelStore((s) => s.state);
+  const tier = useModelStore((s) => s.tier);
+  const modelPath = useModelStore((s) => s.modelPath);
+  const progress = useModelStore((s) => s.progress);
+  const refresh = useModelStore((s) => s.refresh);
+  const cfg = settings.providers[settings.activeProvider];
+  const local = !!cfg && isLocalProviderConfig(cfg);
+
+  useEffect(() => {
+    if (local) void refresh();
+  }, [local, refresh]);
+
+  if (!cfg) return null;
+
+  const loaded = local ? modelState === "loaded" && !!modelPath : !!cfg.apiKey;
+  const def = MODEL_REGISTRY[tier];
+  const name = local ? def.displayName.split(" ")[0] : cfg.label;
+  const statusText = local
+    ? modelState === "downloading"
+      ? progress?.phase === "verifying"
+        ? t("model.verifying")
+        : t("model.downloading", {
+            percent:
+              progress && progress.total
+                ? Math.round((progress.downloaded / progress.total) * 100)
+                : 0,
+          })
+      : modelState === "loading"
+        ? t("common.loading")
+        : loaded
+          ? t("model.loaded")
+          : t("model.downloaded")
+    : cfg.apiKey
+      ? t("settings.inUse")
+      : t("settings.missingApiKey");
+
+  return (
+    <span
+      title={statusText}
+      className="flex items-center gap-1.5 rounded-full border border-border bg-bg-surface px-2.5 py-0.5 text-xs text-text-secondary"
+    >
+      <span
+        className={`h-2 w-2 shrink-0 rounded-full ${
+          loaded ? "bg-success" : "bg-text-muted"
+        }`}
+      />
+      {name}
+    </span>
   );
 }
