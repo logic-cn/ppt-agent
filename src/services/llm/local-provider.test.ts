@@ -2,9 +2,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const invoke = vi.fn();
+type TokenCb = (e: { payload: { text: string } }) => void;
+let tokenCb: TokenCb | null = null;
+const listen = vi.fn(
+  async (_event: string, cb: TokenCb) => {
+    tokenCb = cb;
+    return () => {
+      tokenCb = null;
+    };
+  },
+);
+const emitToken = (text: string) => tokenCb?.({ payload: { text } });
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invoke(...args),
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: (...args: unknown[]) =>
+    (listen as (...a: unknown[]) => Promise<() => void>)(...args),
 }));
 
 import {
@@ -35,6 +51,8 @@ let provider: LocalLlmProvider;
 
 beforeEach(() => {
   invoke.mockReset();
+  listen.mockClear();
+  tokenCb = null;
   (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   provider = new LocalLlmProvider({} as never);
 });
@@ -178,5 +196,45 @@ describe("LocalLlmProvider.chat", () => {
     expect(invoke).toHaveBeenLastCalledWith("local_llm_unload");
     await LocalLlmProvider.status();
     expect(invoke).toHaveBeenLastCalledWith("local_llm_status");
+  });
+});
+
+describe("LocalLlmProvider 流式输出", () => {
+  it("onPartial 收到累积增量文本，完成后自动退订", async () => {
+    invoke.mockImplementation(async () => {
+      emitToken("aa");
+      emitToken("bb");
+      return DTO({ content: "aabb" });
+    });
+    const seen: string[] = [];
+    const res = await provider.chat(
+      req({ onPartial: (t) => seen.push(t) }),
+    );
+    expect(seen).toEqual(["aa", "aabb"]);
+    expect(res.content).toBe("aabb");
+    expect(tokenCb).toBeNull();
+  });
+
+  it("chatStream 按 token 事件增量产出；无事件时退回整段", async () => {
+    invoke.mockImplementation(async () => {
+      emitToken("<svg>");
+      emitToken("</svg>");
+      return DTO({ content: "<svg></svg>" });
+    });
+    const chunks: string[] = [];
+    for await (const c of provider.chatStream(req())) chunks.push(c);
+    expect(chunks).toEqual(["<svg>", "</svg>"]);
+
+    invoke.mockReset();
+    invoke.mockImplementation(async () => DTO({ content: "abc" }));
+    const single: string[] = [];
+    for await (const c of provider.chatStream(req())) single.push(c);
+    expect(single).toEqual(["abc"]);
+  });
+
+  it("不传 onPartial 时不订阅 token 事件", async () => {
+    invoke.mockResolvedValue(DTO());
+    await provider.chat(req());
+    expect(listen).not.toHaveBeenCalled();
   });
 });

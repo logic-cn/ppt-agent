@@ -1,4 +1,5 @@
 import { chat, isLocalModelActive } from "@/services/llm";
+import { useGenerationFollowStore } from "@/store/generation-follow";
 import { buildSvgGenPrompt } from "@/services/llm/prompts/svg-gen";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
@@ -121,6 +122,11 @@ export async function generateSlideSvg(
           temperature,
           maxTokens: 16000,
           signal: pageLevel.signal,
+          // 本地档：逐 token 上屏，生成期间可见真实输出
+          onPartial: local
+            ? (text) =>
+                useGenerationFollowStore.getState().setPartialText(text)
+            : undefined,
         },
         "svg",
       );

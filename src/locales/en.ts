@@ -226,6 +226,7 @@ export const en = {
   "chat.copyMessage": "Copy message",
   "chat.highRisk": "High-risk operation",
   "chat.thinking": "Thinking…",
+  "chat.liveOutput": "Local model live output",
   "chat.suggestionAiIndustry": "Generate a PPT about the AI industry",
   "chat.suggestionQ3Report": "Q3 business report",
   "chat.suggestionLaunch": "Product launch PPT",

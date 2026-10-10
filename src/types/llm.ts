@@ -44,6 +44,11 @@ export interface ChatRequest {
    * 提供时隐含 responseFormat==="json"。
    */
   jsonSchema?: unknown;
+  /**
+   * 本地 provider 流式回调：随生成增量收到累积文本（远程 provider 忽略）。
+   * 仅用于 UI 实时展示，最终结果以 chat() 返回值为准。
+   */
+  onPartial?: (accumulatedText: string) => void;
 }
 
 export interface ChatResponse {

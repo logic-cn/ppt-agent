@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   ChatProvider,
 } from "./adapter";
@@ -63,6 +64,19 @@ export class LocalLlmProvider implements ChatProvider {
       req.signal.addEventListener("abort", onAbort, { once: true });
     }
 
+    // 流式回调：先订阅 token 事件再发请求（推理串行，不会漏头部增量）
+    let unlistenTokens: UnlistenFn | null = null;
+    if (req.onPartial) {
+      let acc = "";
+      unlistenTokens = await listen<{ text: string }>(
+        "local-llm-token",
+        (e) => {
+          acc += e.payload.text;
+          req.onPartial?.(acc);
+        },
+      );
+    }
+
     const invokeChat = (grammar: string | undefined) =>
       invoke<LocalChatResponseDto>("local_llm_chat", {
         req: {
@@ -105,6 +119,7 @@ export class LocalLlmProvider implements ChatProvider {
         usage: { completionTokens: res.tokens_generated },
       };
     } finally {
+      unlistenTokens?.();
       if (req.signal && onAbort) {
         req.signal.removeEventListener("abort", onAbort);
       }
@@ -112,8 +127,46 @@ export class LocalLlmProvider implements ChatProvider {
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<string> {
-    const res = await this.chat(req);
-    if (res.content) yield res.content;
+    const chunks: string[] = [];
+    let wake: (() => void) | null = null;
+    let settled = false;
+    let lastLen = 0;
+    let yieldedAny = false;
+    const pending = this.chat({
+      ...req,
+      onPartial: (acc) => {
+        const delta = acc.slice(lastLen);
+        lastLen = acc.length;
+        if (delta) {
+          chunks.push(delta);
+          wake?.();
+          wake = null;
+        }
+      },
+    }).finally(() => {
+      settled = true;
+      wake?.();
+      wake = null;
+    });
+    try {
+      for (;;) {
+        if (chunks.length > 0) {
+          yieldedAny = true;
+          yield chunks.shift() as string;
+          continue;
+        }
+        if (settled) break;
+        await new Promise<void>((r) => {
+          wake = r;
+        });
+      }
+      const res = await pending;
+      // 没有任何增量事件时退回整段产出，保证流式不可用时内容不丢
+      if (!yieldedAny && res.content) yield res.content;
+    } finally {
+      // 向调用方传播 chat() 的错误（取消/推理失败）
+      await pending;
+    }
   }
 
   /** 供 model store / UI 复用：加载模型 */

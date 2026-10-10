@@ -418,6 +418,9 @@ export function ChatPanel() {
                     },
                     onPageReady: (i, svg) => {
                       if (job.signal.aborted) return;
+                      useGenerationFollowStore
+                        .getState()
+                        .setPartialText("");
                       useGenerationFollowStore.getState().setGeneratingIndex(i);
                       useDeckStore.getState().updateSlideSvgLive(i, svg);
                     },
@@ -587,6 +590,7 @@ export function ChatPanel() {
       } finally {
         setLoading(false);
         submittingRef.current = false;
+        useGenerationFollowStore.getState().setPartialText("");
         useGenerationFollowStore.getState().setGeneratingIndex(null);
       }
     },
@@ -774,6 +778,9 @@ export function ChatPanel() {
       {/* 本地模型门控卡片：激活本地模型且未就绪时显示下载/加载进度 */}
       <ModelGateCard />
 
+      {/* 本地模型逐 token 实时输出（仅生成期间可见） */}
+      <LocalLiveOutput />
+
       {/* 生成前参数控制（场景/语气/密度/受众/图表/页数） */}
       <GenerationOptionsBar
         open={showGenOptions}
@@ -828,6 +835,28 @@ export function ChatPanel() {
             )}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** 本地模型逐 token 实时输出面板：仅在有增量时显示，自动滚到底 */
+function LocalLiveOutput() {
+  const t = useT();
+  const partial = useGenerationFollowStore((s) => s.partialText);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight });
+  }, [partial]);
+  if (!partial) return null;
+  return (
+    <div className="mx-4 mb-2 rounded-lg border border-border bg-bg-elevated p-2">
+      <div className="mb-1 text-xs text-text-muted">{t("chat.liveOutput")}</div>
+      <div
+        ref={boxRef}
+        className="h-24 overflow-y-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-4 text-text-secondary"
+      >
+        {partial}
       </div>
     </div>
   );

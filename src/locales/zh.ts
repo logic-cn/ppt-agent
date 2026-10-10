@@ -213,6 +213,7 @@ export const zh: Record<TranslationKey, string> = {
   "chat.copyMessage": "复制消息",
   "chat.highRisk": "高风险操作",
   "chat.thinking": "思考中…",
+  "chat.liveOutput": "本地模型实时输出",
   "chat.suggestionAiIndustry": "生成一份关于AI行业的PPT",
   "chat.suggestionQ3Report": "Q3业务汇报",
   "chat.suggestionLaunch": "产品发布会PPT",

@@ -12,7 +12,7 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{LlamaChatMessage, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 fn backend() -> &'static LlamaBackend {
     static B: OnceLock<LlamaBackend> = OnceLock::new();
@@ -93,6 +93,14 @@ pub struct ChatResponseDto {
     pub elapsed_ms: u64,
 }
 
+/// 流式增量事件负载：前端边生成边展示
+#[derive(Clone, Serialize)]
+struct TokenDelta {
+    text: String,
+}
+
+const TOKEN_FLUSH_CHARS: usize = 24;
+
 #[tauri::command]
 pub async fn local_llm_load(
     state: State<'_, LocalLlmState>,
@@ -128,6 +136,7 @@ pub async fn local_llm_load(
 
 #[tauri::command]
 pub async fn local_llm_chat(
+    app: AppHandle,
     state: State<'_, LocalLlmState>,
     req: ChatRequestDto,
 ) -> Result<ChatResponseDto, String> {
@@ -142,7 +151,7 @@ pub async fn local_llm_chat(
     let cancel = state.cancel.clone();
     cancel.store(false, Ordering::Relaxed);
 
-    tokio::task::spawn_blocking(move || generate(model, ctx_size, req, cancel))
+    tokio::task::spawn_blocking(move || generate(Some(&app), model, ctx_size, req, cancel))
         .await
         .map_err(|e| format!("推理任务失败: {e}"))?
 }
@@ -179,6 +188,7 @@ pub fn local_llm_status(state: State<'_, LocalLlmState>) -> LoadStatus {
 }
 
 fn generate(
+    app: Option<&AppHandle>,
     model: Arc<LlamaModel>,
     n_ctx: u32,
     req: ChatRequestDto,
@@ -293,6 +303,7 @@ fn generate(
 
     let mut out_tokens: Vec<_> = Vec::with_capacity(budget);
     let mut closer = JsonTopCloser::new();
+    let mut pending = String::new();
     let mut cancelled = false;
     let mut truncated = false;
     loop {
@@ -308,12 +319,15 @@ fn generate(
             break;
         }
         out_tokens.push(next);
-        if has_grammar {
-            let piece = vocab.detokenize(&[next], false, false);
-            if closer.feed(&String::from_utf8_lossy(&piece)) {
-                // 顶层 JSON 已闭合：grammar 解析完成，继续采样会触发空 stacks 断言
-                break;
-            }
+        let piece = vocab.detokenize(&[next], false, false);
+        let piece_text = String::from_utf8_lossy(&piece).into_owned();
+        pending.push_str(&piece_text);
+        if pending.chars().count() >= TOKEN_FLUSH_CHARS {
+            emit_delta(app, &mut pending);
+        }
+        if has_grammar && closer.feed(&piece_text) {
+            // 顶层 JSON 已闭合：grammar 解析完成，继续采样会触发空 stacks 断言
+            break;
         }
         batch.clear();
         batch
@@ -324,6 +338,8 @@ fn generate(
             .map_err(|e| format!("解码失败: {e}"))?;
         next = sampler.sample(&ctx, 0);
     }
+    // 残留不足一个 flush 窗口的文本补发给前端（chat 返回值仍以完整结果为准）
+    emit_delta(app, &mut pending);
 
     let bytes = vocab.detokenize(&out_tokens, true, false);
     let content = String::from_utf8_lossy(&bytes).into_owned();
@@ -362,6 +378,19 @@ fn cancelled_response(started: Instant) -> ChatResponseDto {
         cancelled: true,
         truncated: false,
         elapsed_ms: started.elapsed().as_millis() as u64,
+    }
+}
+
+/// 把累积的增量文本作为 `local-llm-token` 事件发出并清空缓冲
+fn emit_delta(app: Option<&AppHandle>, buf: &mut String) {
+    if buf.is_empty() {
+        return;
+    }
+    if let Some(app) = app {
+        let text = std::mem::take(buf);
+        let _ = app.emit("local-llm-token", TokenDelta { text });
+    } else {
+        buf.clear();
     }
 }
 
@@ -479,7 +508,7 @@ mod tests {
             seed: Some(42),
             thinking: None,
         };
-        let out = generate(model, 8192, req, Arc::new(AtomicBool::new(false)))
+        let out = generate(None, model, 8192, req, Arc::new(AtomicBool::new(false)))
             .expect("推理失败");
         println!(
             "tokens={} elapsed_ms={}\n{}",
@@ -522,6 +551,7 @@ mod tests {
             }
             let resp: String = match serde_json::from_str::<ChatRequestDto>(&line) {
                 Ok(req) => match generate(
+                    None,
                     model.clone(),
                     n_ctx,
                     req,
