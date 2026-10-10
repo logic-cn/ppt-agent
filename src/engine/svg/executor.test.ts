@@ -358,3 +358,46 @@ describe("generateDeckSvgs onPageReady（D2 流式预览）", () => {
     expect(ready).toEqual([0, 1]);
   });
 });
+
+describe("generateSlideSvg 修复环最优候选", () => {
+  const title = `<text x="100" y="100" font-size="40" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text>`;
+  // 一处文字重叠 = 1 个 error
+  const oneError = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">${title}<text x="130" y="115" font-size="40" fill="#0F172A">重叠甲</text></svg>`;
+  // 越界 + 重叠 = 更多 error，模拟「越修越坏」
+  const worse = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">${title}<text x="130" y="115" font-size="40" fill="#0F172A">重叠甲</text><text x="1150" y="300" font-size="40" fill="#0F172A">很长的文字越界测试越界文字</text></svg>`;
+
+  it("末轮重画更差时返回错误最少版本而非最后一轮", async () => {
+    vi.mocked(chat)
+      .mockResolvedValueOnce({ content: oneError })
+      .mockResolvedValueOnce({ content: worse })
+      .mockResolvedValueOnce({ content: worse });
+    const svg = await generateSlideSvg({
+      specLock: spec,
+      plan: { role: "content", title: "第 1 页", intent: "t" },
+      pageIndex: 0,
+      totalPages: 1,
+    });
+    expect(chat).toHaveBeenCalledTimes(3);
+    expect(svg).toBe(oneError.trim());
+  });
+
+  it("文本重叠错误会进入回喂反馈", async () => {
+    vi.mocked(chat)
+      .mockResolvedValueOnce({ content: oneError })
+      .mockResolvedValueOnce({
+        content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">${title}</svg>`,
+      });
+    await generateSlideSvg({
+      specLock: spec,
+      plan: { role: "content", title: "第 1 页", intent: "t" },
+      pageIndex: 0,
+      totalPages: 1,
+    });
+    const secondPrompt = (
+      vi.mocked(chat).mock.calls[1][0] as {
+        messages: { content: string }[];
+      }
+    ).messages[1].content;
+    expect(secondPrompt).toContain("文字重叠");
+  });
+});

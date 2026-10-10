@@ -1,5 +1,6 @@
 import { buildPresetVocabPrompt } from "@/engine/svg/presets";
 import { buildIconVocabPrompt } from "@/engine/svg/icons";
+import { buildLayoutSkeleton } from "@/engine/svg/layout-skeleton";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem, SemanticRole } from "@/types/page-plan";
 
@@ -76,6 +77,10 @@ export function buildSvgGenPrompt(opts: {
     ? `\n7. 本页需要图表，请用 <g data-chart-type="${plan.chartType}" data-chart-data='[{"label":"示例","value":数字}]'> 包裹图表，data-chart-data 为 JSON 数组（每项含 label 与数字 value），翻译器会将其转为原生可编辑图表；图表内不要再用零散 rect 模拟柱/扇区。图表 <g> 的坐标请用 x / y / width / height 属性直接标注（也可用 transform="translate(x,y)" 平移），确保翻译器能正确定位。图表若有标题，请在 <g> 上加 data-chart-title="标题文字"。`
     : "";
   const roleGuidance = ROLE_GUIDANCE[plan.role] ?? ROLE_GUIDANCE.content;
+  // 确定性版式骨架：几何由程序算定，模型只在框内落字与配色。
+  // 命中骨架的页面（content/comparison/timeline/process/metrics/quote）
+  // 不再注入通用版式几何对照；本地档同时省去设备菜单以降低 prefill。
+  const skeleton = buildLayoutSkeleton(plan, specLock);
   const t = specLock.typography;
   const typographyBlock = t
     ? `
@@ -121,13 +126,13 @@ ${roleGuidance}
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
 6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..${cw} / 0..${ch} 范围内。${chartRule}
-${slim ? "" : `${DEVICE_MENU}
+${slim && skeleton ? "" : `${DEVICE_MENU}
 
 `}${slim ? buildPresetVocabPrompt(6) : buildPresetVocabPrompt()}
 
 ${slim ? buildIconVocabPrompt(6) : buildIconVocabPrompt()}
 
-${layoutGeometryText(cw)}${extraBlock}${briefBlock}${instructionBlock}
+${skeleton ? skeleton.promptBlock : layoutGeometryText(cw)}${extraBlock}${briefBlock}${instructionBlock}
 
  只输出 <svg>...</svg>。`;
 }

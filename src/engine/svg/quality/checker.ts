@@ -56,18 +56,11 @@ function tagRawContent(
 }
 
 /**
- * 估算文本宽度（viewBox 像素，与其 translator 的 glyphWidthPx 口径一致）：
- * CJK 全角字符按 1.0 字号、其余按 0.55 字号近似。
- * 中文文本若沿用 0.6 常数会严重低估，导致溢出文本漏检。
+ * 文本宽度估算已收敛到 engine/svg/text-measure（单一真源）：
+ * 校验器、prompt 字数预算、骨架容量与 translator 全部同源同口径。
  */
-export function estimateTextWidthPx(text: string, fontSizePx: number): number {
-  let w = 0;
-  for (const ch of text) {
-    w += ch.charCodeAt(0) > 0x2e80 ? fontSizePx : fontSizePx * 0.55;
-  }
-  // +0.4em 尾距，防贴边裁切
-  return Math.max(w + fontSizePx * 0.4, fontSizePx);
-}
+export { estimateTextWidthPx } from "../text-measure";
+import { estimateTextWidthPx } from "../text-measure";
 
 /** 解析元素自身/祖先链上的 transform="translate(dx, dy)" 平移量（仅支持最简形式） */
 function translateOffset(part: string): { dx: number; dy: number } {
@@ -551,6 +544,118 @@ export function checkSvgIcons(svg: string): SvgIssue[] {
         message: `图标非法：data-icon="${id}" 不在图标库（${Object.keys(ICONS).join("/")}）`,
         location: "data-icon",
       });
+    }
+  }
+  return issues;
+}
+
+// ---- 文本几何确定性检测（参照 PPT Master 文本测量校准的校验侧）----
+
+interface TextBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  snippet: string;
+  loc: string;
+}
+
+/**
+ * 收集所有 <text> 的估算包围盒（含 text-anchor 与多行 tspan）：
+ * y 视为首行基线，首行顶 = y − 0.85em，行高 1.2em。
+ */
+function collectTextBoxes(svg: string): TextBox[] {
+  const boxes: TextBox[] = [];
+  const re = /<text\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null) {
+    const full = m[0];
+    const { dx, dy } = translateOffset(full);
+    const x = (num(attr(full, "x")) ?? 0) + dx;
+    const y = (num(attr(full, "y")) ?? 0) + dy;
+    const fontSize = num(attr(full, "font-size")) ?? 16;
+    const content = tagContent(svg, full, m.index);
+    if (!content.trim()) continue;
+    const estWidth = estimateTextWidthPx(content, fontSize);
+    const raw = tagRawContent(svg, full, m.index);
+    const tspans = (raw.match(/<tspan/gi) ?? []).length;
+    // 行首文本可能是 text 直排（首行不在 tspan 内）也可能全在 tspan 里
+    //（renderFittedText 的写法）：按 text 内 tspan 之外的残留文本判定行数。
+    const outsideTspan = raw
+      .replace(/<tspan[\s\S]*?<\/tspan>/gi, "")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    const lineCount = Math.max(tspans > 0 ? tspans + (outsideTspan ? 1 : 0) : 1, 1);
+    const anchor = attr(full, "text-anchor");
+    let left = x;
+    if (anchor === "middle") left = x - estWidth / 2;
+    else if (anchor === "end") left = x - estWidth;
+    boxes.push({
+      left,
+      right: left + estWidth,
+      top: y - fontSize * 0.85,
+      bottom: y + (lineCount - 1) * fontSize * 1.2 + fontSize * 0.25,
+      snippet: content.slice(0, 16),
+      loc: `text@${m.index}`,
+    });
+    // 游标停在 openTag 之后，避免重复匹配同一元素内容里的 tspan
+    re.lastIndex = m.index + full.length;
+  }
+  return boxes;
+}
+
+/**
+ * 文本几何校验：小模型页面崩坏两大形态——贴边/越安全区、文字两两重叠。
+ * 这两类错误此前 checkSvg 看不见（只查画布外沿），修复循环因此空转。
+ * 安全区：左右下各留画布宽 2.5%（1280 → 32px），标题带等贴边设计
+ * 允许压线但不得越线；重叠：横向交叠 >20% 且纵向交叠 >40% 判错。
+ */
+export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const { w: canvasW, h: canvasH } = specLock.canvas;
+  const safe = Math.round(canvasW * 0.025);
+  const boxes = collectTextBoxes(svg);
+
+  for (const b of boxes) {
+    if (b.right > canvasW - safe * 0.5) {
+      issues.push({
+        severity: "error",
+        message: `文字「${b.snippet}」右缘到达 ${b.right.toFixed(0)}，越出安全区（画布 ${canvasW} − 安全边距 ${safe}）：缩短文字或换行`,
+        location: b.loc,
+      });
+    }
+    if (b.left < safe * 0.5) {
+      issues.push({
+        severity: "error",
+        message: `文字「${b.snippet}」左缘 ${b.left.toFixed(0)} 越出安全区（< ${Math.round(safe * 0.5)}）`,
+        location: b.loc,
+      });
+    }
+    if (b.bottom > canvasH - safe * 0.5) {
+      issues.push({
+        severity: "error",
+        message: `文字「${b.snippet}」底缘 ${b.bottom.toFixed(0)} 越出下安全区（画布 ${canvasH} − ${safe}）`,
+        location: b.loc,
+      });
+    }
+  }
+
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const c = boxes[j];
+      const ox = Math.min(a.right, c.right) - Math.max(a.left, c.left);
+      const oy = Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top);
+      if (ox <= 0 || oy <= 0) continue;
+      const minW = Math.min(a.right - a.left, c.right - c.left);
+      const minH = Math.min(a.bottom - a.top, c.bottom - c.top);
+      if (ox > minW * 0.2 && oy > minH * 0.4) {
+        issues.push({
+          severity: "error",
+          message: `文字重叠：「${a.snippet}」与「${c.snippet}」包围盒交叠 ${ox.toFixed(0)}×${oy.toFixed(0)}px，调整间距或缩短文字`,
+          location: c.loc,
+        });
+      }
     }
   }
   return issues;

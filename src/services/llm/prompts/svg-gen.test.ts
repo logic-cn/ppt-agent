@@ -31,10 +31,10 @@ function plan(overrides: Partial<PagePlanItem> = {}): PagePlanItem {
 }
 
 describe("buildSvgGenPrompt 分层结构", () => {
-  it("基础契约 + 设备菜单 + 几何对照始终注入", () => {
+  it("基础契约 + 设备菜单始终注入；无骨架角色（封面）走通用几何对照", () => {
     const prompt = buildSvgGenPrompt({
       specLock: SPEC,
-      plan: plan(),
+      plan: plan({ role: "cover", bullets: undefined }),
       pageIndex: 0,
       totalPages: 6,
     });
@@ -43,6 +43,44 @@ describe("buildSvgGenPrompt 分层结构", () => {
     expect(prompt).toContain(DEVICE_MENU.split("\n")[0]);
     expect(prompt).toContain("版式几何对照");
     expect(prompt).toContain("对称比较：1:1 双栏");
+  });
+
+  it("骨架角色注入确定性版式骨架（坐标 + 字数预算），取代通用几何对照", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 0,
+      totalPages: 6,
+    });
+    expect(prompt).toContain("本页版式骨架");
+    expect(prompt).toContain("标题带（内容：「市场规模与增速」）");
+    expect(prompt).toContain("每行最多");
+    expect(prompt).not.toContain("版式几何对照");
+  });
+
+  it("comparison 骨架给出等宽双栏坐标与栏目标题预算", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan({
+        role: "comparison",
+        title: "自建 vs 采购",
+        bullets: ["成本可控", "上线快", "团队专注核心", "供应商承担运维"],
+      }),
+      pageIndex: 1,
+      totalPages: 6,
+    });
+    expect(prompt).toContain("两栏等宽");
+    expect(prompt).toContain("栏目标题");
+  });
+
+  it("metrics 骨架给出 KPI 卡坐标", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: plan({ role: "metrics", bullets: ["970 亿美元", "18% CAGR"] }),
+      pageIndex: 2,
+      totalPages: 6,
+    });
+    expect(prompt).toContain("KPI 卡");
   });
 
   it("按角色注入对应版式指引", () => {
@@ -108,7 +146,7 @@ describe("buildSvgGenPrompt 分层结构", () => {
     expect(prompt).toContain("把标题放大");
   });
 
-  it("slim 本地档：删设备菜单、词汇表截断到前 6 条，保留契约与几何对照", () => {
+  it("slim 本地档：删设备菜单、词汇表截断到前 6 条，保留契约与版式骨架", () => {
     const base = {
       specLock: SPEC,
       plan: plan(),
@@ -120,7 +158,7 @@ describe("buildSvgGenPrompt 分层结构", () => {
     expect(slim).not.toContain(DEVICE_MENU.split("\n")[0]);
     expect(slim).toContain("预设形状词汇表");
     expect(slim).toContain("内置图标词汇表");
-    expect(slim).toContain("版式几何对照");
+    expect(slim).toContain("本页版式骨架");
     expect(slim).toContain("#1D4ED8");
     // 截断后总长应显著缩短
     expect(slim.length).toBeLessThan(full.length - 500);

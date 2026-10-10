@@ -12,6 +12,7 @@ import {
   checkCohortConsistency,
   checkPresetShapes,
   checkSvgIcons,
+  checkTextGeometry,
 } from "./quality/checker";
 import { finalizeSvgPresets } from "./presets";
 import { finalizeSvgIcons } from "./icons";
@@ -169,16 +170,19 @@ export async function generateSlideSvg(
       ).trim();
     }
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      const issues = [
-        ...checkSvg(svg, opts.specLock),
+    // 闸门错误集：结构契约 + 几何（含文本安全区/重叠）+ 图表/词表 + 内容必现
+    const collectErrors = (s: string) =>
+      [
+        ...checkSvg(s, opts.specLock),
+        // 文本几何：小模型最高频的两类崩坏（贴边溢出、文字互叠）
+        ...checkTextGeometry(s, opts.specLock),
         // 图表数据完整性：LLM 声明了图表但数据缺失/损坏会在导出端静默丢图
-        ...checkChartData(svg),
+        ...checkChartData(s),
         // 预设形状/图标词表：未知标记导出端会静默降级为矩形
-        ...checkPresetShapes(svg),
-        ...checkSvgIcons(svg),
+        ...checkPresetShapes(s),
+        ...checkSvgIcons(s),
         // 图表必现性：plan 要求图表页时，SVG 中必须出现原生图表标记
-        ...(opts.plan.chartType && !svgContainsChart(svg)
+        ...(opts.plan.chartType && !svgContainsChart(s)
           ? [
               {
                 severity: "error" as const,
@@ -187,17 +191,29 @@ export async function generateSlideSvg(
             ]
           : []),
         // 内容必现性：标题/要点必须出现在 SVG 文本中，防止 LLM 丢字/改写关键内容
-        ...checkContentPresence(svg, {
+        ...checkContentPresence(s, {
           title: opts.plan.title,
           bullets: opts.plan.bullets,
         }),
       ].filter((i) => i.severity === "error");
-      if (issues.length === 0) break;
+
+    // 修复环保留「最优候选」：末轮重画可能比前轮更差，取错误最少的一版
+    let best: { svg: string; errors: number } = {
+      svg,
+      errors: collectErrors(svg).length,
+    };
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      if (best.errors === 0) break;
+      const issues = collectErrors(svg);
       const feedback =
         "你的 SVG 有以下问题，请修正后重新输出完整 SVG：\n" +
         issues.map((i) => "- " + i.message).join("\n");
       svg = (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim();
+      const errors = collectErrors(svg).length;
+      if (errors < best.errors) best = { svg, errors };
     }
+    svg = best.svg;
 
     const errors = validateSvgContract(svg, opts.specLock.canvas);
     if (errors.length > 0) {

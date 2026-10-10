@@ -6,6 +6,7 @@ import {
   svgContainsChart,
   checkTypographyAnchors,
   checkCohortConsistency,
+  checkTextGeometry,
 } from "./checker";
 import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -343,5 +344,64 @@ describe("画布格式参数化（B5）", () => {
     expect(
       checkSvg(overflow, specXhs).filter((i) => i.severity === "error"),
     ).toHaveLength(0);
+  });
+});
+
+describe("checkTextGeometry（安全区 + 重叠）", () => {
+  it("两段文字包围盒交叠报 error", () => {
+    const svg = wrap(
+      `<text x="100" y="100" font-size="40">市场规模</text><text x="130" y="115" font-size="40">增长动力</text>`,
+    );
+    const issues = checkTextGeometry(svg, specLock).filter(
+      (i) => i.severity === "error",
+    );
+    expect(issues.some((i) => /文字重叠/.test(i.message))).toBe(true);
+  });
+
+  it("正常间距的两行文字不误报", () => {
+    const svg = wrap(
+      `<text x="40" y="100" font-size="40">标题行</text><text x="40" y="170" font-size="24">要点行一</text><text x="40" y="210" font-size="24">要点行二</text>`,
+    );
+    expect(checkTextGeometry(svg, specLock)).toHaveLength(0);
+  });
+
+  it("text-anchor=middle 的居中大字不误报", () => {
+    const svg = wrap(
+      `<text x="640" y="360" font-size="79" text-anchor="middle">970 亿美元</text>`,
+    );
+    expect(checkTextGeometry(svg, specLock)).toHaveLength(0);
+  });
+
+  it("右缘越出安全区（画布宽 − 32px）报 error", () => {
+    const svg = wrap(
+      `<text x="1100" y="100" font-size="44">这是一个非常长的中文标题检测安全区</text>`,
+    );
+    const issues = checkTextGeometry(svg, specLock);
+    expect(issues.some((i) => /安全区/.test(i.message))).toBe(true);
+  });
+
+  it("底部越出下安全区报 error", () => {
+    const svg = wrap(
+      `<text x="100" y="712" font-size="40">贴底文字</text>`,
+    );
+    expect(checkTextGeometry(svg, specLock).length).toBeGreaterThan(0);
+  });
+
+  it("多行 tspan 的底部按行数计算", () => {
+    // 单行看 y=650 不越界；按 3 行（行高 1.2em）计算底缘 ≈ 713.6 > 704
+    const svg = wrap(
+      `<text x="100" y="650" font-size="24"><tspan x="100">第一行文字</tspan><tspan x="100" dy="29">第二行文字</tspan><tspan x="100" dy="29">第三行文字</tspan></text>`,
+    );
+    const issues = checkTextGeometry(svg, specLock);
+    expect(issues.some((i) => /安全区/.test(i.message))).toBe(true);
+  });
+
+  it("首行直排 + tspan 续行也按行数计算", () => {
+    const svg = wrap(
+      `<text x="100" y="650" font-size="24">第一行文字<tspan x="100" dy="29">第二行文字</tspan><tspan x="100" dy="29">第三行文字</tspan></text>`,
+    );
+    expect(
+      checkTextGeometry(svg, specLock).some((i) => /安全区/.test(i.message)),
+    ).toBe(true);
   });
 });
