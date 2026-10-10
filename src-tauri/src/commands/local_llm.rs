@@ -229,21 +229,32 @@ fn generate(
             n_prompt
         ));
     }
+    let threads = default_threads();
+    let ctx_params = |n: u32| {
+        LlamaContextParams::default()
+            .with_n_ctx(NonZeroU32::new(n))
+            .with_n_threads(threads)
+            .with_n_threads_batch(threads)
+            .with_type_k(KvCacheType::Q8_0)
+            .with_type_v(KvCacheType::Q8_0)
+    };
+    // Metal 工作集被其他 GPU 大户挤占时上下文分配会失败（unable to extend the
+    // memory map）：降档 KV 重试而不是让整份 deck 生成报废
+    let mut ctx = match model.new_context(b, ctx_params(n_ctx)) {
+        Ok(c) => c,
+        Err(e) => {
+            let smaller = (n_ctx / 4).max(2048);
+            if smaller >= n_ctx || n_prompt + 8 >= smaller as usize {
+                return Err(format!("创建推理上下文失败: {e}"));
+            }
+            model
+                .new_context(b, ctx_params(smaller))
+                .map_err(|e2| format!("创建推理上下文失败: {e}；降档 {smaller} 重试仍失败: {e2}"))?
+        }
+    };
+    let n_ctx = ctx.n_ctx();
     let max_new = req.max_tokens.unwrap_or(1024) as usize;
     let budget = (n_ctx as usize - n_prompt - 1).min(max_new).max(1);
-
-    let threads = default_threads();
-    let mut ctx = model
-        .new_context(
-            b,
-            LlamaContextParams::default()
-                .with_n_ctx(NonZeroU32::new(n_ctx))
-                .with_n_threads(threads)
-                .with_n_threads_batch(threads)
-                .with_type_k(KvCacheType::Q8_0)
-                .with_type_v(KvCacheType::Q8_0),
-        )
-        .map_err(|e| format!("创建推理上下文失败: {e}"))?;
 
     let temperature = req.temperature.unwrap_or(0.7);
     let seed = req.seed.unwrap_or_else(|| {
@@ -459,6 +470,17 @@ mod tests {
         let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
         let gbnf = json_schema_to_grammar(schema).expect("anyOf+const 应能转为 GBNF");
         assert!(gbnf.contains("root"));
+    }
+
+    /// 真实 deck-patch schema（zod v4 toJSONSchema 产物快照）必须可转 grammar，
+    /// 防止 schema 演进引入转换器不支持的关键字（$ref/pattern 等）
+    #[test]
+    fn real_deck_patch_schema_converts_to_grammar() {
+        let schema = include_str!("../../tests/deck_patch_schema.json");
+        let gbnf = json_schema_to_grammar(schema).expect("真实 deck-patch schema 应能转为 GBNF");
+        assert!(gbnf.contains("root"));
+        assert!(gbnf.contains("set_deck_title"));
+        assert!(gbnf.contains("merge_slides"));
     }
 
     #[test]
