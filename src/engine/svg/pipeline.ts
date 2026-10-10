@@ -135,6 +135,7 @@ export async function buildDeckSvgsDetailed(
                 : bulletsToNodes(plan[i].bullets ?? []),
             quote: slides[i].quote ?? plan[i].quote,
             attribution: slides[i].attribution ?? plan[i].attribution,
+            notes: slides[i].notes ?? plan[i].notes,
           }
         : slides[i];
     } else if (page) {
@@ -146,6 +147,7 @@ export async function buildDeckSvgsDetailed(
         bullets: bulletsToNodes(plan[i].bullets ?? []),
         quote: plan[i].quote,
         attribution: plan[i].attribution,
+        notes: plan[i].notes,
       });
     } else {
       // 隔离模式下失败的新页：占位（无 svg），标题/布局从 plan 派生

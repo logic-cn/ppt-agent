@@ -132,3 +132,48 @@ describe("buildLayoutSkeleton 不变式", () => {
     }
   });
 });
+
+describe("跨页版式轮换（content variant）", () => {
+  const manyBullets = plan({
+    bullets: ["甲", "乙", "丙", "丁", "戊"],
+  });
+
+  it("variant=1 双栏：≥4 条要点左右分栏、全部在画布内且确定", () => {
+    const a = buildLayoutSkeleton(manyBullets, SPEC, { variant: 1 });
+    const b = buildLayoutSkeleton(manyBullets, SPEC, { variant: 1 });
+    expect(a).not.toBeNull();
+    expect(a!.promptBlock).toBe(b!.promptBlock);
+    expect(a!.promptBlock).toContain("双栏");
+    for (const box of a!.boxes) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.w).toBeLessThanOrEqual(SPEC.canvas.w);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.h).toBeLessThanOrEqual(SPEC.canvas.h);
+    }
+    // 左栏与右栏各有点：两栏 x 分布不同
+    const bulletBoxes = a!.boxes.filter((x) => x.kind === "bullet");
+    const lefts = [...new Set(bulletBoxes.map((x) => x.x))];
+    expect(lefts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("variant=1 与 variant=0 版式不同（打破雷同）", () => {
+    const v0 = buildLayoutSkeleton(manyBullets, SPEC, { variant: 0 });
+    const v1 = buildLayoutSkeleton(manyBullets, SPEC, { variant: 1 });
+    expect(v0!.promptBlock).not.toContain("双栏");
+    expect(v1!.promptBlock).toContain("双栏");
+    expect(v0!.boxes.map((b) => `${b.x},${b.y}`).join())
+      .not.toBe(v1!.boxes.map((b) => `${b.x},${b.y}`).join());
+  });
+
+  it("要点 <4 时 variant=1 回落整宽列表", () => {
+    const few = plan({ bullets: ["甲", "乙"] });
+    const v1 = buildLayoutSkeleton(few, SPEC, { variant: 1 });
+    expect(v1!.promptBlock).not.toContain("双栏");
+  });
+
+  it("默认（不传 opts）等价 variant=0", () => {
+    const d = buildLayoutSkeleton(manyBullets, SPEC);
+    const v0 = buildLayoutSkeleton(manyBullets, SPEC, { variant: 0 });
+    expect(d!.promptBlock).toBe(v0!.promptBlock);
+  });
+});

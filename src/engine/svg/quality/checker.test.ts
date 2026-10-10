@@ -11,6 +11,9 @@ import {
   checkAesthetics,
   checkChartGeometry,
   checkLayoutBalance,
+  checkVisualRhythm,
+  checkPaletteContrast,
+  autoPatchSvg,
 } from "./checker";
 import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -424,13 +427,38 @@ describe("checkAesthetics（量化美学）", () => {
   const bg = specLock.colors.background;
 
   it("浅字压浅底（对比度 2.34）报 error", () => {
+    // #94A3B8(textMuted) 压在 #F1F5F9（两者都是色板 token）→ brand 级
     const svg = wrap(
       `<rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#94A3B8">灰色说明文字</text>`,
     );
     const issues = checkAesthetics(svg, specLock);
     expect(
-      issues.some((i) => i.severity === "error" && /对比度不足/.test(i.message)),
+      issues.some(
+        (i) => i.severity === "error" && /对比度|不达标/.test(i.message),
+      ),
     ).toBe(true);
+  });
+
+  it("处置分级：越位用色（非 token）报 page 级、token 组合报 brand 级", () => {
+    // #D1D5DB 不是色板 token → page 级「对比度不足」
+    const page = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#D1D5DB">乱用浅灰</text>`,
+    );
+    const pageIssue = checkAesthetics(page, specLock).find(
+      (i) => i.severity === "error",
+    );
+    expect(pageIssue?.kind).toBe("page");
+    expect(pageIssue?.message).toContain("对比度不足");
+
+    // 两端都是 token → brand 级「配色组合不达标」
+    const brand = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#94A3B8">muted 压 text</text>`,
+    );
+    const brandIssue = checkAesthetics(brand, specLock).find(
+      (i) => i.severity === "error",
+    );
+    expect(brandIssue?.kind).toBe("brand");
+    expect(brandIssue?.message).toContain("整份 deck");
   });
 
   it("大字（≥26px）容忍 3.0：4.23 对比度不报错，小字报", () => {
@@ -645,5 +673,130 @@ describe("checkLayoutBalance（版面失衡/对齐统计）", () => {
         /左缘对齐碎片化/.test(i.message),
       ),
     ).toBe(false);
+  });
+});
+
+describe("checkVisualRhythm（软性视觉节奏 S4/S5/S6）", () => {
+  it("S6：CJK letter-spacing >5% 字号 → warn", () => {
+    const svg = wrap(
+      `<text x="100" y="120" font-size="20" letter-spacing="6" fill="#F1F5F9">中文要点文字</text>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /CJK 字距过大/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("S6：拉丁字距不报（无 CJK）", () => {
+    const svg = wrap(
+      `<text x="100" y="120" font-size="20" letter-spacing="6" fill="#F1F5F9">hello world</text>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /CJK 字距过大/.test(i.message),
+      ),
+    ).toBe(false);
+  });
+
+  it("S4：两处左缘相差 4-24px → 对齐漂移 warn", () => {
+    const svg = wrap(
+      `<text x="100" y="120" font-size="20" fill="#F1F5F9">甲</text><text x="118" y="180" font-size="20" fill="#F1F5F9">乙</text>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /左缘对齐漂移/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("S4：精确同栏（差<4px）不报漂移", () => {
+    const svg = wrap(
+      `<text x="100" y="120" font-size="20" fill="#F1F5F9">甲</text><text x="100" y="180" font-size="20" fill="#F1F5F9">乙</text>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /左缘对齐漂移/.test(i.message),
+      ),
+    ).toBe(false);
+  });
+
+  it("S5：同排卡片间距不均 → warn", () => {
+    const svg = wrap(
+      `<rect x="40" y="300" width="200" height="100" fill="#1A2D42"/><rect x="300" y="300" width="200" height="100" fill="#1A2D42"/><rect x="600" y="300" width="200" height="100" fill="#1A2D42"/>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /卡片间距不均/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("S5：等距卡片不报", () => {
+    const svg = wrap(
+      `<rect x="40" y="300" width="200" height="100" fill="#1A2D42"/><rect x="280" y="300" width="200" height="100" fill="#1A2D42"/><rect x="520" y="300" width="200" height="100" fill="#1A2D42"/>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).some((i) =>
+        /卡片间距不均/.test(i.message),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("checkPaletteContrast（brand token 组合静态体检）", () => {
+  it("合规色板返回空", () => {
+    expect(checkPaletteContrast(specLock)).toHaveLength(0);
+  });
+
+  it("浅灰 text 压白底（<4.5）→ brand 级 warn", () => {
+    const bad: SpecLock = {
+      ...specLock,
+      colors: {
+        ...specLock.colors,
+        background: "#FFFFFF",
+        surface: "#F9FAFB",
+        text: "#D1D5DB",
+        textMuted: "#E5E7EB",
+      },
+    };
+    const issues = checkPaletteContrast(bad);
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.every((i) => i.kind === "brand")).toBe(true);
+  });
+});
+
+describe("autoPatchSvg（确定性原子修复）", () => {
+  it("越锁颜色吸附到最近色板 token", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#13203A"/><text x="100" y="200" font-size="20" fill="#F0F4FA">字</text>`,
+    );
+    const { svg: out, changed } = autoPatchSvg(svg, specLock);
+    expect(changed).toBeGreaterThan(0);
+    // 越锁色应吸附回 business-blue 色板最近 token，原越锁值消失
+    expect(out).not.toContain("#13203A");
+    expect(out).not.toContain("#F0F4FA");
+    expect(out).toContain("#1A2D42"); // #13203A → surface
+    expect(out).toContain("#F1F5F9"); // #F0F4FA → text
+  });
+
+  it("CJK 超标 letter-spacing 被移除，拉丁保留", () => {
+    const cjk = wrap(
+      `<text x="100" y="200" font-size="20" letter-spacing="6" fill="#F1F5F9">中文要点</text>`,
+    );
+    const latin = wrap(
+      `<text x="100" y="200" font-size="20" letter-spacing="6" fill="#F1F5F9">hello</text>`,
+    );
+    expect(autoPatchSvg(cjk, specLock).svg).not.toContain("letter-spacing");
+    expect(autoPatchSvg(latin, specLock).svg).toContain("letter-spacing");
+  });
+
+  it("纯合规页 changed=0 原样返回", () => {
+    const svg = wrap(
+      `<text x="100" y="200" font-size="20" fill="#F1F5F9">正常文字</text>`,
+    );
+    const r = autoPatchSvg(svg, specLock);
+    expect(r.changed).toBe(0);
+    expect(r.svg).toBe(svg);
   });
 });

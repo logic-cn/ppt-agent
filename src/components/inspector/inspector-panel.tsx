@@ -52,6 +52,7 @@ export function InspectorPanel({
     if (result.body) patch.body = result.body;
     if (result.bullets) patch.bullets = result.bullets;
     if (result.chart) patch.chart = result.chart;
+    if (result.notes) patch.notes = result.notes;
     return patch;
   };
 

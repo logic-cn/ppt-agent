@@ -74,7 +74,7 @@ export function buildPagePlanSystemPrompt(opts: {
 混用多种角色，避免连续同角色。涉及数据/趋势优先 metrics/comparison/timeline 并给 chartType。
 ${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.options?.language ? "输出使用 English。" : "语言与用户输入一致。"}
 
-只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"..."}]}（bullets/chartType/quote/attribution 按需给出，可省略）`;
+只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"...","notes":"80-120字演讲讲稿"}]}（bullets/chartType/quote/attribution 可省略，notes 每页尽量给出）`;
     if (opts.fewShot) slim += `\n\n${opts.fewShot}`;
     if (opts.templateCtx) {
       const { slidePlan } = opts.templateCtx;
@@ -142,7 +142,8 @@ ${obligationBlock}
       "bullets"?: string[],          // 正文/章节页的要点
       "chartType"?: "bar"|"pie"|"line"|"doughnut",
       "quote"?: string,              // quote 角色用
-      "attribution"?: string        // quote 出处
+      "attribution"?: string,       // quote 出处
+      "notes"?: string               // 演讲者备注：80-120 字口语化讲稿，串联本页要点、给出 so-what 与下一句过渡
     }
   ]
 }`;

@@ -152,7 +152,7 @@ describe("checkChartFacts 图表事实校准", () => {
 });
 
 describe("SVG 层校验纳入质量检查（导出锁）", () => {
-  const BAD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#94A3B8">浅灰说明</text></svg>`;
+  const BAD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#D1D5DB">浅灰说明</text></svg>`;
 
   it("含阻断级 SVG 问题的 deck → svg_* hard finding，触发导出锁", () => {
     const deck = createMockDeck({
@@ -169,6 +169,22 @@ describe("SVG 层校验纳入质量检查（导出锁）", () => {
     expect(bad!.message).toContain("对比度不足");
     expect(bad!.slideId).toBe("s1");
     expect(hasHardError(findings)).toBe(true);
+  });
+
+  it("brand 级对比度塌陷跨页去重：同一 token 组合只报一条", () => {
+    // business-blue：textMuted #94A3B8 压在 text #F1F5F9 上（两端都是 token）
+    const brandSvg = (t: string) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#0C1929"/><rect x="50" y="50" width="400" height="120" fill="#F1F5F9"/><text x="100" y="120" font-size="20" fill="#94A3B8">${t}</text></svg>`;
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "cover", title: "封面", svg: brandSvg("页一") },
+        { id: "s2", layout: "content", title: "正文", svg: brandSvg("页二") },
+        { id: "s3", layout: "closing", title: "谢谢", svg: brandSvg("页三") },
+      ],
+    });
+    const brand = checkDeckQuality(deck).filter((f) => f.rule === "svg_brand");
+    expect(brand).toHaveLength(1);
+    expect(brand[0].severity).toBe("hard");
   });
 
   it("skipSvgChecks 跳过 SVG 层校验（首屏门/纯大纲态）", () => {

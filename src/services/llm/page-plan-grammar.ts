@@ -13,6 +13,7 @@ export const pagePlanItemSchema = z.object({
   chartType: z.enum(["bar", "pie", "line", "doughnut"]).optional(),
   quote: z.string().optional(),
   attribution: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 /** 要求模型输出裸数组（parsePlanJson 对裸数组直接接受） */

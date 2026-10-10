@@ -27,3 +27,11 @@ describe("buildContentSystemPrompt", () => {
     }
   });
 });
+
+describe("buildContentSystemPrompt 演讲备注", () => {
+  it("要求每页产出 notes 讲稿并纳入返回格式", () => {
+    const prompt = buildContentSystemPrompt(DESIGN);
+    expect(prompt).toContain("notes");
+    expect(prompt).toContain("演讲者备注");
+  });
+});

@@ -7,6 +7,8 @@ import {
   checkAesthetics,
   checkChartGeometry,
   checkLayoutBalance,
+  checkVisualRhythm,
+  checkPaletteContrast,
 } from "@/engine/svg/quality/checker";
 
 export type Severity = "hard" | "soft";
@@ -279,36 +281,73 @@ function checkPageCount(
 
 /**
  * SVG 层校验（导出锁，参照 PPT Master export lock）：
- * 设计真相 SVG 存在阻断级几何/对比/图表问题 → hard（拒绝对该 deck 导出）；
- * 色彩比例/阴影参数域/版面失衡统计 → soft（质量面板提示，不阻断）。
+ * 设计真相 SVG 存在阻断级几何/图表问题 → hard（拒绝对该 deck 导出）；
+ * 色彩比例/阴影/节奏统计/版面失衡 → soft（质量面板提示，不阻断）。
+ * 对比度问题分级处置（对标 brand escalation）：
+ *  - 先做一次色板 token 组合静态体检（checkPaletteContrast）出 deck 级单条；
+ *  - 逐页 checkAesthetics 里 kind==="brand"（两端都是 token）塌陷折叠为一条，
+ *    避免同一组合在每页重复报错；kind==="page"（单页越位用色）仍逐页报。
  * 无 svg 的 deck（纯大纲态）自然跳过。
  */
 export function checkSvgFindings(deck: Deck): QualityFinding[] {
   const findings: QualityFinding[] = [];
   const spec = buildSpecLock(deck.design);
+  const push = (
+    it: { severity: "error" | "warn"; message: string; kind?: string },
+    rule: string,
+    slideId?: string,
+    prefix = "",
+  ) =>
+    findings.push({
+      rule,
+      severity: it.severity === "error" ? "hard" : "soft",
+      slideId,
+      message: prefix + it.message,
+      autoFixable: false,
+    });
+
+  // deck 级：色板 token 组合本身不达标（与逐页 brand 塌陷同源，去重前置）
+  const brandPairs = new Set<string>();
+  for (const it of checkPaletteContrast(spec)) {
+    findings.push({
+      rule: "svg_palette",
+      severity: "soft",
+      message: it.message,
+      autoFixable: false,
+    });
+    const m = it.message.match(/#([0-9a-fA-F]{3,6}).*?#([0-9a-fA-F]{3,6})/);
+    if (m) brandPairs.add(m[1].toUpperCase() + "/" + m[2].toUpperCase());
+  }
+
   deck.slides.forEach((slide, i) => {
     if (!slide.svg) return;
-    const page = `第 ${i + 1} 页`;
-    const aesthetic = checkAesthetics(slide.svg, spec);
+    const page = `第 ${i + 1} 页「${slide.title}」：`;
     const groups: {
-      issues: { severity: "error" | "warn"; message: string }[];
+      issues: { severity: "error" | "warn"; message: string; kind?: string }[];
       rule: string;
     }[] = [
-      { issues: checkSvg(slide.svg, spec), rule: "contract" },
-      { issues: checkTextGeometry(slide.svg, spec), rule: "geometry" },
-      { issues: aesthetic, rule: "aesthetics" },
-      { issues: checkChartGeometry(slide.svg), rule: "chart" },
-      { issues: checkLayoutBalance(slide.svg, spec), rule: "balance" },
+      { issues: checkSvg(slide.svg, spec), rule: "svg_contract" },
+      { issues: checkTextGeometry(slide.svg, spec), rule: "svg_geometry" },
+      { issues: checkAesthetics(slide.svg, spec), rule: "svg_aesthetics" },
+      { issues: checkChartGeometry(slide.svg), rule: "svg_chart" },
+      { issues: checkLayoutBalance(slide.svg, spec), rule: "svg_balance" },
+      { issues: checkVisualRhythm(slide.svg, spec), rule: "svg_rhythm" },
     ];
     for (const g of groups) {
       for (const it of g.issues) {
-        findings.push({
-          rule: `svg_${g.rule}`,
-          severity: it.severity === "error" ? "hard" : "soft",
-          slideId: slide.id,
-          message: `${page}「${slide.title}」：${it.message}`,
-          autoFixable: false,
-        });
+        // brand 级对比度塌陷：整份 deck 系统问题，已由 deck 级/首个页级代表，
+        // 同一 token 组合不在每页重复。
+        if (it.kind === "brand") {
+          const m = it.message.match(/#([0-9a-fA-F]{3,6}).*?#([0-9a-fA-F]{3,6})/);
+          const key = m
+            ? m[1].toUpperCase() + "/" + m[2].toUpperCase()
+            : it.message;
+          if (brandPairs.has(key)) continue;
+          brandPairs.add(key);
+          push(it, "svg_brand", slide.id, page);
+          continue;
+        }
+        push(it, g.rule, slide.id, page);
       }
     }
   });

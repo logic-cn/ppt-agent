@@ -71,4 +71,6 @@ export interface PagePlanItem {
   quote?: string;
   /** 金句出处（quote 角色用） */
   attribution?: string;
+  /** 演讲者备注（80–120 字讲稿，写入 slide.notes → 导出到 PPTX 备注页） */
+  notes?: string;
 }

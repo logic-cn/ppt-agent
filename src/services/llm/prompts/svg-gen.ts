@@ -66,6 +66,8 @@ export function buildSvgGenPrompt(opts: {
   extraGuidance?: string;
   /** 本地小模型档：删设备菜单、词汇表截断到前 6 条，降低 prefill 开销 */
   slim?: boolean;
+  /** 正文页版式变体（0 整宽 / 1 双栏），deck 生成环按相邻同角色页轮换以打破雷同 */
+  layoutVariant?: number;
 }): string {
   const { specLock, plan, pageIndex, totalPages } = opts;
   const slim = !!opts.slim;
@@ -80,7 +82,9 @@ export function buildSvgGenPrompt(opts: {
   // 确定性版式骨架：几何由程序算定，模型只在框内落字与配色。
   // 命中骨架的页面（content/comparison/timeline/process/metrics/quote）
   // 不再注入通用版式几何对照；本地档同时省去设备菜单以降低 prefill。
-  const skeleton = buildLayoutSkeleton(plan, specLock);
+  const skeleton = buildLayoutSkeleton(plan, specLock, {
+    variant: opts.layoutVariant,
+  });
   const t = specLock.typography;
   const typographyBlock = t
     ? `

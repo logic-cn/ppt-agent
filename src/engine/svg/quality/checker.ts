@@ -7,6 +7,13 @@ export type SvgIssue = {
   severity: "error" | "warn";
   message: string;
   location?: string;
+  /**
+   * 分类标记，供修复环与导出锁分流处置：
+   * - "brand"：文字色与底面色都是色板 token 且组合本身不达标——整份 deck
+   *   的系统问题，模型无法逐页修，应升级为 deck 级提示（对标 brand escalation）。
+   * - "page"：单页越位用色导致的对比度塌陷——模型/自动 patch 可修。
+   */
+  kind?: "brand" | "page";
 };
 
 const GEOMETRIC_TAGS = new Set([
@@ -558,6 +565,14 @@ interface TextBox {
   bottom: number;
   snippet: string;
   loc: string;
+  /** 字号 px（S1 行距、S6 字距阈值需要） */
+  fontSize: number;
+  /** 首行基线 y（= 元素 y + translate dy） */
+  baseline: number;
+  /** letter-spacing 属性值（px），缺省 undefined */
+  letterSpacing?: number;
+  /** 首个 <tspan> 之外的直接文本行数（1 或 0）——用于 S1 块内基线 */
+  lineCount: number;
 }
 
 /**
@@ -597,6 +612,10 @@ function collectTextBoxes(svg: string): TextBox[] {
       bottom: y + (lineCount - 1) * fontSize * 1.2 + fontSize * 0.25,
       snippet: content.slice(0, 16),
       loc: `text@${m.index}`,
+      fontSize,
+      baseline: y,
+      letterSpacing: num(attr(full, "letter-spacing")),
+      lineCount,
     });
     // 游标停在 openTag 之后，避免重复匹配同一元素内容里的 tspan
     re.lastIndex = m.index + full.length;
@@ -757,9 +776,17 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
     const min = fs >= 26 ? 3.0 : 4.5;
     const ratio = contrastRatio(fill, bg);
     if (ratio < min) {
+      // 处置分级（对标 brand-token vs 单页越位）：文字色与底面色都是色板
+      // token → 整份 deck 的系统问题（brand），单页模型无法逐页修；
+      // 否则是单页越位用色（page），可加 scrim / 抬字号 / 换 token 修。
+      const tokens = paletteTokenHexes(specLock);
+      const bothTokens = tokens.has(fill) && tokens.has(bg);
       issues.push({
         severity: "error",
-        message: `对比度不足：文字（#${fill}）与其底面（#${bg}）对比度 ${ratio.toFixed(2)} < ${min}，换用配色表中对比更强的组合`,
+        kind: bothTokens ? "brand" : "page",
+        message: bothTokens
+          ? `配色组合不达标：token #${fill} 文字压在 #${bg} 上对比度 ${ratio.toFixed(2)} < ${min}——这是整份 deck 的设计问题，逐页重画无效，请在设计面板更换文字/底色 token`
+          : `对比度不足：文字（#${fill}）与其底面（#${bg}）对比度 ${ratio.toFixed(2)} < ${min}——请改用配色表中对比更强的组合，或在文字下垫 background/surface scrim，或把字号抬到 ≥26px`,
         location: `text@${tm.index}`,
       });
     }
@@ -929,6 +956,227 @@ export function checkLayoutBalance(svg: string, specLock: SpecLock): SvgIssue[] 
       message: `左缘对齐碎片化：出现 ${clusters.length} 个不同左缘（${clusters.slice(0, 6).join("/")}px），文本请吸附到统一栏位 x（如边距 40 或各栏起始）`,
       location: "balance",
     });
+  }
+  return issues;
+}
+
+// ---- 色板 token 归类 / 视觉节奏 / 确定性原子修复（对标 PPT Master brand escalation）----
+
+/** 该页配色表里的合法 token 值集合（大写、已归一的 HEX，不含 3 位写法）。 */
+export function paletteTokenHexes(specLock: SpecLock): Set<string> {
+  const c = specLock.colors;
+  const out = new Set<string>();
+  for (const raw of [
+    c.primary,
+    c.secondary,
+    c.accent,
+    c.background,
+    c.surface,
+    c.text,
+    c.textMuted,
+  ]) {
+    const h = normalizeHex(raw);
+    if (h) out.add(h);
+  }
+  return out;
+}
+
+/** 取 token 集合中离 hex 最近者（RGB 欧氏距离）；集合空则返回原值。 */
+export function nearestTokenHex(
+  hex: string,
+  tokens: Set<string>,
+): string {
+  const withHash = hex.trim().startsWith("#") ? hex.trim() : "#" + hex.trim();
+  const n = normalizeHex(withHash);
+  if (!n || tokens.size === 0) return hex;
+  if (tokens.has(n)) return "#" + n;
+  const to = (h: string) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = to(n);
+  let best = n;
+  let bestD = Infinity;
+  for (const t of tokens) {
+    const [tr, tg, tb] = to(t);
+    const d = (r - tr) ** 2 + (g - tg) ** 2 + (b - tb) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = t;
+    }
+  }
+  return "#" + best;
+}
+
+/**
+ * 视觉节奏统计（对标 visual-review.md 的纯几何可算软规则 S4/S5/S6）：
+ * 全部 warn（提示级），不阻断导出；供质量面板与首屏一致性纠正消费。
+ * - S6 CJK 字距：letter-spacing / font-size > 5%（小模型常乱加字距）
+ * - S4 对齐漂移：两个本应同栏的 <text> 左缘相差 4–24px（近似对齐却没吸附）
+ * - S5 栅格不均：同 y 带的卡片 rect 相邻 x 间距差异 >5%
+ */
+export function checkVisualRhythm(
+  svg: string,
+  specLock: SpecLock,
+): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const { w: canvasW } = specLock.canvas;
+
+  // S6：CJK 字距超标
+  const lsRe =
+    /<(text|tspan)\b[^>]*\bletter-spacing\s*=\s*["']?(-?[\d.]+)["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  let lm: RegExpExecArray | null;
+  while ((lm = lsRe.exec(svg)) !== null) {
+    const ls = Number.parseFloat(lm[2]);
+    if (!Number.isFinite(ls) || ls <= 0) continue;
+    const fs = num(attr(lm[0], "font-size")) ?? 16;
+    const text = lm[3].replace(/<[^>]+>/g, "");
+    const hasCjk = [...text].some((ch) => ch.charCodeAt(0) > 0x2e80);
+    if (hasCjk && ls / fs > 0.05) {
+      issues.push({
+        severity: "warn",
+        message: `CJK 字距过大：letter-spacing=${ls} 为字号 ${fs} 的 ${((ls / fs) * 100).toFixed(0)}%（>5%），中文不加字距，请移除 letter-spacing`,
+        location: "letter-spacing",
+      });
+    }
+  }
+
+  // S4：同栏左缘近似对齐却漂移（4–24px）——只报最典型的一对，避免刷屏
+  const boxes = collectTextBoxes(svg);
+  const lefts = boxes
+    .map((b) => b.left)
+    .filter((x) => x > canvasW * 0.02 && x < canvasW * 0.8);
+  let driftFound = false;
+  for (let i = 0; i < lefts.length && !driftFound; i++) {
+    for (let j = i + 1; j < lefts.length; j++) {
+      const d = Math.abs(lefts[i] - lefts[j]);
+      if (d >= 4 && d <= 24) {
+        issues.push({
+          severity: "warn",
+          message: `左缘对齐漂移：两处文本左缘相差 ${d.toFixed(0)}px（≥4 且 ≤24），像同一栏却没吸附，请统一到同一栏位 x（如 40/边距）`,
+          location: "alignment",
+        });
+        driftFound = true;
+        break;
+      }
+    }
+  }
+
+  // S5：同 y 带卡片相邻间距不均（>5%）
+  const rects = collectFilledRects(svg).filter(
+    (r) => r.w > canvasW * 0.05 && r.w < canvasW * 0.6 && r.h > 40,
+  );
+  const bands = new Map<number, FilledRect[]>();
+  for (const r of rects) {
+    const key = Math.round(r.y / 20);
+    const arr = bands.get(key) ?? [];
+    arr.push(r);
+    bands.set(key, arr);
+  }
+  for (const arr of bands.values()) {
+    if (arr.length < 3) continue;
+    const sorted = [...arr].sort((a, b) => a.x - b.x);
+    const gaps: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      gaps.push(sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w));
+    }
+    if (gaps.some((g) => g < 0)) continue; // 有重叠不算均分栅格
+    const avg = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+    if (avg <= 0) continue;
+    const spread = (Math.max(...gaps) - Math.min(...gaps)) / avg;
+    if (spread > 0.05) {
+      issues.push({
+        severity: "warn",
+        message: `同排 ${arr.length} 张卡片间距不均（最大/最小差 ${(spread * 100).toFixed(0)}%），请等分 x 间距`,
+        location: "grid",
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * 确定性原子修复（对标 §4.2/4.3 的「代码直接 patch，一次一处，净误差数下降才保留」）：
+ * 只做纯属性改写、绝不改变几何结构，因此不可能引入新的越界/重叠：
+ * 1) 非色板 HEX → 吸附到最近色板 token（小模型最高频的「乱用色」）
+ * 2) CJK letter-spacing 超标 → 移除该属性（仅当该元素正文含 CJK）
+ * 返回 patch 后的 svg 与变更条数；调用方以「修复后 error 数 < 修复前」决定是否保留。
+ */
+export function autoPatchSvg(
+  svg: string,
+  specLock: SpecLock,
+): { svg: string; changed: number } {
+  const tokens = paletteTokenHexes(specLock);
+  let changed = 0;
+
+  // 1) 颜色吸附：fill / stroke / stop-color 上的非 token HEX
+  let out = svg;
+  if (tokens.size > 0) {
+    out = out.replace(
+      /\b(fill|stroke|stop-color)\s*=\s*["']#([0-9a-fA-F]{3,6})["']/g,
+      (m, name: string, hex: string) => {
+        const n = normalizeHex("#" + hex);
+        if (!n || tokens.has(n)) return m;
+        changed++;
+        return `${name}="${nearestTokenHex(n, tokens)}"`;
+      },
+    );
+  }
+
+  // 2) CJK 字距移除：逐个 <text>/<tspan> 元素块扫描，按块内正文判定
+  out = out.replace(
+    /<(text|tspan)\b([^>]*)>([\s\S]*?)<\/\1>/gi,
+    (m, tag: string, attrs: string, inner: string) => {
+      const lsRaw = attr(attrs, "letter-spacing");
+      if (lsRaw == null) return m;
+      const ls = Number.parseFloat(lsRaw);
+      if (!Number.isFinite(ls) || ls <= 0) return m;
+      const fs = num(attr(attrs, "font-size")) ?? 16;
+      const content = inner.replace(/<[^>]+>/g, "");
+      const hasCjk = [...content].some((ch) => ch.charCodeAt(0) > 0x2e80);
+      if (!hasCjk || ls / fs <= 0.05) return m;
+      changed++;
+      const strippedAttrs = attrs.replace(
+        /\s*\bletter-spacing\s*=\s*["']?-?[\d.]+["']?/i,
+        "",
+      );
+      return `<${tag}${strippedAttrs}>${inner}</${tag}>`;
+    },
+  );
+
+  return { svg: out, changed };
+}
+
+/**
+ * 色板 token 组合的静态对比度体检（对标 brand escalation §1.1）：
+ * 文字类 token（text / textMuted）压在底色类 token（background / surface）上，
+ * 只要某组合 <4.5 就是整份 deck 的系统性可读性问题——逐页重画改不动，
+ * 应在设计面板更换 token。返回 warn 级、deck 级（无页位置）单条。
+ */
+export function checkPaletteContrast(specLock: SpecLock): SvgIssue[] {
+  const c = specLock.colors;
+  const fg: [string, string][] = [
+    ["text", c.text],
+    ["textMuted", c.textMuted],
+  ];
+  const bg: [string, string][] = [
+    ["background", c.background],
+    ["surface", c.surface],
+  ];
+  const issues: SvgIssue[] = [];
+  for (const [fn, f] of fg) {
+    for (const [bn, b] of bg) {
+      const fh = normalizeHex(f);
+      const bh = normalizeHex(b);
+      if (!fh || !bh) continue;
+      const ratio = contrastRatio(fh, bh);
+      if (ratio < 4.5) {
+        issues.push({
+          severity: "warn",
+          kind: "brand",
+          message: `配色 token 组合「${fn} ${f}」压在「${bn} ${b}」上对比度 ${ratio.toFixed(2)} < 4.5，全 deck 该组合都会发虚——请在设计面板调深文字或提亮底色`,
+          location: "palette",
+        });
+      }
+    }
   }
   return issues;
 }

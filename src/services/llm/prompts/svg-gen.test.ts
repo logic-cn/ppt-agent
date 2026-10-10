@@ -167,3 +167,34 @@ describe("buildSvgGenPrompt 分层结构", () => {
     expect(vocabLineCount(slim)).toBeLessThan(vocabLineCount(full));
   });
 });
+
+describe("buildSvgGenPrompt 跨页版式轮换", () => {
+  const many = {
+    role: "content" as const,
+    title: "增长动力",
+    intent: "说明动力",
+    bullets: ["甲要点", "乙要点", "丙要点", "丁要点", "戊要点"],
+  };
+
+  it("layoutVariant=1 注入双栏骨架与多样性提示", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: many,
+      pageIndex: 3,
+      totalPages: 8,
+      layoutVariant: 1,
+    });
+    expect(prompt).toContain("双栏");
+    expect(prompt).toContain("避免雷同");
+  });
+
+  it("layoutVariant 缺省（=0）不出现双栏提示", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: many,
+      pageIndex: 2,
+      totalPages: 8,
+    });
+    expect(prompt).not.toContain("避免雷同");
+  });
+});

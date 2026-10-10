@@ -115,6 +115,7 @@ function stackBullets(
 function skeletonFor(
   plan: PagePlanItem,
   spec: SpecLock,
+  variant = 0,
 ): { boxes: SkeletonBox[]; note?: string } | null {
   const { w, h } = spec.canvas;
   const margin = Math.round(w / 32);
@@ -126,8 +127,37 @@ function skeletonFor(
   switch (plan.role) {
     case "content": {
       const title = titleBox(spec, plan.title, margin, w);
+      // 跨页版式轮换（对标 deck 级多样性）：连续多页 content 默认会拿到完全相同
+      // 的「标题带 + 整宽要点」骨架，看着单调。variant=1 时把要点拆成左右两栏
+      // 分块堆叠（几何仍程序算定、每栏 ≤4 条防溢出），打破雷同。仅 ≥4 条时启用。
+      if (variant === 1 && bullets.length >= 4) {
+        const gutter = Math.round(w / 32);
+        const colW = Math.floor((w - 2 * margin - gutter) / 2);
+        const half = Math.ceil(bullets.length / 2);
+        const cols: SkeletonBox[] = [];
+        [bullets.slice(0, half), bullets.slice(half)].forEach((items, ci) => {
+          const x = margin + ci * (colW + gutter);
+          cols.push(
+            ...stackBullets(
+              spec,
+              items,
+              title.y + title.h,
+              bottom,
+              x,
+              x + colW,
+            ).map((b) => ({ ...b, x: x + 8, w: colW - 40 })),
+          );
+        });
+        return {
+          boxes: [title, ...cols],
+          note: `双栏要点分块（左 ${half} 条 / 右 ${bullets.length - half} 条，各栏宽 ${colW}px、中缝 ${gutter}px），每栏要点前各配 6-8px 圆点；两栏顶对齐`,
+        };
+      }
       return {
-        boxes: [title, ...stackBullets(spec, bullets, title.y + title.h, bottom, margin, w)],
+        boxes: [
+          title,
+          ...stackBullets(spec, bullets, title.y + title.h, bottom, margin, w),
+        ],
         note: "每条要点前画 6-8px 圆点（accent 或 primary 色），圆点 x 比要点文字少 20px、垂直居中于要点首行",
       };
     }
@@ -249,17 +279,28 @@ function skeletonFor(
 /**
  * 构造该页版式骨架。cover/section/closing 与图表页返回 null
  * （封面重氛围、图表页有 data-chart 约定，均不适合坐标下发）。
+ * variant：正文页版式变体（0 整宽列表 / 1 双栏分块），由 deck 生成环按相邻同角色
+ * 页轮换，打破「连续 content 页版式雷同」——几何仍由程序算定，不牺牲防溢出保证。
  */
 export function buildLayoutSkeleton(
   plan: PagePlanItem,
   spec: SpecLock,
+  opts?: { variant?: number },
 ): LayoutSkeleton | null {
   if (plan.chartType) return null;
-  const built = skeletonFor(plan, spec);
+  const variant = opts?.variant ?? 0;
+  const built = skeletonFor(plan, spec, variant);
   if (!built || built.boxes.length === 0) return null;
   const lines = built.boxes.map((b) => renderBox(spec, b));
+  const rotate =
+    plan.role === "content" &&
+    variant === 1 &&
+    !plan.chartType &&
+    (plan.bullets?.length ?? 0) >= 4
+      ? "\n多样性提示：本页与上一页同为正文页，已切换为双栏分块版式以避免雷同，请保持双栏结构。"
+      : "";
   const block = `## 本页版式骨架（坐标由程序算定，必须严格遵循）
 ${lines.join("\n")}
-落字规则：每个区块的文字以其 x 为左缘；y 为区块顶，首行基线 = y + 字号；多行用 <tspan>，x 同区块 x、行距 dy = 字号×1.2。区块间距与尺寸不可改变，可改的只有：配色、圆角、底色、分隔线、装饰图形、字号在锚点 ±2px 内。${built.note ? `\n结构补充：${built.note}` : ""}`;
+落字规则：每个区块的文字以其 x 为左缘；y 为区块顶，首行基线 = y + 字号；多行用 <tspan>，x 同区块 x、行距 dy = 字号×1.2。区块间距与尺寸不可改变，可改的只有：配色、圆角、底色、分隔线、装饰图形、字号在锚点 ±2px 内。${built.note ? `\n结构补充：${built.note}` : ""}${rotate}`;
   return { boxes: built.boxes, promptBlock: block };
 }

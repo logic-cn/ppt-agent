@@ -15,7 +15,10 @@ import {
   checkTextGeometry,
   checkAesthetics,
   checkChartGeometry,
+  checkVisualRhythm,
+  autoPatchSvg,
 } from "./quality/checker";
+import { compactSvgOutput } from "./quality/compact";
 import { finalizeSvgPresets } from "./presets";
 import { finalizeSvgIcons } from "./icons";
 import type { SvgPage } from "./types";
@@ -85,6 +88,8 @@ export interface GenerateSlideSvgOptions {
   instruction?: string;
   /** 现有 SVG 底稿：提供时在其基础上修改而非从零重画 */
   baseSvg?: string;
+  /** 正文页版式变体（0 整宽 / 1 双栏），由 generateDeckSvgs 按相邻同角色页轮换 */
+  layoutVariant?: number;
 }
 
 /**
@@ -172,7 +177,9 @@ export async function generateSlideSvg(
       ).trim();
     }
 
-    // 闸门错误集：结构契约 + 几何（含文本安全区/重叠）+ 图表/词表 + 内容必现
+    // 闸门错误集：结构契约 + 几何（含文本安全区/重叠）+ 图表/词表 + 内容必现。
+    // kind==="brand" 的对比度塌陷整份 deck 同现、逐页重画改不动（应在设计面板
+    // 换 token / 走 deck 级提示），排除出重画环，否则每页白白重画两轮。
     const collectErrors = (s: string) =>
       [
         ...checkSvg(s, opts.specLock),
@@ -201,9 +208,18 @@ export async function generateSlideSvg(
           title: opts.plan.title,
           bullets: opts.plan.bullets,
         }),
-      ].filter((i) => i.severity === "error");
+      ].filter((i) => i.severity === "error" && i.kind !== "brand");
+
+    // 确定性原子修复（对标 §4.2/4.3）：非色板乱用色吸附回色板、CJK 字距移除。
+    // 纯属性改写不动几何结构，净误差数不降才保留，否则回滚原稿。
+    const patch = (s: string): string => {
+      const { svg: p, changed } = autoPatchSvg(s, opts.specLock);
+      if (changed === 0) return s;
+      return collectErrors(p).length <= collectErrors(s).length ? p : s;
+    };
 
     // 修复环保留「最优候选」：末轮重画可能比前轮更差，取错误最少的一版
+    svg = patch(svg);
     let best: { svg: string; errors: number } = {
       svg,
       errors: collectErrors(svg).length,
@@ -212,10 +228,19 @@ export async function generateSlideSvg(
     for (let attempt = 1; attempt <= 2; attempt++) {
       if (best.errors === 0) break;
       const issues = collectErrors(svg);
+      // 软性节奏问题（字距/对齐/栅格）不单独触发重画；但本轮既然已在重画，
+      // 顺手下发让模型一并改进——零额外成本地抬高视觉分。
+      const rhythm = checkVisualRhythm(svg, opts.specLock);
       const feedback =
         "你的 SVG 有以下问题，请修正后重新输出完整 SVG：\n" +
-        issues.map((i) => "- " + i.message).join("\n");
-      svg = (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim();
+        issues.map((i) => "- " + i.message).join("\n") +
+        (rhythm.length
+          ? "\n另有可顺手改进的排版节奏项（不强求）：\n" +
+            rhythm.map((i) => "- " + i.message).join("\n")
+          : "");
+      svg = patch(
+        (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim(),
+      );
       const errors = collectErrors(svg).length;
       if (errors < best.errors) best = { svg, errors };
     }
@@ -229,8 +254,9 @@ export async function generateSlideSvg(
       );
     }
     // 规范化标记元素：data-icon 展开为形状序列、data-prst → canonical path
-    //（预览保真，导出走原生形状/prstGeom）
-    return finalizeSvgPresets(finalizeSvgIcons(svg));
+    //（预览保真，导出走原生形状/prstGeom）；最后坐标取整 + 折叠空白，
+    // 缩短存储/预览/导出底稿与「读回整页 SVG」类调用的输入 token。
+    return compactSvgOutput(finalizeSvgPresets(finalizeSvgIcons(svg)));
   } finally {
     pageLevel.cleanup();
   }
@@ -269,7 +295,12 @@ export async function generateDeckSvgs(
   const { onPageReady } = opts ?? {};
   const generatePage = async (
     i: number,
-    extra?: { baseSvg?: string; instruction?: string; extraGuidance?: string },
+    extra?: {
+      baseSvg?: string;
+      instruction?: string;
+      extraGuidance?: string;
+      layoutVariant?: number;
+    },
   ): Promise<string> => {
     const svg = await generateSlideSvg({
       specLock: spec,
@@ -283,10 +314,26 @@ export async function generateDeckSvgs(
     return svg;
   };
 
+  // 跨页版式轮换：连续的同角色正文页交替使用整宽/双栏两种骨架（对标 deck 级
+  // 多样性）。顺序生成、按页缓存，Phase 2 的整改重画复用同一变体不漂移。
+  const variantCache = new Map<number, number | undefined>();
+  const isPlainContent = (i: number) =>
+    plan[i].role === "content" && !plan[i].chartType;
+  const variantFor = (i: number): number | undefined => {
+    if (variantCache.has(i)) return variantCache.get(i);
+    let v: number | undefined;
+    if (isPlainContent(i)) {
+      const prevSame = i > 0 && isPlainContent(i - 1);
+      v = prevSame ? 1 - (variantCache.get(i - 1) ?? 0) : 0;
+    }
+    variantCache.set(i, v);
+    return v;
+  };
+
   // Phase 1: cohort（前 gateAt 页）
   for (let i = 0; i < gateAt; i++) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const svg = await generatePage(i);
+    const svg = await generatePage(i, { layoutVariant: variantFor(i) });
     pages.push({ index: i, role: plan[i].role, svg });
     onProgress?.(i + 1, total);
   }
@@ -314,6 +361,7 @@ export async function generateDeckSvgs(
           ...pages[i],
           svg: await generatePage(i, {
             baseSvg: pages[i].svg,
+            layoutVariant: variantCache.get(i),
             instruction: `修正以下跨页一致性问题（保持版式与内容不变，仅落实要求）：\n${own
               .map((x) => "- " + x.message)
               .join("\n")}`,
@@ -326,7 +374,10 @@ export async function generateDeckSvgs(
   // Phase 3: 剩余页（携带 cohort 一致性纠正要求）
   for (let i = gateAt; i < total; i++) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const svg = await generatePage(i, { extraGuidance });
+    const svg = await generatePage(i, {
+      extraGuidance,
+      layoutVariant: variantFor(i),
+    });
     pages.push({ index: i, role: plan[i].role, svg });
     onProgress?.(i + 1, total);
   }

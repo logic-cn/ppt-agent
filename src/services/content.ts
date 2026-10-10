@@ -42,6 +42,7 @@ const contentSchema = z.object({
       data: z.array(z.object({ label: z.string(), value: z.number() })),
     })
     .optional(),
+  notes: z.string().optional(),
 });
 
 export async function generateSlideContent(params: {
@@ -49,7 +50,12 @@ export async function generateSlideContent(params: {
   context: string;
   design: DesignLock;
   signal?: AbortSignal;
-}): Promise<{ body?: string; bullets?: BulletNode[]; chart?: ChartSpec }> {
+}): Promise<{
+  body?: string;
+  bullets?: BulletNode[];
+  chart?: ChartSpec;
+  notes?: string;
+}> {
   const systemPrompt = buildContentSystemPrompt(params.design);
   const userPrompt = buildContentUserPrompt(params.slideTitle, params.context);
 
@@ -118,5 +124,6 @@ export async function generateSlideContent(params: {
     body: result.data.body,
     bullets: result.data.bullets ? addIds(result.data.bullets) : undefined,
     chart: result.data.chart,
+    notes: result.data.notes,
   };
 }

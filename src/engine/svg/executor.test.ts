@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generateSlideSvg, generateDeckSvgs } from "./executor";
-import { buildSpecLock } from "@/design/spec-lock";
-import { DEFAULT_DESIGN } from "@/types/design";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
-
-const builtSpec: SpecLock = buildSpecLock(DEFAULT_DESIGN);
 
 const spec: SpecLock = {
   canvas: { w: 1280, h: 720 },
@@ -89,7 +85,7 @@ describe("generateSlideSvg", () => {
       .mockResolvedValueOnce({ content: svgWithTitle("第 1 页") });
 
     const svg = await generateSlideSvg({
-      specLock: builtSpec,
+      specLock: spec,
       plan: makePlan(1)[0],
       pageIndex: 0,
       totalPages: 1,
@@ -111,7 +107,7 @@ describe("generateSlideSvg", () => {
       .mockResolvedValueOnce({ content: withChart });
 
     const svg = await generateSlideSvg({
-      specLock: builtSpec,
+      specLock: spec,
       plan: { ...makePlan(1)[0], chartType: "bar" },
       pageIndex: 0,
       totalPages: 1,
@@ -133,7 +129,7 @@ describe("generateSlideSvg", () => {
       .mockResolvedValueOnce({ content: goodData });
 
     const svg = await generateSlideSvg({
-      specLock: builtSpec,
+      specLock: spec,
       plan: { ...makePlan(1)[0], chartType: "bar" },
       pageIndex: 0,
       totalPages: 1,
@@ -254,8 +250,12 @@ describe("generateDeckSvgs", () => {
 });
 
 describe("generateDeckSvgs early gate（跨页一致性门）", () => {
-  function offPaletteSvg(title: string): string {
-    return svgWithTitle(title).replace(/#FFFFFF/g, "#123456");
+  // 越锁字体：autoPatch 只吸附越锁「颜色」，字体越锁仍需 cohort 门下发定向修复
+  function offLockSvg(title: string): string {
+    return svgWithTitle(title).replace(
+      /font-family="Noto Sans SC"/,
+      'font-family="Impact"',
+    );
   }
 
   it("cohort 页越锁时基于底稿修复，并向剩余页下发一致性要求", async () => {
@@ -268,17 +268,16 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
         return { content: svgWithTitle("第 1 页") };
       }
       const title = titleFromPrompt(req);
-      // 首次生成的第 1 页使用越锁颜色
+      // 首次生成的第 1 页使用越锁字体
       return {
-        content:
-          title === "第 1 页" ? offPaletteSvg(title) : svgWithTitle(title),
+        content: title === "第 1 页" ? offLockSvg(title) : svgWithTitle(title),
       };
     });
 
     const pages = await generateDeckSvgs(plans, spec);
 
-    // 第 1 页被修复为合规颜色
-    expect(pages[0].svg).not.toContain("#123456");
+    // 第 1 页被修复为合规字体
+    expect(pages[0].svg).not.toContain("Impact");
     expect(pages[0].svg).toContain("第 1 页");
     // 剩余页（第 6、7 页）的 prompt 携带全 deck 一致性要求
     const guided = vi
@@ -292,7 +291,7 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
     expect(guided[0][0]).toMatchObject({
       messages: [
         expect.anything(),
-        { content: expect.stringContaining("配色越锁") },
+        { content: expect.stringContaining("字体越锁") },
       ],
     });
   });
@@ -302,13 +301,12 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
     vi.mocked(chat).mockImplementation(async (req: unknown) => {
       const title = titleFromPrompt(req);
       return {
-        content:
-          title === "第 1 页" ? offPaletteSvg(title) : svgWithTitle(title),
+        content: title === "第 1 页" ? offLockSvg(title) : svgWithTitle(title),
       };
     });
 
     const pages = await generateDeckSvgs(plans, spec, { skipEarlyGate: true });
-    expect(pages[0].svg).toContain("#123456");
+    expect(pages[0].svg).toContain("Impact");
     const guided = vi
       .mocked(chat)
       .mock.calls.filter((c) =>
@@ -317,6 +315,22 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
         ).messages[1].content.includes("全 deck 一致性要求"),
       );
     expect(guided.length).toBe(0);
+  });
+
+  it("原子修复：越锁颜色在生成环内被吸附回色板，不消耗重画轮次", async () => {
+    // 结构完全合法、仅颜色越锁：autoPatch 直接吸附，chat 只调用一次
+    const offColor = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#123456"/><text x="100" y="100" font-size="40" font-family="Noto Sans SC" fill="#0F172A">第 1 页</text></svg>`;
+    vi.mocked(chat).mockResolvedValue({ content: offColor });
+    const svg = await generateSlideSvg({
+      specLock: spec,
+      plan: makePlan(1)[0],
+      pageIndex: 0,
+      totalPages: 1,
+    });
+    expect(chat).toHaveBeenCalledTimes(1);
+    expect(svg).not.toContain("#123456");
+    // 色板 token 中距 #123456 最近的是 text #0F172A
+    expect(svg).toContain('fill="#0F172A"');
   });
 
   it("合规 cohort 不触发修复，正常生成全部页", async () => {
