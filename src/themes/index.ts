@@ -47,6 +47,43 @@ const DECOR_BY_STYLE: Record<VisualStyleId, ThemeDecor> = {
     separator: "none",
     accentRadius: 0.02,
   },
+  "magazine-bold": {
+    coverAccent: "top-bar",
+    bodyAccent: "none",
+    separator: "line",
+    accentRadius: 0,
+  },
+  "ink-wash": {
+    coverAccent: "side-bar",
+    bodyAccent: "none",
+    separator: "line",
+    accentRadius: 0.002,
+  },
+  "pastel-soft": {
+    coverAccent: "corner",
+    bodyAccent: "side-bar",
+    separator: "none",
+    accentRadius: 0.02,
+  },
+  "data-dense": {
+    coverAccent: "top-bar",
+    bodyAccent: "side-bar",
+    separator: "line",
+    grid: true,
+    accentRadius: 0,
+  },
+  "nature-calm": {
+    coverAccent: "corner",
+    bodyAccent: "none",
+    separator: "line",
+    accentRadius: 0.008,
+  },
+  "mono-luxury": {
+    coverAccent: "top-bar",
+    bodyAccent: "none",
+    separator: "line",
+    accentRadius: 0,
+  },
 };
 
 /**

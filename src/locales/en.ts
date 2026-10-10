@@ -453,11 +453,37 @@ export const en = {
   "style.glassmorphism": "Glassmorphism",
   "style.glassmorphism.character":
     "Translucent glass panels, gradient light, floating depth; large corner radius (≥16); fits modern SaaS/launch.",
+  "style.magazine-bold": "Magazine Bold",
+  "style.magazine-bold.character":
+    "Oversized headline dominates the canvas, extreme weight contrast, flat color blocks; type IS the graphic, minimal decoration.",
+  "style.ink-wash": "Ink Wash",
+  "style.ink-wash.character":
+    "Rice-paper background, ink-tone text, whitespace as composition; hairline separators, one cinnabar seal accent; serif titles, airy rhythm.",
+  "style.pastel-soft": "Pastel Soft",
+  "style.pastel-soft.character":
+    "Low-saturation pastels, big rounded (≥20) soft cards, no hard shadows; generous spacing, friendly tone for explainers/training.",
+  "style.data-dense": "Data Dense",
+  "style.data-dense.character":
+    "Density first: multi-column small type, thin grid tables, footnote-level sources; decoration yields to data alignment and scales.",
+  "style.nature-calm": "Nature Calm",
+  "style.nature-calm.character":
+    "Sage-green naturals, gentle sectioning, generous whitespace; low-contrast and easy on the eyes for long-form readouts.",
+  "style.mono-luxury": "Mono Luxury",
+  "style.mono-luxury.character":
+    "Near black-and-white grayscale, hairlines with vast whitespace, wide letter spacing; restrained and cold, for brand/launch contexts.",
 
   "palette.business-blue": "Business Blue",
   "palette.minimal-white": "Minimal White",
   "palette.tech-purple": "Tech Purple",
   "palette.vibrant-orange": "Vibrant Orange",
+  "palette.magazine-crimson": "Magazine Crimson",
+  "palette.ink-xuan": "Ink on Xuan Paper",
+  "palette.pastel-dream": "Pastel Dream",
+  "palette.consulting-navy": "Consulting Navy",
+  "palette.nature-sage": "Nature Sage",
+  "palette.mono-noir": "Mono Noir",
+  "palette.teal-deep": "Deep Teal",
+  "palette.sunset-warm": "Sunset Warm",
 } as const;
 
 export type TranslationKey = keyof typeof en;

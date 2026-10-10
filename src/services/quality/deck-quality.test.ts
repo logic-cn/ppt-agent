@@ -150,3 +150,64 @@ describe("checkChartFacts 图表事实校准", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("SVG 层校验纳入质量检查（导出锁）", () => {
+  const BAD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#94A3B8">浅灰说明</text></svg>`;
+
+  it("含阻断级 SVG 问题的 deck → svg_* hard finding，触发导出锁", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "cover", title: "封面", svg: BAD_SVG },
+        { id: "s2", layout: "closing", title: "谢谢" },
+      ],
+    });
+    const findings = checkDeckQuality(deck);
+    const bad = findings.find(
+      (f) => f.rule === "svg_aesthetics" && f.severity === "hard",
+    );
+    expect(bad).toBeDefined();
+    expect(bad!.message).toContain("对比度不足");
+    expect(bad!.slideId).toBe("s1");
+    expect(hasHardError(findings)).toBe(true);
+  });
+
+  it("skipSvgChecks 跳过 SVG 层校验（首屏门/纯大纲态）", () => {
+    const deck = createMockDeck({
+      slides: [{ id: "s1", layout: "cover", title: "封面", svg: BAD_SVG }],
+    });
+    const findings = checkDeckQuality(deck, { skipSvgChecks: true });
+    expect(
+      findings.filter((f) => f.rule.startsWith("svg_")),
+    ).toHaveLength(0);
+  });
+
+  it("无 svg 的纯大纲 deck 不产生 svg_* finding", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "cover", title: "封面" },
+        { id: "s2", layout: "closing", title: "谢谢" },
+      ],
+    });
+    expect(
+      checkDeckQuality(deck).filter((f) => f.rule.startsWith("svg_")),
+    ).toHaveLength(0);
+  });
+
+  it("warn 级美学问题映射为 soft finding（提示不阻断）", () => {
+    const warnSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="0" y="0" width="1280" height="720" fill="#0C1929"/><text x="100" y="120" font-size="40" fill="#F1F5F9">标题</text><text x="100" y="200" font-size="24" fill="#F1F5F9">要点一</text><rect x="200" y="300" width="200" height="80" fill="#1A2D42" flood-opacity="0.6"/></svg>`;
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "cover", title: "封面", svg: warnSvg },
+        { id: "s2", layout: "closing", title: "谢谢" },
+      ],
+    });
+    const findings = checkDeckQuality(deck);
+    const soft = findings.filter(
+      (f) => f.rule === "svg_aesthetics" && f.severity === "soft",
+    );
+    expect(soft.some((f) => /阴影浓度/.test(f.message))).toBe(true);
+    expect(
+      findings.filter((f) => f.rule.startsWith("svg_") && f.severity === "hard"),
+    ).toHaveLength(0);
+  });
+});

@@ -1,5 +1,13 @@
 import type { Deck } from "@/types/deck";
 import type { AutoFixAction } from "./types";
+import { buildSpecLock } from "@/design/spec-lock";
+import {
+  checkSvg,
+  checkTextGeometry,
+  checkAesthetics,
+  checkChartGeometry,
+  checkLayoutBalance,
+} from "@/engine/svg/quality/checker";
 
 export type Severity = "hard" | "soft";
 
@@ -17,6 +25,8 @@ export interface QualityCheckOptions {
   rules?: string[];
   /** 来源原文（导入生成场景）：提供时对图表数据做事实校准（B4） */
   sourceText?: string;
+  /** 跳过 SVG 层校验（纯大纲态/首屏门等无设计真相 SVG 或不宜阻断的场景） */
+  skipSvgChecks?: boolean;
 }
 
 /** 模板可声明的质量规则名 */
@@ -268,6 +278,44 @@ function checkPageCount(
 }
 
 /**
+ * SVG 层校验（导出锁，参照 PPT Master export lock）：
+ * 设计真相 SVG 存在阻断级几何/对比/图表问题 → hard（拒绝对该 deck 导出）；
+ * 色彩比例/阴影参数域/版面失衡统计 → soft（质量面板提示，不阻断）。
+ * 无 svg 的 deck（纯大纲态）自然跳过。
+ */
+export function checkSvgFindings(deck: Deck): QualityFinding[] {
+  const findings: QualityFinding[] = [];
+  const spec = buildSpecLock(deck.design);
+  deck.slides.forEach((slide, i) => {
+    if (!slide.svg) return;
+    const page = `第 ${i + 1} 页`;
+    const aesthetic = checkAesthetics(slide.svg, spec);
+    const groups: {
+      issues: { severity: "error" | "warn"; message: string }[];
+      rule: string;
+    }[] = [
+      { issues: checkSvg(slide.svg, spec), rule: "contract" },
+      { issues: checkTextGeometry(slide.svg, spec), rule: "geometry" },
+      { issues: aesthetic, rule: "aesthetics" },
+      { issues: checkChartGeometry(slide.svg), rule: "chart" },
+      { issues: checkLayoutBalance(slide.svg, spec), rule: "balance" },
+    ];
+    for (const g of groups) {
+      for (const it of g.issues) {
+        findings.push({
+          rule: `svg_${g.rule}`,
+          severity: it.severity === "error" ? "hard" : "soft",
+          slideId: slide.id,
+          message: `${page}「${slide.title}」：${it.message}`,
+          autoFixable: false,
+        });
+      }
+    }
+  });
+  return findings;
+}
+
+/**
  * 对 deck 做全量质量检查，返回分级后的检查项列表。
  * severity 为 "hard"（结构性，阻断导出）或 "soft"（提示性，可自动修复）。
  */
@@ -286,6 +334,9 @@ export function checkDeckQuality(
   findings.push(...checkGenericTitle(deck));
   findings.push(...checkPageCount(deck, options));
   findings.push(...checkChartFacts(deck, options));
+  if (!options?.skipSvgChecks) {
+    findings.push(...checkSvgFindings(deck));
+  }
 
   // 模板推荐的额外质量规则
   const rules = options?.rules ?? [];

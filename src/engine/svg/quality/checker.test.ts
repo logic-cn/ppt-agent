@@ -7,6 +7,10 @@ import {
   checkTypographyAnchors,
   checkCohortConsistency,
   checkTextGeometry,
+  contrastRatio,
+  checkAesthetics,
+  checkChartGeometry,
+  checkLayoutBalance,
 } from "./checker";
 import { buildSpecLock, type SpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -403,5 +407,243 @@ describe("checkTextGeometry（安全区 + 重叠）", () => {
     expect(
       checkTextGeometry(svg, specLock).some((i) => /安全区/.test(i.message)),
     ).toBe(true);
+  });
+});
+
+describe("contrastRatio（WCAG）", () => {
+  it("黑白为 21:1，同色为 1:1，且对称", () => {
+    expect(contrastRatio("FFFFFF", "000000")).toBeCloseTo(21, 0);
+    expect(contrastRatio("7B7B7B", "7B7B7B")).toBeCloseTo(1, 5);
+    expect(contrastRatio("94A3B8", "F1F5F9")).toBe(
+      contrastRatio("F1F5F9", "94A3B8"),
+    );
+  });
+});
+
+describe("checkAesthetics（量化美学）", () => {
+  const bg = specLock.colors.background;
+
+  it("浅字压浅底（对比度 2.34）报 error", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#F1F5F9"/><text x="100" y="200" font-size="20" fill="#94A3B8">灰色说明文字</text>`,
+    );
+    const issues = checkAesthetics(svg, specLock);
+    expect(
+      issues.some((i) => i.severity === "error" && /对比度不足/.test(i.message)),
+    ).toBe(true);
+  });
+
+  it("大字（≥26px）容忍 3.0：4.23 对比度不报错，小字报", () => {
+    const big = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="200" font-size="30" fill="#7B7B7B">大标题</text>`,
+    );
+    const small = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><text x="100" y="200" font-size="20" fill="#7B7B7B">小正文</text>`,
+    );
+    expect(
+      checkAesthetics(big, specLock).some((i) => /对比度不足/.test(i.message)),
+    ).toBe(false);
+    expect(
+      checkAesthetics(small, specLock).some((i) => /对比度不足/.test(i.message)),
+    ).toBe(true);
+  });
+
+  it("文字压在深色卡片(surface)上按底面而非画布背景算对比度", () => {
+    // 底面 rect 为深色：浅字合法；若错误地按背景回退则会漏报/误报
+    const surface = specLock.colors.surface;
+    const text = specLock.colors.text;
+    const svg = wrap(
+      `<rect x="100" y="100" width="400" height="200" fill="${surface}"/><text x="150" y="180" font-size="20" fill="${text}">卡片标题</text>`,
+    );
+    expect(
+      checkAesthetics(svg, specLock).filter(
+        (i) => i.severity === "error" && /对比度不足/.test(i.message),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accent 面积 >12% 画布 → 60-30-10 warn", () => {
+    const accent = specLock.colors.accent;
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><rect x="0" y="0" width="256" height="720" fill="${accent}"/>`,
+    );
+    expect(
+      checkAesthetics(svg, specLock).some(
+        (i) => i.severity === "warn" && /强调色面积/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("缺少大面积底色 → 画面发飘 warn", () => {
+    const svg = wrap(
+      `<rect x="100" y="100" width="200" height="120" fill="${specLock.colors.surface}"/>`,
+    );
+    expect(
+      checkAesthetics(svg, specLock).some((i) =>
+        /缺少大面积底色/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("flood-opacity 超出 0.03–0.12 参数域 warn，域内不报", () => {
+    const heavy = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><filter id="s"><feFlood flood-opacity="0.5"/></filter>`,
+    );
+    const ok = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><filter id="s"><feFlood flood-opacity="0.08"/></filter>`,
+    );
+    expect(
+      checkAesthetics(heavy, specLock).some((i) =>
+        /阴影浓度/.test(i.message),
+      ),
+    ).toBe(true);
+    expect(
+      checkAesthetics(ok, specLock).some((i) => /阴影浓度/.test(i.message)),
+    ).toBe(false);
+  });
+
+  it("合规页面（大底 + 高对比文字）无 error", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><text x="100" y="120" font-size="40" fill="${specLock.colors.text}">市场规模与增速</text><text x="100" y="180" font-size="20" fill="${specLock.colors.textMuted}">近三年复合增长率</text>`,
+    );
+    expect(
+      checkAesthetics(svg, specLock).filter((i) => i.severity === "error"),
+    ).toHaveLength(0);
+  });
+});
+
+describe("checkChartGeometry（柱图几何回算）", () => {
+  function bars(
+    data: { label: string; value: number }[],
+    heights: number[],
+    type = "bar",
+  ): string {
+    const rects = heights
+      .map(
+        (h, i) =>
+          `<rect x="${100 + i * 120}" y="${400 - h}" width="80" height="${h}" fill="#3B82F6"/>`,
+      )
+      .join("");
+    return wrap(
+      `<g data-chart-type="${type}" data-chart-data='${JSON.stringify(data)}'>${rects}</g>`,
+    );
+  }
+
+  it("柱高比例与数值比例一致 → 无问题", () => {
+    const svg = bars(
+      [
+        { label: "A", value: 10 },
+        { label: "B", value: 5 },
+        { label: "C", value: 20 },
+      ],
+      [100, 50, 200],
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("柱数与数据点数不一致 → error", () => {
+    const svg = bars(
+      [
+        { label: "A", value: 10 },
+        { label: "B", value: 5 },
+        { label: "C", value: 20 },
+      ],
+      [100, 50],
+    );
+    expect(
+      checkChartGeometry(svg).some((i) =>
+        /柱图几何不符/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("柱高比例偏离数值比例 >12% → error（只报第一根）", () => {
+    const svg = bars(
+      [
+        { label: "A", value: 10 },
+        { label: "B", value: 20 },
+      ],
+      [100, 100],
+    );
+    const issues = checkChartGeometry(svg).filter((i) =>
+      /柱图几何失真/.test(i.message),
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain("第 1 根柱");
+  });
+
+  it("非柱图类型（pie）不做几何回算", () => {
+    const svg = bars([{ label: "A", value: 10 }], [100, 50], "pie");
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("未画柱体（仅数据标记）不报错，导出端原生图表兜底", () => {
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"A","value":10}]'></g>`,
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+});
+
+describe("checkLayoutBalance（版面失衡/对齐统计）", () => {
+  const bg = specLock.colors.background;
+
+  it("内容全部堆在上半部、底部大面积空白 → warn", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/>` +
+        [100, 150, 200]
+          .map(
+            (y, i) =>
+              `<text x="100" y="${y}" font-size="24" fill="${specLock.colors.text}">要点行${i}</text>`,
+          )
+          .join(""),
+    );
+    expect(
+      checkLayoutBalance(svg, specLock).some((i) =>
+        /版面失衡/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("内容纵向铺满 → 不报失衡", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><text x="100" y="100" font-size="40" fill="${specLock.colors.text}">标题</text><text x="100" y="620" font-size="24" fill="${specLock.colors.text}">底部结论</text>`,
+    );
+    expect(checkLayoutBalance(svg, specLock)).toHaveLength(0);
+  });
+
+  it("左缘出现 5 个以上碎片化簇 → warn", () => {
+    const xs = [50, 120, 200, 280, 360, 440];
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/>` +
+        xs
+          .map(
+            (x, i) =>
+              `<text x="${x}" y="${300 + i * 50}" font-size="24" fill="${specLock.colors.text}">行${i}</text>`,
+          )
+          .join(""),
+    );
+    expect(
+      checkLayoutBalance(svg, specLock).some((i) =>
+        /左缘对齐碎片化/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("统一栏位左缘不报碎片化", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/>` +
+        [120, 220, 320, 420, 520]
+          .map(
+            (y, i) =>
+              `<text x="80" y="${y}" font-size="24" fill="${specLock.colors.text}">行${i}</text>`,
+          )
+          .join(""),
+    );
+    expect(
+      checkLayoutBalance(svg, specLock).some((i) =>
+        /左缘对齐碎片化/.test(i.message),
+      ),
+    ).toBe(false);
   });
 });

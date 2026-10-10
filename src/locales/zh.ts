@@ -434,9 +434,35 @@ export const zh: Record<TranslationKey, string> = {
   "style.glassmorphism": "玻璃拟态",
   "style.glassmorphism.character":
     "半透明玻璃面板、渐变光、悬浮景深；圆角大(≥16)；适合现代 SaaS/发布会。",
+  "style.magazine-bold": "杂志大标",
+  "style.magazine-bold.character":
+    "超大字号标题占画面主体、强字重对比、大色块切版；文字即图形，装饰极少。",
+  "style.ink-wash": "东方水墨",
+  "style.ink-wash.character":
+    "宣纸底、墨色文字、留白即构图；细线分隔、印章式一点朱色；衬线标题，气息疏朗。",
+  "style.pastel-soft": "粉彩轻盈",
+  "style.pastel-soft.character":
+    "低饱和粉彩底、大圆角(≥20)软卡片、无硬阴影；间距宽松，语气亲和，适合科普/培训。",
+  "style.data-dense": "咨询密集",
+  "style.data-dense.character":
+    "信息密度优先：多栏小字号、细网格表格、脚注级数据源；装饰让位于数据对齐与标尺。",
+  "style.nature-calm": "自然沉静",
+  "style.nature-calm.character":
+    "灰绿自然色系、柔和分节、留白充分；低对比不刺眼，适合长文阅读型汇报。",
+  "style.mono-luxury": "单色高级",
+  "style.mono-luxury.character":
+    "近黑白灰单色、极细线与大量留白、字距拉开；克制到近乎冷淡，适合品牌/发布场合。",
 
   "palette.business-blue": "商务深蓝",
   "palette.minimal-white": "极简白",
   "palette.tech-purple": "科技紫",
   "palette.vibrant-orange": "活力橙",
+  "palette.magazine-crimson": "杂志朱红",
+  "palette.ink-xuan": "水墨宣纸",
+  "palette.pastel-dream": "粉彩梦境",
+  "palette.consulting-navy": "咨询藏蓝",
+  "palette.nature-sage": "自然松灰",
+  "palette.mono-noir": "单色黑白",
+  "palette.teal-deep": "深海青",
+  "palette.sunset-warm": "落日暖金",
 };

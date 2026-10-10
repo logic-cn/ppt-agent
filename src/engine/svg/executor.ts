@@ -13,6 +13,8 @@ import {
   checkPresetShapes,
   checkSvgIcons,
   checkTextGeometry,
+  checkAesthetics,
+  checkChartGeometry,
 } from "./quality/checker";
 import { finalizeSvgPresets } from "./presets";
 import { finalizeSvgIcons } from "./icons";
@@ -176,6 +178,10 @@ export async function generateSlideSvg(
         ...checkSvg(s, opts.specLock),
         // 文本几何：小模型最高频的两类崩坏（贴边溢出、文字互叠）
         ...checkTextGeometry(s, opts.specLock),
+        // 量化美学：浅字压浅底等对比度塌陷（error 级）回喂重画
+        ...checkAesthetics(s, opts.specLock),
+        // 图表几何回算：手绘柱体与数据比例失真（error 级）回喂重画
+        ...checkChartGeometry(s),
         // 图表数据完整性：LLM 声明了图表但数据缺失/损坏会在导出端静默丢图
         ...checkChartData(s),
         // 预设形状/图标词表：未知标记导出端会静默降级为矩形

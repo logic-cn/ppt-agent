@@ -12,7 +12,13 @@ export type VisualStyleId =
   | "soft-rounded"
   | "editorial"
   | "blueprint"
-  | "glassmorphism";
+  | "glassmorphism"
+  | "magazine-bold"
+  | "ink-wash"
+  | "pastel-soft"
+  | "data-dense"
+  | "nature-calm"
+  | "mono-luxury";
 
 export type PaletteId = string;
 
@@ -42,6 +48,12 @@ export const VISUAL_STYLE_IDS: VisualStyleId[] = [
   "editorial",
   "blueprint",
   "glassmorphism",
+  "magazine-bold",
+  "ink-wash",
+  "pastel-soft",
+  "data-dense",
+  "nature-calm",
+  "mono-luxury",
 ];
 
 export function isDesignLock(v: unknown): v is DesignLock {

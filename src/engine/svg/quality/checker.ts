@@ -660,3 +660,275 @@ export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
   }
   return issues;
 }
+
+// ---- 量化美学规则（参照 PPT Master 60-30-10 / WCAG / 阴影参数域）----
+
+function normalizeHex(c: string | undefined): string | undefined {
+  if (!c) return undefined;
+  const m = c.trim().match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!m) return undefined;
+  let hex = m[1];
+  if (hex.length === 3) hex = [...hex].map((x) => x + x).join("");
+  return hex.toUpperCase();
+}
+
+function luminance(hex: string): number {
+  const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lin = rgb.map((v) =>
+    v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4),
+  );
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+/** WCAG 对比度（1..21） */
+export function contrastRatio(hexA: string, hexB: string): number {
+  const l1 = luminance(hexA);
+  const l2 = luminance(hexB);
+  const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+interface FilledRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  fill: string;
+  index: number;
+}
+
+function collectFilledRects(svg: string): FilledRect[] {
+  const rects: FilledRect[] = [];
+  const re = /<rect\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null) {
+    const { dx, dy } = translateOffset(m[0]);
+    const fill = normalizeHex(attr(m[0], "fill"));
+    if (!fill) continue;
+    const w = num(attr(m[0], "width")) ?? 0;
+    const h = num(attr(m[0], "height")) ?? 0;
+    if (w <= 0 || h <= 0) continue;
+    rects.push({
+      x: (num(attr(m[0], "x")) ?? 0) + dx,
+      y: (num(attr(m[0], "y")) ?? 0) + dy,
+      w,
+      h,
+      fill,
+      index: m.index,
+    });
+  }
+  return rects;
+}
+
+/**
+ * 量化美学校验：
+ * 1) 文字与其直接底面色块的 WCAG 对比度——正文 <4.5、大字(<26px 以下按小字) 
+ *    与 ≥26px 大字 <3.0 判 error（小模型最爱干的事就是浅字压浅底）；
+ * 2) 60-30-10 色比例——accent 着色面积 >12% 画布 warn、页面缺底色 warn；
+ * 3) 阴影参数域——flood-opacity 落在 0.03–0.12 之外 warn。
+ */
+export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const { w: canvasW, h: canvasH } = specLock.canvas;
+  const canvasArea = canvasW * canvasH;
+  const rects = collectFilledRects(svg);
+
+  // 1) 对比度
+  const textRe = /<text\b[^>]*>/gi;
+  let tm: RegExpExecArray | null;
+  while ((tm = textRe.exec(svg)) !== null) {
+    const open = tm[0];
+    const fill = normalizeHex(attr(open, "fill"));
+    if (!fill) continue;
+    const { dx, dy } = translateOffset(open);
+    const tx = (num(attr(open, "x")) ?? 0) + dx;
+    const ty = (num(attr(open, "y")) ?? 0) + dy;
+    const fs = num(attr(open, "font-size")) ?? 16;
+    // 文档序最靠后（画在最上）且覆盖文字中心的矩形视为底面
+    let bg: string | undefined;
+    for (const r of rects) {
+      if (r.index >= tm.index) break;
+      if (r.x <= tx && tx <= r.x + r.w && r.y <= ty && ty <= r.y + r.h) {
+        bg = r.fill;
+      }
+    }
+    if (!bg) bg = normalizeHex(specLock.colors.background);
+    if (!bg || bg === fill) continue;
+    const min = fs >= 26 ? 3.0 : 4.5;
+    const ratio = contrastRatio(fill, bg);
+    if (ratio < min) {
+      issues.push({
+        severity: "error",
+        message: `对比度不足：文字（#${fill}）与其底面（#${bg}）对比度 ${ratio.toFixed(2)} < ${min}，换用配色表中对比更强的组合`,
+        location: `text@${tm.index}`,
+      });
+    }
+  }
+
+  // 2) 60-30-10：accent 面积比例 + 页面底色
+  const accentHex = normalizeHex(specLock.colors.accent);
+  if (accentHex) {
+    const accentArea = rects
+      .filter((r) => r.fill === accentHex)
+      .reduce((s, r) => s + Math.min(r.w * r.h, canvasArea), 0);
+    const pct = (accentArea / canvasArea) * 100;
+    if (pct > 12) {
+      issues.push({
+        severity: "warn",
+        message: `强调色面积 ${pct.toFixed(0)}%，超出 60-30-10 配色的 10% 上限——accent 只用于点睛，大面积请换 background/surface`,
+        location: "color-ratio",
+      });
+    }
+  }
+  const baseHex = normalizeHex(specLock.colors.background);
+  const hasBase = rects.some(
+    (r) => r.fill === baseHex && r.w * r.h >= canvasArea * 0.4,
+  );
+  if (baseHex && !hasBase) {
+    issues.push({
+      severity: "warn",
+      message: `页面缺少大面积底色（background ${specLock.colors.background} 覆盖 <40%），画面发飘`,
+      location: "color-ratio",
+    });
+  }
+
+  // 3) 阴影参数域
+  const floodRe = /flood-opacity\s*=\s*["']?([0-9.]+)/gi;
+  let fm: RegExpExecArray | null;
+  while ((fm = floodRe.exec(svg)) !== null) {
+    const v = Number.parseFloat(fm[1]);
+    if (!Number.isFinite(v)) continue;
+    if (v > 0.12 || v < 0.03) {
+      issues.push({
+        severity: "warn",
+        message: `阴影浓度 flood-opacity=${v} 超出参数域 0.03–0.12，AI 感重，请调淡`,
+        location: "shadow",
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 图表几何回算（参照 PPT Master verify-charts 的坐标反算思路）：
+ * 柱图（bar/bar3D）中模型手绘的柱体 rect 必须与 data-chart-data 对得上——
+ * 数量一致、柱高比例与数值比例误差 ≤12%，否则预览图会「看着对、量不对」。
+ * （导出端会用原生图表重绘，此校验保的是设计真相 SVG 本身。）
+ */
+export function checkChartGeometry(svg: string): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const re = /<g\b[^>]*data-chart-type\s*=\s*["'](bar3D|bar)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null) {
+    const attrs = m[0];
+    const raw = attrQuoted(attrs, "data-chart-data");
+    if (!raw) continue;
+    let points: { value: number }[];
+    try {
+      points = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(points) || points.length === 0) continue;
+    const closeIdx = svg.indexOf("</g>", m.index);
+    const inner = closeIdx > m.index ? svg.slice(m.index + m[0].length, closeIdx) : "";
+    const barRe = /<rect\b[^>]*>/gi;
+    let bm: RegExpExecArray | null;
+    const bars: { x: number; h: number }[] = [];
+    let innerArea = 0;
+    while ((bm = barRe.exec(inner)) !== null) {
+      const w = num(attr(bm[0], "width")) ?? 0;
+      const h = num(attr(bm[0], "height")) ?? 0;
+      if (h <= 0 || w <= 0) continue;
+      innerArea = Math.max(innerArea, w * h);
+      bars.push({ x: (num(attr(bm[0], "x")) ?? 0), h });
+    }
+    // 排除铺底大矩形（面积取柱内最大者 3 倍以上视为背景板）
+    const cap = innerArea * 3;
+    const cols = bars
+      .filter((b) => b.h * b.h < cap * 4)
+      .sort((a, b) => a.x - b.x);
+    if (cols.length === 0) continue; // 没画柱体：图表数据仍在，导出兜底
+    if (cols.length !== points.length) {
+      issues.push({
+        severity: "error",
+        message: `柱图几何不符：画了 ${cols.length} 根柱但数据有 ${points.length} 个点，请重画`,
+        location: "g",
+      });
+      continue;
+    }
+    const maxV = Math.max(...points.map((p) => Math.abs(p.value ?? 0)));
+    const maxH = Math.max(...cols.map((b) => b.h));
+    if (maxV <= 0 || maxH <= 0) continue;
+    for (let i = 0; i < cols.length; i++) {
+      const vr = Math.abs(points[i].value) / maxV;
+      const hr = cols[i].h / maxH;
+      if (Math.abs(vr - hr) > 0.12) {
+        issues.push({
+          severity: "error",
+          message: `柱图几何失真：第 ${i + 1} 根柱高度比例 ${(hr * 100).toFixed(0)}% 与数值比例 ${(vr * 100).toFixed(0)}% 偏差超过 12%，请按数据重算柱高`,
+          location: "g",
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * 版面失衡统计（视觉评审的确定性替代——不渲染 PNG，直接对几何做统计）：
+ * 1) 内容整体缩在上部（底部 >38% 画布空白且内容未下沉）warn；
+ * 2) 左缘对齐碎片化：>4 个互不相邻的左缘值 warn（应吸附到统一栏格）。
+ */
+export function checkLayoutBalance(svg: string, specLock: SpecLock): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const { w: canvasW, h: canvasH } = specLock.canvas;
+  const rects = collectFilledRects(svg).filter(
+    (r) => r.w * r.h < canvasW * canvasH * 0.85,
+  );
+  const boxes = collectTextBoxes(svg);
+  if (boxes.length === 0 && rects.length === 0) return issues;
+
+  let contentBottom = 0;
+  let contentTop = canvasH;
+  for (const r of rects) {
+    contentTop = Math.min(contentTop, r.y);
+    contentBottom = Math.max(contentBottom, r.y + r.h);
+  }
+  for (const b of boxes) {
+    contentTop = Math.min(contentTop, b.top);
+    contentBottom = Math.max(contentBottom, b.bottom);
+  }
+  const bottomGapRatio = (canvasH - contentBottom) / canvasH;
+  if (
+    Number.isFinite(bottomGapRatio) &&
+    bottomGapRatio > 0.38 &&
+    contentTop < canvasH * 0.3 &&
+    boxes.length >= 3
+  ) {
+    issues.push({
+      severity: "warn",
+      message: `版面失衡：底部 ${Math.round(bottomGapRatio * 100)}% 空白且内容全部堆积在上半部，请加大行距/分布或下移视觉重心`,
+      location: "balance",
+    });
+  }
+
+  const lefts = boxes
+    .map((b) => Math.round(b.left))
+    .filter((x) => x > 0 && x < canvasW * 0.8);
+  const clusters: number[] = [];
+  for (const x of lefts.sort((a, b) => a - b)) {
+    if (clusters.length === 0 || x - clusters[clusters.length - 1] > 6) {
+      clusters.push(x);
+    }
+  }
+  if (clusters.length > 4) {
+    issues.push({
+      severity: "warn",
+      message: `左缘对齐碎片化：出现 ${clusters.length} 个不同左缘（${clusters.slice(0, 6).join("/")}px），文本请吸附到统一栏位 x（如边距 40 或各栏起始）`,
+      location: "balance",
+    });
+  }
+  return issues;
+}

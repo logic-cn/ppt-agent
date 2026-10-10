@@ -20,8 +20,8 @@ describe("visual-styles", () => {
     ).toBeUndefined();
   });
 
-  it("包含 6 个视觉风格且无 HEX 颜色", () => {
-    expect(VISUAL_STYLES).toHaveLength(6);
+  it("包含 12 个视觉风格且无 HEX 颜色", () => {
+    expect(VISUAL_STYLES).toHaveLength(12);
     for (const s of VISUAL_STYLES) {
       expect(s.character).not.toMatch(/#[0-9a-fA-F]{3,8}/);
     }
