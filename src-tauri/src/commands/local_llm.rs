@@ -452,6 +452,15 @@ mod tests {
         assert!(gbnf.contains("root"));
     }
 
+    /// zod v4 discriminatedUnion 的 JSON Schema 形态（anyOf + const）
+    /// 必须能转 grammar，否则端侧 patch 生成的 op 枚举不受约束
+    #[test]
+    fn discriminated_union_schema_converts_to_grammar() {
+        let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
+        let gbnf = json_schema_to_grammar(schema).expect("anyOf+const 应能转为 GBNF");
+        assert!(gbnf.contains("root"));
+    }
+
     #[test]
     fn json_top_closer_detects_object_completion() {
         let mut c = JsonTopCloser::new();
