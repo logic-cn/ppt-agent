@@ -589,7 +589,9 @@ export default function Editor() {
               currentIndex={selectedIndex}
               onIndexChange={setSelectedIndex}
               onUpdateSlideSvg={(slideId, svg) =>
-                useDeckStore.getState().updateSlide(slideId, { svg, svgStale: false })
+                useDeckStore
+                  .getState()
+                  .updateSlide(slideId, { svg, svgStale: false })
               }
               onAnnotateElement={(slideId, instruction, ctx) =>
                 void handleAnnotateElement(slideId, instruction, ctx)
@@ -606,10 +608,7 @@ export default function Editor() {
         {/* 右栏：属性检查器（AI / 页面 / 图表 / 配图 / 备注） */}
         {rightOpen && deck ? (
           <aside className="flex w-[280px] flex-col border-l border-border bg-bg-elevated">
-            <InspectorPanel
-              deck={deck}
-              selectedIndex={selectedIndex}
-            />
+            <InspectorPanel deck={deck} selectedIndex={selectedIndex} />
           </aside>
         ) : (
           <aside className="flex w-9 flex-col items-center border-l border-border bg-bg-elevated py-2">
@@ -666,6 +665,7 @@ function ModelStatusChip() {
   const modelPath = useModelStore((s) => s.modelPath);
   const progress = useModelStore((s) => s.progress);
   const refresh = useModelStore((s) => s.refresh);
+  const ensureReady = useModelStore((s) => s.ensureReady);
   const cfg = settings.providers[settings.activeProvider];
   const local = !!cfg && isLocalProviderConfig(cfg);
 
@@ -678,6 +678,10 @@ function ModelStatusChip() {
   const loaded = local ? modelState === "loaded" && !!modelPath : !!cfg.apiKey;
   const def = MODEL_REGISTRY[tier];
   const name = local ? def.displayName.split(" ")[0] : cfg.label;
+  const busy = modelState === "downloading" || modelState === "loading";
+  // 未就绪时提供就地操作：已下载 → 加载；未下载/出错 → 下载并加载
+  const actionLabel =
+    modelState === "downloaded" ? t("model.load") : t("model.download");
   const statusText = local
     ? modelState === "downloading"
       ? progress?.phase === "verifying"
@@ -692,7 +696,9 @@ function ModelStatusChip() {
         ? t("common.loading")
         : loaded
           ? t("model.loaded")
-          : t("model.downloaded")
+          : modelState === "absent" || modelState === "error"
+            ? t("model.absent")
+            : t("model.downloaded")
     : cfg.apiKey
       ? t("settings.inUse")
       : t("settings.missingApiKey");
@@ -708,6 +714,25 @@ function ModelStatusChip() {
         }`}
       />
       {name}
+      {local &&
+        !loaded &&
+        modelState !== "unsupported" &&
+        modelState !== "unknown" && (
+          <button
+            type="button"
+            title={statusText}
+            disabled={busy}
+            onClick={() => void ensureReady().catch(() => {})}
+            className="flex items-center gap-1 rounded-full bg-accent px-2 py-px text-[11px] text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {busy ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3" />
+            )}
+            {busy ? statusText : actionLabel}
+          </button>
+        )}
     </span>
   );
 }
