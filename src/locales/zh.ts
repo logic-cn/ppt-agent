@@ -51,8 +51,38 @@ export const zh: Record<TranslationKey, string> = {
   "settings.tavilyKey": "Tavily API Key",
   "settings.pexelsKeyPlaceholder":
     "在 pexels.com/api 免费申请；不填仅用 Openverse",
+
+  "model.title": "内置本地模型",
+  "model.help":
+    "在本机离线运行，无需 API Key。模型只需下载一次，之后生成完全不依赖网络。",
+  "model.tier": "模型档位",
+  "model.tierStandard": "MiniCPM5-2B · 推荐（约 1.46 GB，需 8GB 内存）",
+  "model.tierLight": "MiniCPM5-1B · 极速（约 0.64 GB，适合低配机器）",
+  "model.absent": "未下载",
+  "model.downloading": "下载中… {percent}%",
+  "model.verifying": "校验完整性…",
+  "model.downloaded": "已下载，未加载",
+  "model.loading": "正在加载进内存…",
+  "model.loaded": "已就绪",
+  "model.error": "出错：{message}",
+  "model.unsupported": "本地模型仅在桌面端可用",
+  "model.download": "下载模型",
+  "model.load": "加载模型",
+  "model.unload": "卸载（释放内存）",
+  "model.delete": "删除模型文件",
+  "model.deleteConfirm": "确定删除本地模型文件？下次使用需重新下载。",
+  "model.readyChip": "本地模型已就绪",
+  "model.gateTitle": "首次使用需下载本地模型",
+  "model.gateDesc":
+    "约 {size}，仅需一次；下载完成后完全离线可用。你也可以改为接入外部大模型。",
+  "model.gateSwitch": "改用外部大模型",
+  "model.attributions":
+    "本地模型：MiniCPM5（OpenBMB，Apache-2.0 协议）；推理引擎：llama.cpp（MIT 协议）。",
+
   "settings.aboutSection": "关于与更新",
   "settings.appVersion": "当前版本",
+  "settings.modelCredits":
+    "内置端侧模型 MiniCPM5（Apache-2.0，© OpenBMB）· 推理引擎 llama.cpp（MIT）。模型下载完成后，完整许可声明随模型文件一同保存于模型目录。",
   "settings.checkUpdate": "检查更新",
   "settings.checkingUpdate": "正在检查更新…",
   "settings.upToDate": "已是最新版本",

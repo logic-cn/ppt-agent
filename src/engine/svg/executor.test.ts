@@ -46,6 +46,7 @@ function titleFromPrompt(req: unknown): string {
 
 vi.mock("@/services/llm", () => ({
   chat: vi.fn(),
+  isLocalModelActive: vi.fn(() => false),
 }));
 
 import { chat } from "@/services/llm";

@@ -12,6 +12,9 @@ import { useDeckStore } from "@/store/deck";
 import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { useSettingsStore } from "@/store/settings";
+import { useModelStore } from "@/store/model";
+import { isLocalProviderConfig } from "@/types/llm";
+import { ModelGateCard } from "@/components/settings/LocalModelSection";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { runFirstPageGate } from "@/services/generation/first-page-gate";
 import {
@@ -341,6 +344,16 @@ export function ChatPanel() {
                 // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
                 const targetDeck =
                   deck ?? (await useDeckStore.getState().createDeck());
+                // 本地模型：确保已下载并加载（进度与操作入口见输入框上方门控卡片）
+                {
+                  const st = useSettingsStore.getState().settings;
+                  const activeCfg = st.providers[st.activeProvider];
+                  if (activeCfg && isLocalProviderConfig(activeCfg)) {
+                    await useModelStore.getState().ensureReady();
+                    if (job.signal.aborted)
+                      throw new DOMException("Aborted", "AbortError");
+                  }
+                }
                 // D4 联网补料：开启研究时先检索资料作为 docContent（失败静默跳过）
                 let docContent: string | undefined;
                 const settings = useSettingsStore.getState().settings;
@@ -757,6 +770,9 @@ export function ChatPanel() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* 本地模型门控卡片：激活本地模型且未就绪时显示下载/加载进度 */}
+      <ModelGateCard />
 
       {/* 生成前参数控制（场景/语气/密度/受众/图表/页数） */}
       <GenerationOptionsBar

@@ -50,8 +50,39 @@ export const en = {
   "settings.tavilyKey": "Tavily API Key",
   "settings.pexelsKeyPlaceholder":
     "Free key at pexels.com/api — Openverse works without one",
+
+  "model.title": "Built-in Local Model",
+  "model.help":
+    "Runs fully offline on your machine — no API key needed. Download once; generation never touches the network afterwards.",
+  "model.tier": "Model tier",
+  "model.tierStandard": "MiniCPM5-2B · Recommended (~1.46 GB, needs 8 GB RAM)",
+  "model.tierLight": "MiniCPM5-1B · Fast (~0.64 GB, for low-end machines)",
+  "model.absent": "Not downloaded",
+  "model.downloading": "Downloading… {percent}%",
+  "model.verifying": "Verifying integrity…",
+  "model.downloaded": "Downloaded, not loaded",
+  "model.loading": "Loading into memory…",
+  "model.loaded": "Ready",
+  "model.error": "Error: {message}",
+  "model.unsupported": "The local model is available in the desktop app only",
+  "model.download": "Download model",
+  "model.load": "Load model",
+  "model.unload": "Unload (free memory)",
+  "model.delete": "Delete model file",
+  "model.deleteConfirm":
+    "Delete the local model file? You will need to download it again.",
+  "model.readyChip": "Local model is ready",
+  "model.gateTitle": "Download the local model to get started",
+  "model.gateDesc":
+    "About {size} once; fully offline afterwards. You can also connect an external LLM instead.",
+  "model.gateSwitch": "Use an external LLM instead",
+  "model.attributions":
+    "Local model: MiniCPM5 (OpenBMB, Apache-2.0); inference engine: llama.cpp (MIT).",
+
   "settings.aboutSection": "About & Updates",
   "settings.appVersion": "Current version",
+  "settings.modelCredits":
+    "Built-in on-device model MiniCPM5 (Apache-2.0, © OpenBMB) · inference engine llama.cpp (MIT). After a model download, the full license notice is saved next to the model file.",
   "settings.checkUpdate": "Check for updates",
   "settings.checkingUpdate": "Checking for updates…",
   "settings.upToDate": "You are on the latest version",

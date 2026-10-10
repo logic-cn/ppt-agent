@@ -1,0 +1,25 @@
+内置端侧模型许可声明 / On-device Model License Notice
+====================================================
+
+模型 / Model: MiniCPM5 系列（MiniCPM5-2B / MiniCPM5-1B, GGUF 量化版）
+- 版权 / Copyright: © OpenBMB (清华大学自然语言处理实验室 & 面壁智能)
+- 许可证 / License: Apache License 2.0
+  全文见 https://www.apache.org/licenses/LICENSE-2.0
+- 模型仓库 / Model repository:
+  https://www.modelscope.cn/organization/OpenBMB
+  https://huggingface.co/openbmb
+- 商用分发允许，但分发本应用或模型副本时必须保留本声明及 Apache-2.0
+  要求（NOTICE 与许可副本）。
+
+推理引擎 / Inference engine: llama.cpp
+- 版权 / Copyright: © Georgi Gerganov and llama.cpp contributors
+- 许可证 / License: MIT License
+  https://github.com/ggml-org/llama.cpp
+- 本项目通过 llama-cpp-2 Rust 绑定静态链接 llama.cpp（含 ggml）。
+  ggml 同样为 MIT 许可。
+
+字体提示 / Fonts: 生成结果中的文字以文本对象保存，渲染依赖用户系统
+安装的字体（如 Noto Sans SC，SIL Open Font License）。
+
+本文件由应用在本地模型下载完成后自动写入模型目录。
+This file is written automatically next to the model after download.

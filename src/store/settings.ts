@@ -51,7 +51,7 @@ function defaultSettings(): AppSettings {
   });
   return {
     version: 1,
-    activeProvider: "deepseek",
+    activeProvider: "local",
     providers,
     pexelsApiKey: "",
     researchEnabled: false,
@@ -59,6 +59,19 @@ function defaultSettings(): AppSettings {
     lang: "zh",
     theme: "system",
   };
+}
+
+/** 为存量设置补齐后续新增的内置 provider 预设（不覆盖已有项） */
+function mergeBuiltinPresets(settings: AppSettings): AppSettings {
+  const providers = { ...settings.providers };
+  let changed = false;
+  (Object.keys(PROVIDER_PRESETS) as BuiltinProviderId[]).forEach((id) => {
+    if (!providers[id]) {
+      providers[id] = { ...PROVIDER_PRESETS[id], apiKey: "", enabled: false };
+      changed = true;
+    }
+  });
+  return changed ? { ...settings, providers } : settings;
 }
 
 interface SettingsStore {
@@ -84,10 +97,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loaded: false,
 
   load: async () => {
-    const settings = (await loadSettings()) ?? get().settings;
+    const loaded = await loadSettings();
+    const settings = mergeBuiltinPresets(loaded ?? get().settings);
     // 兼容旧版本：activeProvider 指向已不存在的 provider（如被移除的内置项）时回退默认值
     if (!settings.providers[settings.activeProvider]) {
-      settings.activeProvider = "deepseek";
+      settings.activeProvider = "local";
     }
     set({ settings, loaded: true });
   },

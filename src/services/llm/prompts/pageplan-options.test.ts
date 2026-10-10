@@ -105,4 +105,33 @@ describe("pagePlan 生成选项注入（路线图 §7.3）", () => {
     expect(prompt).toContain("Q3 增长靠海外市场");
     expect(prompt).toContain("closing 回扣");
   });
+
+  it("slim 本地档：精简角色说明与配色细节，保留模板指引与 few-shot", () => {
+    const full = buildPagePlanSystemPrompt({
+      design: DESIGN,
+      fewShot: "【示例】...",
+    });
+    const slim = buildPagePlanSystemPrompt({
+      design: DESIGN,
+      fewShot: "【示例】...",
+      slim: true,
+    });
+    expect(slim.length).toBeLessThan(full.length);
+    expect(slim).toContain("只规划页面结构，不写 SVG");
+    expect(slim).toContain("cover(封面，第一页)");
+    expect(slim).not.toContain("## 强约束");
+    expect(slim).not.toContain("primary:#");
+    expect(slim).toContain("【示例】...");
+
+    const slimTpl = buildPagePlanSystemPrompt({
+      design: DESIGN,
+      slim: true,
+      templateCtx: {
+        slidePlan: [{ role: "cover", instruction: "封面页" }],
+        promptHints: ["h"],
+      } as never,
+    });
+    expect(slimTpl).toContain("模板结构指引");
+    expect(slimTpl).toContain('role="cover"');
+  });
 });

@@ -1,6 +1,8 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
+import { isLocalProviderConfig } from "@/types/llm";
 import { httpRequest } from "@/services/http-client";
+import { LocalLlmProvider } from "./local-provider";
 import type { FailureKind } from "@/services/recovery";
 
 /** 标记不可重试的业务错误（如 4xx 鉴权/参数错误），传输层重试循环会直接抛出 */
@@ -252,6 +254,9 @@ interface ChatProvider {
 export async function createProviderAsync(
   config: LLMProviderConfig,
 ): Promise<ChatProvider> {
+  if (isLocalProviderConfig(config)) {
+    return new LocalLlmProvider(config);
+  }
   if (!config.apiKey) {
     throw new Error(
       `Provider「${config.label}」未配置 API Key，请前往设置页填写。`,

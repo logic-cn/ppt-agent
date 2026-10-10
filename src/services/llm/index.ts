@@ -1,14 +1,32 @@
 import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
+import { isLocalProviderConfig } from "@/types/llm";
 import { createProviderAsync, type ChatProvider } from "./adapter";
 import type { FailureKind } from "@/services/recovery";
 import { useSettingsStore } from "@/store/settings";
+
+/** 当前激活的模型是否为内置本地模型（用于精简 prompt 等本地档策略） */
+export function isLocalModelActive(): boolean {
+  try {
+    const { settings } = useSettingsStore.getState();
+    const config = settings.providers[settings.activeProvider];
+    return !!config && isLocalProviderConfig(config);
+  } catch {
+    return false;
+  }
+}
 
 /** 获取当前激活的 provider 配置 */
 export function getActiveProviderConfig(): LLMProviderConfig {
   const { settings } = useSettingsStore.getState();
   const config = settings.providers[settings.activeProvider];
-  if (!config || !config.apiKey) {
+  if (!config) {
+    throw new Error(
+      `当前模型「${settings.activeProvider}」不存在，请前往设置页检查配置。`,
+    );
+  }
+  // 内置本地模型无需 API Key
+  if (!config.apiKey && !isLocalProviderConfig(config)) {
     throw new Error(
       `当前模型「${settings.activeProvider}」未配置 API Key，请前往设置页填写。`,
     );

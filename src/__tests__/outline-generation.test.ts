@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the LLM layer so we don't hit the network
 vi.mock("@/services/llm", () => ({
   chat: vi.fn(),
+  isLocalModelActive: vi.fn(() => false),
 }));
 
 import { chat } from "@/services/llm";

@@ -185,13 +185,16 @@ export function isIcon(id: string): boolean {
   return Object.prototype.hasOwnProperty.call(ICONS, id);
 }
 
-/** 图标词汇表提示词模块 */
-export const ICON_VOCAB_PROMPT = `## 内置图标词汇表（图标必须用这里的数据-icon 标记，不要手绘）
+/** 图标词汇表提示词模块；max 限制条目数（本地小模型精简档） */
+export function buildIconVocabPrompt(max?: number): string {
+  const lines = Object.values(ICONS).map((i) => `- ${i.id}：${i.usage}`);
+  return `## 内置图标词汇表（图标必须用这里的数据-icon 标记，不要手绘）
 用 <rect data-icon="名称" x=".." y=".." width=".." height=".." fill=".."/> 表达单色图标
 （width/height 建议相等；fill 取配色表颜色，导出为原生可编辑形状）：
-${Object.values(ICONS)
-  .map((i) => `- ${i.id}：${i.usage}`)
-  .join("\n")}`;
+${max ? lines.slice(0, max).join("\n") : lines.join("\n")}`;
+}
+
+export const ICON_VOCAB_PROMPT = buildIconVocabPrompt();
 
 function f(v: number): string {
   return String(Math.round(v * 100) / 100);

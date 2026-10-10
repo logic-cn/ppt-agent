@@ -1,5 +1,5 @@
-import { PRESET_VOCAB_PROMPT } from "@/engine/svg/presets";
-import { ICON_VOCAB_PROMPT } from "@/engine/svg/icons";
+import { buildPresetVocabPrompt } from "@/engine/svg/presets";
+import { buildIconVocabPrompt } from "@/engine/svg/icons";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem, SemanticRole } from "@/types/page-plan";
 
@@ -63,8 +63,11 @@ export function buildSvgGenPrompt(opts: {
   instruction?: string;
   /** 全 deck 一致性纠正要求（early gate 下发），追加到硬性要求之后 */
   extraGuidance?: string;
+  /** 本地小模型档：删设备菜单、词汇表截断到前 6 条，降低 prefill 开销 */
+  slim?: boolean;
 }): string {
   const { specLock, plan, pageIndex, totalPages } = opts;
+  const slim = !!opts.slim;
   const cw = specLock.canvas.w;
   const ch = specLock.canvas.h;
   // 图表约定：当 pagePlan 指定了图表类型，要求用结构化 <g data-chart-type> 标记，
@@ -118,11 +121,11 @@ ${roleGuidance}
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
 6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..${cw} / 0..${ch} 范围内。${chartRule}
-${DEVICE_MENU}
+${slim ? "" : `${DEVICE_MENU}
 
-${PRESET_VOCAB_PROMPT}
+`}${slim ? buildPresetVocabPrompt(6) : buildPresetVocabPrompt()}
 
-${ICON_VOCAB_PROMPT}
+${slim ? buildIconVocabPrompt(6) : buildIconVocabPrompt()}
 
 ${layoutGeometryText(cw)}${extraBlock}${briefBlock}${instructionBlock}
 

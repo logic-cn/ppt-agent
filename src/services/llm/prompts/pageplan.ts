@@ -58,11 +58,36 @@ export function buildPagePlanSystemPrompt(opts: {
   fewShot?: string;
   templateCtx?: TemplateGenerationContext;
   options?: GenerationOptions;
+  /** 本地小模型档：精简角色说明与输出示例，降低 prefill 开销 */
+  slim?: boolean;
 }): string {
   const mode = getMode(opts.design.mode);
   const style = getVisualStyle(opts.design.visualStyle)!;
   const palette = getPalette(opts.design.palette)!;
   const c = palette.colors;
+
+  // 本地小模型档：删角色长说明与配色细节（pagePlan 不输出颜色），只留结构骨架
+  if (opts.slim) {
+    let slim = `你是 PPT 结构策划。叙事模式「${mode.name}」，视觉风格「${style.name}」。只规划页面结构，不写 SVG。
+
+每页选一个语义角色：cover(封面，第一页) / section(章节页) / content(正文) / metrics(核心数字) / quote(金句) / timeline(时间线) / comparison(对比) / process(流程) / closing(结尾，最后一页)。
+混用多种角色，避免连续同角色。涉及数据/趋势优先 metrics/comparison/timeline 并给 chartType。
+${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.options?.language ? "输出使用 English。" : "语言与用户输入一致。"}
+
+只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"..."}]}（bullets/chartType/quote/attribution 按需给出，可省略）`;
+    if (opts.fewShot) slim += `\n\n${opts.fewShot}`;
+    if (opts.templateCtx) {
+      const { slidePlan } = opts.templateCtx;
+      const planLines = slidePlan
+        .map(
+          (item, i) =>
+            `- 第 ${i + 1} 页：role="${item.role}"，${item.instruction}`,
+        )
+        .join("\n");
+      slim += `\n\n## 模板结构指引（必须严格遵守，页数与 role 精确匹配，共 ${slidePlan.length} 页）\n${planLines}`;
+    }
+    return slim;
+  }
 
   const lockBlock = [
     "你是 PPT 结构策划。严格按以下锁定的设计契约规划页面结构：",

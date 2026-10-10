@@ -62,7 +62,7 @@ pnpm tauri:build
 
 ## 配置
 
-前往设置页填写 LLM API Key：
+**默认无需任何配置**：应用内置端侧小模型（见下节「内置端侧小模型」），首次生成时自动下载模型即可离线使用。若要接入更强的云端大模型，前往设置页填写 LLM API Key：
 
 | Provider  | Base URL                                            | 模型                       |
 | --------- | --------------------------------------------------- | -------------------------- |
@@ -70,6 +70,22 @@ pnpm tauri:build
 | Anthropic | `https://api.anthropic.com/v1`                      | `claude-sonnet-4-20250514` |
 | 通义千问  | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-max`                 |
 | 智谱 GLM  | `https://open.bigmodel.cn/api/paas/v4`              | `glm-4-plus`               |
+
+## 内置端侧小模型
+
+不配置任何 API Key，应用默认使用进程内嵌的 llama.cpp（CPU 推理）驱动 **MiniCPM5** 端侧模型，端到端生成 PPT；效果不满意时可随时切换外部大模型。
+
+- **档位**：
+  | 档位 | 模型 | 量化 | 体积 | 建议物理内存 | 上下文 |
+  | --- | --- | --- | --- | --- | --- |
+  | 标准（推荐） | MiniCPM5-2B | Q4_K_M | ~1.45 GB | ≥ 8 GB | 16K |
+  | 极速（低配） | MiniCPM5-1B | Q4_K_M | ~0.64 GB | ≥ 4 GB | 8K |
+- **分发**：首次使用时按需下载（ModelScope 主源、hf-mirror 备源，自动故障切换），支持断点续传与 sha256 完整性校验；模型存放于应用数据目录 `models/`，可在设置页「本地模型」中下载 / 删除 / 切换档位。安装包不携带模型权重。
+- **链路**：本地模型走与云端完全相同的生成管线（pagePlan → 逐页 SVG 直出 → 原生 PPTX 翻译）；结构化环节（页面规划）使用 llama.cpp **grammar 约束解码**保证 JSON 100% 合法；本地档自动启用精简提示词（单例 few-shot、截断形状/图标词汇表）降低 prefill 开销，单页软超时放宽到 5 分钟。
+- **性能参考**：Apple Silicon 实测 MiniCPM5-2B 约 40–45 tok/s（限 2 线程几乎无差，小模型受内存带宽约束）；一页 SVG（约 2–3K token）约 1 分钟，10 页 deck 约 10–15 分钟。低端 x86 笔记本预计 1.5–5 分钟/页，建议用极速档。
+- **许可与署名**：MiniCPM5 采用 Apache-2.0（© OpenBMB）；推理引擎 llama.cpp / ggml 采用 MIT。模型下载完成后完整许可声明写入模型目录 `<文件名>.LICENSE.txt`，设置页「关于」含第三方清单。
+- **调试旋钮**：环境变量 `PPT_LOCAL_THREADS` 可限定推理线程数（基准测试模拟低配机用）。
+- **限制**：本地档为非多模态模型，视觉自检自动跳过；图片搜索、联网补料等依赖网络的功能不受影响但非必需。
 
 ## 语言与主题
 

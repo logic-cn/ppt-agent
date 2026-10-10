@@ -158,13 +158,16 @@ export function isPresetShape(id: string): boolean {
   return Object.prototype.hasOwnProperty.call(PRESET_SHAPES, id);
 }
 
-/** 预设形状词汇表提示词模块（svg-gen 条件注入） */
-export const PRESET_VOCAB_PROMPT = `## 预设形状词汇表（关系图/流程图的矢量形状）
+/** 预设形状词汇表提示词模块（svg-gen 条件注入）；max 限制条目数（本地小模型精简档） */
+export function buildPresetVocabPrompt(max?: number): string {
+  const lines = Object.values(PRESET_SHAPES).map((s) => `- ${s.id}：${s.usage}`);
+  return `## 预设形状词汇表（关系图/流程图的矢量形状）
 用 <rect data-prst="名称" x=".." y=".." width=".." height=".." fill=".."/> 表达预设形状，
 导出为 PowerPoint 原生可编辑形状；不要手绘近似路径代替这些形状：
-${Object.values(PRESET_SHAPES)
-  .map((s) => `- ${s.id}：${s.usage}`)
-  .join("\n")}`;
+${max ? lines.slice(0, max).join("\n") : lines.join("\n")}`;
+}
+
+export const PRESET_VOCAB_PROMPT = buildPresetVocabPrompt();
 
 /** data-prst 属性正则（rect 载体） */
 const PRST_RECT_RE =

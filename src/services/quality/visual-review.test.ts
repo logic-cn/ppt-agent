@@ -10,11 +10,16 @@ import { chat } from "@/services/llm";
 import { reviewSlideVisual } from "./visual-review";
 import { buildSpecLock } from "@/design/spec-lock";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { useSettingsStore } from "@/store/settings";
 
 const spec = buildSpecLock(DEFAULT_DESIGN);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 视觉自检仅在多模态（远程）provider 下执行
+  useSettingsStore.setState((s) => ({
+    settings: { ...s.settings, activeProvider: "deepseek" },
+  }));
 });
 
 describe("reviewSlideVisual", () => {
@@ -54,5 +59,15 @@ describe("reviewSlideVisual", () => {
     const r = await reviewSlideVisual({ svg: "<svg/>", specLock: spec });
     expect(r.pass).toBe(false);
     expect(r.issues).toEqual(["标题被裁切"]);
+  });
+
+  it("本地模型激活时跳过视觉自检（不调用 chat）", async () => {
+    useSettingsStore.setState((s) => ({
+      settings: { ...s.settings, activeProvider: "local" },
+    }));
+    const r = await reviewSlideVisual({ svg: "<svg/>", specLock: spec });
+    expect(r.pass).toBe(true);
+    expect(r.error).toContain("已跳过");
+    expect(chat).not.toHaveBeenCalled();
   });
 });

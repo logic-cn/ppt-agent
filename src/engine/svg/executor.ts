@@ -1,4 +1,4 @@
-import { chat } from "@/services/llm";
+import { chat, isLocalModelActive } from "@/services/llm";
 import { buildSvgGenPrompt } from "@/services/llm/prompts/svg-gen";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
@@ -23,6 +23,12 @@ export type SvgProgress = (done: number, total: number) => void;
 const PAGE_TIME_LIMIT_MS = 90_000;
 
 /**
+ * 本地端侧模型档：低端 CPU 按 8–20 tok/s 产出约 2.5K token/页，
+ * 单页预算放宽到 5 分钟，避免超时误杀正在推进的推理。
+ */
+const PAGE_TIME_LIMIT_LOCAL_MS = 300_000;
+
+/**
  * 压缩回传给 LLM 的底稿 SVG（参照 PPT Master compact_svg_coordinates/styles）：
  * 去注释、折叠标签间空白与连续空白——不改变任何结构与文本内容，
  * 显著降低定向修改调用的输入 token。
@@ -40,7 +46,10 @@ export function compactSvgForPrompt(svg: string): string {
  * 超时或用户取消都会触发 abort，从而中断当页的 LLM 请求；
  * 超时与用户取消的区别在 rawGenerate 中区分（见 AbortError 分支）。
  */
-function pageLevelSignal(signal?: AbortSignal): {
+function pageLevelSignal(
+  signal: AbortSignal | undefined,
+  timeLimitMs: number,
+): {
   signal: AbortSignal;
   cleanup: () => void;
 } {
@@ -50,7 +59,7 @@ function pageLevelSignal(signal?: AbortSignal): {
     if (signal.aborted) controller.abort();
     else signal.addEventListener("abort", onAbort, { once: true });
   }
-  const timeoutId = setTimeout(() => controller.abort(), PAGE_TIME_LIMIT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeLimitMs);
   return {
     signal: controller.signal,
     cleanup: () => {
@@ -83,7 +92,9 @@ export interface GenerateSlideSvgOptions {
 export async function generateSlideSvg(
   opts: GenerateSlideSvgOptions,
 ): Promise<string> {
-  const prompt = buildSvgGenPrompt(opts);
+  // 本地小模型档：精简设备菜单与词汇表，降低 prefill 开销
+  const local = isLocalModelActive();
+  const prompt = buildSvgGenPrompt({ ...opts, slim: local });
   // 有底稿的定向修改用低温度保证稳定；从零生成保持多样性
   const temperature = opts.baseSvg ? 0.4 : 0.7;
   const baseBlock = opts.baseSvg
@@ -91,7 +102,8 @@ export async function generateSlideSvg(
     : "";
 
   // 页面级取消：合并用户取消信号 + 软超时（超时按取消处理）
-  const pageLevel = pageLevelSignal(opts.signal);
+  const timeLimitMs = local ? PAGE_TIME_LIMIT_LOCAL_MS : PAGE_TIME_LIMIT_MS;
+  const pageLevel = pageLevelSignal(opts.signal, timeLimitMs);
 
   const rawGenerate = async (userContent: string): Promise<string> => {
     let res: Awaited<ReturnType<typeof chat>>;
@@ -121,7 +133,7 @@ export async function generateSlideSvg(
         !opts.signal?.aborted
       ) {
         throw new Error(
-          `第 ${opts.pageIndex + 1} 页 SVG 生成超时（${PAGE_TIME_LIMIT_MS / 1000} 秒），请重试`,
+          `第 ${opts.pageIndex + 1} 页 SVG 生成超时（${timeLimitMs / 1000} 秒），请重试`,
         );
       }
       throw e;

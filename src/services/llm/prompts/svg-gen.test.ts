@@ -107,4 +107,25 @@ describe("buildSvgGenPrompt 分层结构", () => {
     expect(prompt).toContain("定向修改要求");
     expect(prompt).toContain("把标题放大");
   });
+
+  it("slim 本地档：删设备菜单、词汇表截断到前 6 条，保留契约与几何对照", () => {
+    const base = {
+      specLock: SPEC,
+      plan: plan(),
+      pageIndex: 0,
+      totalPages: 6,
+    };
+    const full = buildSvgGenPrompt(base);
+    const slim = buildSvgGenPrompt({ ...base, slim: true });
+    expect(slim).not.toContain(DEVICE_MENU.split("\n")[0]);
+    expect(slim).toContain("预设形状词汇表");
+    expect(slim).toContain("内置图标词汇表");
+    expect(slim).toContain("版式几何对照");
+    expect(slim).toContain("#1D4ED8");
+    // 截断后总长应显著缩短
+    expect(slim.length).toBeLessThan(full.length - 500);
+    const vocabLineCount = (text: string) =>
+      text.split("\n").filter((l) => l.startsWith("- ") && l.includes("：")).length;
+    expect(vocabLineCount(slim)).toBeLessThan(vocabLineCount(full));
+  });
 });

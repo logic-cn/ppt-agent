@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { chat } from "./llm";
+import { chat, isLocalModelActive } from "./llm";
 import {
   buildOutlineSystemPrompt,
   buildOutlineUserPrompt,
@@ -14,21 +14,13 @@ import type { TemplateGenerationContext } from "@/presets/template-context";
 import type { GenerationOptions } from "@/types/generation";
 import type { DesignLock } from "@/types/design";
 import { isDesignLock } from "@/types/design";
-import { PagePlanItem, SEMANTIC_ROLES, SemanticRole } from "@/types/page-plan";
+import { PagePlanItem } from "@/types/page-plan";
+import {
+  pagePlanItemSchema,
+  pagePlanJsonSchema,
+} from "./llm/page-plan-grammar";
 import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
-
-// ---- pagePlan（页面结构规划）相关 schema ----
-
-const pagePlanItemSchema = z.object({
-  role: z.enum(SEMANTIC_ROLES as [SemanticRole, ...SemanticRole[]]),
-  title: z.string(),
-  intent: z.string(),
-  bullets: z.array(z.string()).optional(),
-  chartType: z.enum(["bar", "pie", "line", "doughnut"]).optional(),
-  quote: z.string().optional(),
-  attribution: z.string().optional(),
-});
 
 /**
  * 解析 LLM 返回的 JSON（兼容裸数组、{"pages":[...]}、markdown 代码块）。
@@ -163,11 +155,14 @@ export async function generatePagePlan(params: {
     pageCount: params.options?.pageCount ?? params.pageCount,
   };
 
+  // 本地小模型档：精简 prompt + 单例 few-shot，降低 prefill 开销
+  const slim = isLocalModelActive();
   const systemPrompt = buildPagePlanSystemPrompt({
     design,
     templateCtx: params.templateCtx,
-    fewShot: buildFewShotPrompt(selectFewShot(design)),
+    fewShot: buildFewShotPrompt(selectFewShot(design, slim ? 1 : 2)),
     options,
+    slim,
   });
   const userPrompt = buildPagePlanUserPrompt({
     topic: params.topic,
@@ -185,6 +180,8 @@ export async function generatePagePlan(params: {
       responseFormat: "json",
       maxTokens: 4000,
       signal: params.signal,
+      // 本地模型：grammar 约束输出结构（远程 provider 忽略）
+      jsonSchema: pagePlanJsonSchema,
     },
     "outline",
   );

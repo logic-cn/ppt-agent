@@ -16,7 +16,7 @@ import {
   installUpdate,
   type UpdateCheckOutcome,
 } from "@/services/updater";
-import { PROVIDER_PRESETS } from "@/types/llm";
+import { PROVIDER_PRESETS, isLocalProviderConfig } from "@/types/llm";
 import type {
   AppSettings,
   BuiltinProviderId,
@@ -24,6 +24,7 @@ import type {
   LLMProviderConfig,
   LLMProviderId,
 } from "@/types/llm";
+import { LocalModelSection } from "./LocalModelSection";
 import type { Lang, ThemeMode } from "@/types/preferences";
 import { useT } from "@/hooks/use-page-t";
 
@@ -355,6 +356,10 @@ function AboutUpdateSection({ t }: { t: ReturnType<typeof useT> }) {
           </span>
         </div>
 
+        <p className="text-xs leading-5 text-text-muted">
+          {t("settings.modelCredits")}
+        </p>
+
         {statusText && (
           <div
             className={
@@ -591,6 +596,7 @@ function ProviderCard({
 }) {
   const inputCls =
     "w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10";
+  const isLocal = isLocalProviderConfig(cfg);
 
   return (
     <div
@@ -617,7 +623,8 @@ function ProviderCard({
           >
             <span className="font-medium text-text-primary">
               {cfg.label}
-              {cfg.apiKey == null || cfg.apiKey.trim() === "" ? (
+              {!isLocal &&
+              (cfg.apiKey == null || cfg.apiKey.trim() === "") ? (
                 <span className="ml-1 text-xs text-red-500">
                   {t("settings.missingApiKey")}
                 </span>
@@ -653,46 +660,56 @@ function ProviderCard({
           </button>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-xs text-text-muted">
-            Base URL
-          </label>
-          <input
-            type="text"
-            value={cfg.baseUrl}
-            onChange={(e) => updateProvider(id, { baseUrl: e.target.value })}
-            placeholder={
-              isCustom ? t("settings.customBaseUrlPlaceholder") : undefined
-            }
-            className={inputCls}
-          />
+      {isLocal ? (
+        <div className="space-y-3">
+          <p className="text-xs text-text-muted">{t("model.help")}</p>
+          <LocalModelSection />
+          <p className="text-xs text-text-muted">{t("model.attributions")}</p>
         </div>
-        <div>
-          <label className="mb-1 block text-xs text-text-muted">
-            {t("settings.modelName")}
-          </label>
-          <input
-            type="text"
-            value={cfg.model}
-            onChange={(e) => updateProvider(id, { model: e.target.value })}
-            placeholder={
-              isCustom ? t("settings.customModelPlaceholder") : undefined
-            }
-            className={inputCls}
-          />
-        </div>
-      </div>
-      <div className="mt-3">
-        <label className="mb-1 block text-xs text-text-muted">API Key</label>
-        <input
-          type="password"
-          value={cfg.apiKey}
-          onChange={(e) => updateProvider(id, { apiKey: e.target.value })}
-          placeholder="sk-..."
-          className={inputCls}
-        />
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">
+                Base URL
+              </label>
+              <input
+                type="text"
+                value={cfg.baseUrl}
+                onChange={(e) => updateProvider(id, { baseUrl: e.target.value })}
+                placeholder={
+                  isCustom ? t("settings.customBaseUrlPlaceholder") : undefined
+                }
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">
+                {t("settings.modelName")}
+              </label>
+              <input
+                type="text"
+                value={cfg.model}
+                onChange={(e) => updateProvider(id, { model: e.target.value })}
+                placeholder={
+                  isCustom ? t("settings.customModelPlaceholder") : undefined
+                }
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="mb-1 block text-xs text-text-muted">API Key</label>
+            <input
+              type="password"
+              value={cfg.apiKey}
+              onChange={(e) => updateProvider(id, { apiKey: e.target.value })}
+              placeholder="sk-..."
+              className={inputCls}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

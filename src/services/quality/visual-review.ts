@@ -6,6 +6,8 @@
  */
 
 import { chat } from "@/services/llm";
+import { isLocalProviderConfig } from "@/types/llm";
+import { useSettingsStore } from "@/store/settings";
 import type { SpecLock } from "@/design/spec-lock";
 import { rasterizeSvg } from "@/engine/svg/rasterize";
 
@@ -55,6 +57,13 @@ export async function reviewSlideVisual(opts: {
   specLock: SpecLock;
   signal?: AbortSignal;
 }): Promise<VisualReviewResult> {
+  // 本地端侧模型非多模态，直接跳过视觉自检（视为通过，不消耗重画预算）
+  const { settings } = useSettingsStore.getState();
+  const active = settings.providers[settings.activeProvider];
+  if (active && isLocalProviderConfig(active)) {
+    return { pass: true, issues: [], error: "本地模型不支持视觉自检，已跳过" };
+  }
+
   let image: string;
   try {
     image = await rasterizeSvg(opts.svg);

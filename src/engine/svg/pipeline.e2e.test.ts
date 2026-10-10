@@ -35,6 +35,7 @@ vi.mock("@/services/llm", () => ({
       };
     },
   ),
+  isLocalModelActive: vi.fn(() => false),
 }));
 
 describe("X1 管线端到端联调", () => {
