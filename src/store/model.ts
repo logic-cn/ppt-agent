@@ -12,6 +12,7 @@ import {
   unloadModel,
 } from "@/services/model-manager";
 import { useSettingsStore } from "@/store/settings";
+import { isLocalProviderConfig } from "@/types/llm";
 
 export type ModelState =
   | "unknown" // 尚未探测
@@ -41,6 +42,8 @@ interface ModelStore {
   setTier: (tier: ModelTier) => Promise<void>;
   /** 下载并加载（幂等：已就绪直接返回）；供生成入口在发送前调用 */
   ensureReady: () => Promise<void>;
+  /** 应用启动时调用：激活 provider 为本地模型且已下载未加载 → 自动加载进内存 */
+  bootstrap: () => Promise<void>;
   download: () => Promise<void>;
   load: () => Promise<void>;
   unload: () => Promise<void>;
@@ -162,6 +165,16 @@ export const useModelStore = create<ModelStore>((set, get) => {
       return busy;
     },
 
+    bootstrap: async () => {
+      if (!isTauriRuntime()) return;
+      const s = useSettingsStore.getState().settings;
+      const cfg = s.providers[s.activeProvider];
+      // 未启用本地模型时不占内存（2B 档加载约 1.5GB）
+      if (!cfg || !isLocalProviderConfig(cfg)) return;
+      await get().refresh();
+      if (get().state === "downloaded") await get().load();
+    },
+
     download: async () => {
       try {
         await doDownload();
@@ -173,7 +186,6 @@ export const useModelStore = create<ModelStore>((set, get) => {
         });
       }
     },
-
     load: async () => {
       try {
         await doLoad();
