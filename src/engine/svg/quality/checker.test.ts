@@ -767,17 +767,18 @@ describe("checkPaletteContrast（brand token 组合静态体检）", () => {
 });
 
 describe("autoPatchSvg（确定性原子修复）", () => {
-  it("越锁颜色吸附到最近色板 token", () => {
+  it("越锁颜色吸附到最近色板 token，<text> 内取色不动", () => {
     const svg = wrap(
       `<rect x="0" y="0" width="1280" height="720" fill="#13203A"/><text x="100" y="200" font-size="20" fill="#F0F4FA">字</text>`,
     );
     const { svg: out, changed } = autoPatchSvg(svg, specLock);
     expect(changed).toBeGreaterThan(0);
-    // 越锁色应吸附回 business-blue 色板最近 token，原越锁值消失
+    // 非文字元素的越锁色吸附回最近 token
     expect(out).not.toContain("#13203A");
-    expect(out).not.toContain("#F0F4FA");
     expect(out).toContain("#1A2D42"); // #13203A → surface
-    expect(out).toContain("#F1F5F9"); // #F0F4FA → text
+    // 文字色**不**盲吸：page 塌陷被吸附成 brand 会绕过重画环却锁死导出，
+    // 对比度修复必须由反馈驱动模型选对 token（C4 回归）
+    expect(out).toContain("#F0F4FA");
   });
 
   it("CJK 超标 letter-spacing 被移除，拉丁保留", () => {
@@ -798,5 +799,95 @@ describe("autoPatchSvg（确定性原子修复）", () => {
     const r = autoPatchSvg(svg, specLock);
     expect(r.changed).toBe(0);
     expect(r.svg).toBe(svg);
+  });
+});
+
+describe("review 修复回归（Code Review (c) 条目逐条验证）", () => {
+  it("C1a 高而窄的柱不再被当底板剔除（w12/h400 三柱三点不误报）", () => {
+    const bars = [400, 200, 80]
+      .map(
+        (h, i) =>
+          `<rect x="${100 + i * 30}" y="${500 - h}" width="12" height="${h}" fill="#3B82F6"/>`,
+      )
+      .join("");
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"a","value":10},{"label":"b","value":5},{"label":"c","value":2}]'>${bars}</g>`,
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("C1b 铺底大板按宽度离群剔除；嵌套 <g> 不再截断切片", () => {
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"a","value":10},{"label":"b","value":5}]'>` +
+        `<rect x="0" y="0" width="1000" height="500" fill="#1A2D42"/>` +
+        `<g><rect x="50" y="100" width="120" height="400"/><rect x="250" y="300" width="120" height="200"/></g>` +
+        `</g>`,
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("C2 <g fill=…> 继承色参与对比度检查", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/><g fill="#D1D5DB"><text x="100" y="200" font-size="20">继承浅灰</text></g>`,
+    );
+    expect(
+      checkAesthetics(svg, specLock).some(
+        (i) => i.severity === "error" && /对比度不足/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("C3 三行长段落按最宽行估，不判右缘越界", () => {
+    // 30 CJK × 24px = 720px + 尾距，单行远在画布内；旧拼接口径会算成 ~2160px 假越界
+    const line = "市场规模持续增长近三年复合年增长率保持两位数高位运行态势良好";
+    expect([...line].length).toBe(30);
+    const tspans = [0, 1, 2]
+      .map(
+        (i) =>
+          `<tspan x="80" dy="${i === 0 ? 0 : 29}">${line}</tspan>`,
+      )
+      .join("");
+    const svg = wrap(
+      `<text x="80" y="120" font-size="24" fill="#F1F5F9">${tspans}</text>`,
+    );
+    const rightOverflow = checkTextGeometry(svg, specLock).filter((i) =>
+      /右缘/.test(i.message),
+    );
+    expect(rightOverflow).toHaveLength(0);
+  });
+
+  it("C5 style 内联与裸值 letter-spacing 同口径（S6 warn + autoPatch 移除）", () => {
+    const styleSvg = wrap(
+      `<text x="100" y="120" font-size="20" style="letter-spacing:6px" fill="#F1F5F9">中文要点</text>`,
+    );
+    const bareSvg = wrap(
+      `<text x="100" y="120" font-size="20" letter-spacing=6 fill="#F1F5F9">中文要点</text>`,
+    );
+    expect(
+      checkVisualRhythm(styleSvg, specLock).some((i) =>
+        /CJK 字距过大/.test(i.message),
+      ),
+    ).toBe(true);
+    expect(
+      checkVisualRhythm(bareSvg, specLock).some((i) =>
+        /CJK 字距过大/.test(i.message),
+      ),
+    ).toBe(true);
+    expect(autoPatchSvg(styleSvg, specLock).svg).not.toContain("letter-spacing");
+    expect(autoPatchSvg(bareSvg, specLock).svg).not.toContain("letter-spacing");
+  });
+
+  it("C6 骨架自身版式（标题 40px x=40 / 要点 24px x=48）不触发漂移 warn", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${specLock.colors.background}"/>` +
+        `<text x="40" y="80" font-size="40" fill="${specLock.colors.text}">标题带</text>` +
+        `<text x="48" y="160" font-size="24" fill="${specLock.colors.text}">要点一</text>` +
+        `<text x="48" y="220" font-size="24" fill="${specLock.colors.text}">要点二</text>`,
+    );
+    expect(
+      checkVisualRhythm(svg, specLock).filter((i) =>
+        /左缘对齐漂移/.test(i.message),
+      ),
+    ).toHaveLength(0);
   });
 });

@@ -8,6 +8,10 @@ import {
 } from "./gradient";
 import { translateChart } from "./chart";
 import { isPresetShape } from "../svg/presets";
+import {
+  glyphWidthPx,
+  estimateTextWidthPx,
+} from "../svg/text-measure";
 import type { SpecLock } from "@/design/spec-lock";
 
 // 画布作用域（B5）：SVG viewBox 像素 ↔ PPTX 英寸。默认 16:9，
@@ -534,22 +538,8 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   });
 }
 
-// 纯字形宽度（viewBox 像素）：CJK 全角按字号，其余按 0.55 倍字号近似
-function glyphWidthPx(text: string, fontSizePx: number): number {
-  let w = 0;
-  for (const ch of text) {
-    w += ch.charCodeAt(0) > 0x2e80 ? fontSizePx : fontSizePx * 0.55;
-  }
-  return w;
-}
-
-// 估算文本框宽度（viewBox 像素）：字形宽 + 0.4em 尾距（防贴边裁切），最小一字符
-function estimateTextWidthPx(text: string, fontSizePx: number): number {
-  return Math.max(
-    glyphWidthPx(text, fontSizePx) + fontSizePx * 0.4,
-    fontSizePx,
-  );
-}
+// 宽度算术单一真源在 engine/svg/text-measure：生成预算、校验器与导出
+// 换行同源（glyphWidthPx 纯推进宽；estimateTextWidthPx 含尾距+下限）。
 
 // 解析 font-size：仅接受裸数字或 px 单位，em/% 等其他单位按规范无法换算，回退默认
 function fontSizePxOf(el: Element): number {

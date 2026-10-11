@@ -38,33 +38,32 @@ export function compactSvgOutput(svg: string): string {
     .replace(/>\s+</g, "><")
     .trim();
 
-  // 坐标/尺寸类属性值取整（前一个空白保证属性边界，避开 data-chart-x 之类）
+  // 坐标/尺寸类属性值取整（前一个空白保证属性边界，避开 data-chart-x 之类）。
+  // 绝对值 <1 的小数（发丝线 height="0.4" 等）原样保留——取整会归零消形。
   out = out.replace(
     /(\s)([a-zA-Z][\w:-]*)\s*=\s*(["'])(-?\d+\.\d+)\3/g,
     (m, sp: string, name: string, q: string, val: string) => {
       if (!NUM_ATTRS.has(name.toLowerCase())) return m;
-      return `${sp}${name}=${q}${String(Math.round(Number(val)))}${q}`;
+      const v = Number(val);
+      if (Number.isNaN(v) || Math.abs(v) < 1) return m;
+      return `${sp}${name}=${q}${String(Math.round(v))}${q}`;
     },
   );
 
-  // path 的 d 与 polygon/polyline 的 points：内部数字取整
+  // path 的 d 与 polygon/polyline 的 points：内部数字取整（<1 的步长同保留）
   out = out.replace(
     /(\s)(d|points)\s*=\s*(["'])([^"']*)\3/gi,
     (_m, sp: string, name: string, q: string, body: string) =>
       `${sp}${name}=${q}${roundDecimals(body)}${q}`,
   );
 
-  // transform="translate(...)" / scale 等函数内的数字取整
+  // 仅 translate(...) 内的数字取整；scale/rotate 的小数因子（如 scale(0.4)）
+  // 绝不能归零，故不碰
   out = out.replace(
-    /(\s)transform\s*=\s*(["'])([^"']*)\2/gi,
-    (_m, sp: string, q: string, body: string) =>
-      /\d+\.\d+/.test(body)
-        ? `${sp}transform=${q}${roundDecimals(body)}${q}`
-        : _m,
+    /(translate\(\s*)([^)]+)(\s*\))/gi,
+    (_m, pre: string, body: string, post: string) =>
+      pre + roundDecimals(body) + post,
   );
-
-  // 去属性串里因折叠而残留的多余内部空白（如 d="M 0 . 10" 之类保守处理）
-  out = out.replace(/\s{2,}/g, " ");
 
   return out;
 }

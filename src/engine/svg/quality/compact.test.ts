@@ -53,3 +53,20 @@ describe("compactSvgOutput（对标 compact_svg_coordinates/styles）", () => {
     expect(out).toContain("translate(13, 34)");
   });
 });
+
+describe("compact 修复回归", () => {
+  it("发丝线小数保留（height 0.4 不归零），text 内双空格不被吞", () => {
+    const out = compactSvgOutput(
+      `<svg viewBox="0 0 1280 720"><rect x="100" y="300" width="1080" height="0.4" fill="#94A3B8"/><text x="80" y="200" font-size="20">保留  双空格</text></svg>`,
+    );
+    expect(out).toContain('height="0.4"');
+    expect(out).toContain("保留  双空格");
+  });
+
+  it("transform scale 因子不被取整归零", () => {
+    const out = compactSvgOutput(
+      `<svg viewBox="0 0 1280 720"><g transform="scale(0.4)"><rect x="0" y="0" width="5" height="5"/></g></svg>`,
+    );
+    expect(out).toContain("scale(0.4)");
+  });
+});

@@ -67,7 +67,7 @@ function tagRawContent(
  * 校验器、prompt 字数预算、骨架容量与 translator 全部同源同口径。
  */
 export { estimateTextWidthPx } from "../text-measure";
-import { estimateTextWidthPx } from "../text-measure";
+import { estimateTextWidthPx, hasCjk } from "../text-measure";
 
 /** 解析元素自身/祖先链上的 transform="translate(dx, dy)" 平移量（仅支持最简形式） */
 function translateOffset(part: string): { dx: number; dy: number } {
@@ -148,10 +148,10 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
       const x = (num(attr(full, "x")) ?? 0) + dx;
       const y = (num(attr(full, "y")) ?? 0) + dy;
       const fontSize = num(attr(full, "font-size")) ?? 16;
-      const content = tagContent(svg, full, match.index);
-      const estWidth = estimateTextWidthPx(content, fontSize);
-      // 多行文本：text 内容中以 <tspan 分隔的行数（含首行），行高按 1.2em 估算
+      // 多行 tspan 按最宽一行估宽（拼接会把合法换行误判为越界）
       const rawContent = tagRawContent(svg, full, match.index);
+      const estWidth = estMaxLineWidthPx(rawContent, fontSize);
+      // 多行文本：text 内容中以 <tspan 分隔的行数（含首行），行高按 1.2em 估算
       const tspans = (rawContent.match(/<tspan/gi) ?? []).length;
       const lineCount = Math.max(tspans + 1, 1);
       const estHeight = lineCount * fontSize * 1.2;
@@ -573,6 +573,70 @@ interface TextBox {
   letterSpacing?: number;
   /** 首个 <tspan> 之外的直接文本行数（1 或 0）——用于 S1 块内基线 */
   lineCount: number;
+  /** 锚点非 start（middle/end）：左缘随内容宽度浮动，不参与对齐漂移判定 */
+  anchored: boolean;
+}
+
+/**
+ * 逐行估宽取最大值：多行 tspan 文本的包围盒宽度 = 最宽一行，
+ * 不是各行拼接（拼接会把合法换行误判成右缘越界）。
+ */
+function estMaxLineWidthPx(rawInner: string, fontSizePx: number): number {
+  const lines: string[] = [];
+  const re = /<tspan[^>]*>([\s\S]*?)<\/tspan>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rawInner)) !== null) {
+    const t = m[1].replace(/<[^>]+>/g, "");
+    if (t.trim()) lines.push(t);
+  }
+  const outside = rawInner
+    .replace(/<tspan[\s\S]*?<\/tspan>/gi, "")
+    .replace(/<[^>]+>/g, "");
+  if (outside.trim()) lines.unshift(outside);
+  if (lines.length === 0) return 0;
+  return Math.max(...lines.map((l) => estimateTextWidthPx(l, fontSizePx)));
+}
+
+/**
+ * letter-spacing 统一口径（检测与 autoPatch 共用）：
+ * 支持属性带引号 / 不带引号，以及 style="letter-spacing:2px" 内联写法。
+ */
+function letterSpacingOf(openAttrs: string): number | undefined {
+  const attrM = openAttrs.match(
+    /\bletter-spacing\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i,
+  );
+  const rawAttr = attrM ? attrM[1] ?? attrM[2] ?? attrM[3] : undefined;
+  let v = rawAttr != null ? Number.parseFloat(rawAttr) : NaN;
+  if (!Number.isFinite(v)) {
+    const styleM = openAttrs.match(
+      /\bstyle\s*=\s*["'][^"']*\bletter-spacing\s*:\s*([^;"']+)/i,
+    );
+    v = styleM ? Number.parseFloat(styleM[1]) : NaN;
+  }
+  return Number.isFinite(v) ? v : undefined;
+}
+
+/**
+ * 继承取色：SVG 的 fill 会从祖先 <g>/<svg> 级联到子元素（translator 经
+ * attrFromChain 解析同样语义）。校验器只认元素自身属性会漏掉
+ * <g fill="#浅灰"><text>…</text></g> 这类塌陷。
+ */
+function inheritedFill(svg: string, idx: number): string | undefined {
+  const re = /<(\/?)(g|svg)\b([^>]*)>/gi;
+  const stack: (string | undefined)[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg)) !== null && m.index < idx) {
+    if (m[1] === "/") {
+      stack.pop();
+    } else if (!m[3].endsWith("/")) {
+      stack.push(attr(m[3], "fill"));
+    }
+  }
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const f = normalizeHex(stack[i]);
+    if (f) return f;
+  }
+  return undefined;
 }
 
 /**
@@ -591,8 +655,9 @@ function collectTextBoxes(svg: string): TextBox[] {
     const fontSize = num(attr(full, "font-size")) ?? 16;
     const content = tagContent(svg, full, m.index);
     if (!content.trim()) continue;
-    const estWidth = estimateTextWidthPx(content, fontSize);
     const raw = tagRawContent(svg, full, m.index);
+    // 包围盒宽度按最宽一行估（拼接所有行会把合法换行误判为越界）
+    const estWidth = estMaxLineWidthPx(raw, fontSize);
     const tspans = (raw.match(/<tspan/gi) ?? []).length;
     // 行首文本可能是 text 直排（首行不在 tspan 内）也可能全在 tspan 里
     //（renderFittedText 的写法）：按 text 内 tspan 之外的残留文本判定行数。
@@ -614,8 +679,9 @@ function collectTextBoxes(svg: string): TextBox[] {
       loc: `text@${m.index}`,
       fontSize,
       baseline: y,
-      letterSpacing: num(attr(full, "letter-spacing")),
+      letterSpacing: letterSpacingOf(full),
       lineCount,
+      anchored: anchor === "middle" || anchor === "end",
     });
     // 游标停在 openTag 之后，避免重复匹配同一元素内容里的 tspan
     re.lastIndex = m.index + full.length;
@@ -722,7 +788,9 @@ function collectFilledRects(svg: string): FilledRect[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(svg)) !== null) {
     const { dx, dy } = translateOffset(m[0]);
-    const fill = normalizeHex(attr(m[0], "fill"));
+    // 自身 fill 优先，缺省沿 <g>/<svg> 祖先链继承（与 translator 同语义）
+    const fill =
+      normalizeHex(attr(m[0], "fill")) ?? inheritedFill(svg, m.index);
     if (!fill) continue;
     const w = num(attr(m[0], "width")) ?? 0;
     const h = num(attr(m[0], "height")) ?? 0;
@@ -757,7 +825,10 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
   let tm: RegExpExecArray | null;
   while ((tm = textRe.exec(svg)) !== null) {
     const open = tm[0];
-    const fill = normalizeHex(attr(open, "fill"));
+    // 文字色：自身 fill 优先，缺省沿祖先 <g>/<svg> 链继承（translator 同语义，
+    // 否则 <g fill="#浅灰"><text>…</g> 这类塌陷会被静默漏掉）
+    const fill =
+      normalizeHex(attr(open, "fill")) ?? inheritedFill(svg, tm.index);
     if (!fill) continue;
     const { dx, dy } = translateOffset(open);
     const tx = (num(attr(open, "x")) ?? 0) + dx;
@@ -857,39 +928,57 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
       continue;
     }
     if (!Array.isArray(points) || points.length === 0) continue;
-    const closeIdx = svg.indexOf("</g>", m.index);
-    const inner = closeIdx > m.index ? svg.slice(m.index + m[0].length, closeIdx) : "";
+    // 图表组内容切片：需深度计数找配对的 </g>（非贪婪 indexOf 会在第一个
+    // 嵌套 </g> 处提前截断，丢失后续柱体造成假「柱数不符」）
+    const tagRe = /<(\/?)g\b[^>]*>/gi;
+    tagRe.lastIndex = m.index;
+    let depth = 0;
+    let innerEnd = -1;
+    let tg: RegExpExecArray | null;
+    while ((tg = tagRe.exec(svg)) !== null) {
+      if (tg[1] === "/") {
+        if (--depth === 0) {
+          innerEnd = tg.index;
+          break;
+        }
+      } else if (!tg[0].endsWith("/>")) depth++;
+    }
+    if (innerEnd < 0) continue;
+    const inner = svg.slice(m.index + m[0].length, innerEnd);
     const barRe = /<rect\b[^>]*>/gi;
     let bm: RegExpExecArray | null;
-    const bars: { x: number; h: number }[] = [];
-    let innerArea = 0;
+    const rects: { x: number; w: number; h: number }[] = [];
     while ((bm = barRe.exec(inner)) !== null) {
       const w = num(attr(bm[0], "width")) ?? 0;
       const h = num(attr(bm[0], "height")) ?? 0;
       if (h <= 0 || w <= 0) continue;
-      innerArea = Math.max(innerArea, w * h);
-      bars.push({ x: (num(attr(bm[0], "x")) ?? 0), h });
+      rects.push({ x: (num(attr(bm[0], "x")) ?? 0), w, h });
     }
-    // 排除铺底大矩形（面积取柱内最大者 3 倍以上视为背景板）
-    const cap = innerArea * 3;
-    const cols = bars
-      .filter((b) => b.h * b.h < cap * 4)
-      .sort((a, b) => a.x - b.x);
-    if (cols.length === 0) continue; // 没画柱体：图表数据仍在，导出兜底
-    if (cols.length !== points.length) {
+    // 铺底板按「宽度离群」剔除：柱体等宽，底板远宽于任何一根柱。
+    // （旧式 h²<面积×12 的量纲错误会把高而窄的柱当底板删掉 → 假柱数不符）
+    let cols = rects;
+    if (rects.length >= 2) {
+      const ws = [...rects].sort((a, b) => b.w - a.w);
+      if (ws.length >= 2 && ws[0].w > 3 * ws[1].w) {
+        cols = rects.filter((r) => r !== ws[0]);
+      }
+    }
+    const bars = cols.sort((a, b) => a.x - b.x);
+    if (bars.length === 0) continue; // 没画柱体：图表数据仍在，导出兜底
+    if (bars.length !== points.length) {
       issues.push({
         severity: "error",
-        message: `柱图几何不符：画了 ${cols.length} 根柱但数据有 ${points.length} 个点，请重画`,
+        message: `柱图几何不符：画了 ${bars.length} 根柱但数据有 ${points.length} 个点，请重画`,
         location: "g",
       });
       continue;
     }
     const maxV = Math.max(...points.map((p) => Math.abs(p.value ?? 0)));
-    const maxH = Math.max(...cols.map((b) => b.h));
+    const maxH = Math.max(...bars.map((b) => b.h));
     if (maxV <= 0 || maxH <= 0) continue;
-    for (let i = 0; i < cols.length; i++) {
+    for (let i = 0; i < bars.length; i++) {
       const vr = Math.abs(points[i].value) / maxV;
-      const hr = cols[i].h / maxH;
+      const hr = bars[i].h / maxH;
       if (Math.abs(vr - hr) > 0.12) {
         issues.push({
           severity: "error",
@@ -1019,17 +1108,15 @@ export function checkVisualRhythm(
   const issues: SvgIssue[] = [];
   const { w: canvasW } = specLock.canvas;
 
-  // S6：CJK 字距超标
-  const lsRe =
-    /<(text|tspan)\b[^>]*\bletter-spacing\s*=\s*["']?(-?[\d.]+)["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  // S6：CJK 字距超标（letterSpacingOf 统一口径：带引号/裸值/style 内联都算）
+  const lsRe = /<(text|tspan)\b[^>]*>([\s\S]*?)<\/\1>/gi;
   let lm: RegExpExecArray | null;
   while ((lm = lsRe.exec(svg)) !== null) {
-    const ls = Number.parseFloat(lm[2]);
-    if (!Number.isFinite(ls) || ls <= 0) continue;
+    const ls = letterSpacingOf(lm[0]);
+    if (ls == null || ls <= 0) continue;
     const fs = num(attr(lm[0], "font-size")) ?? 16;
-    const text = lm[3].replace(/<[^>]+>/g, "");
-    const hasCjk = [...text].some((ch) => ch.charCodeAt(0) > 0x2e80);
-    if (hasCjk && ls / fs > 0.05) {
+    const text = lm[2].replace(/<[^>]+>/g, "");
+    if (hasCjk(text) && ls / fs > 0.05) {
       issues.push({
         severity: "warn",
         message: `CJK 字距过大：letter-spacing=${ls} 为字号 ${fs} 的 ${((ls / fs) * 100).toFixed(0)}%（>5%），中文不加字距，请移除 letter-spacing`,
@@ -1038,19 +1125,23 @@ export function checkVisualRhythm(
     }
   }
 
-  // S4：同栏左缘近似对齐却漂移（4–24px）——只报最典型的一对，避免刷屏
+  // S4：同栏左缘近似对齐却漂移（4–24px）——只报最典型的一对，避免刷屏。
+  // 判定限定「同字号、左对齐锚点」的两两文本：
+  //  - 居中/右对齐文本左缘随内容宽度浮动，天然不齐；
+  //  - 不同字号（标题 vs 骨架缩进 8px 的要点）本就不共享栏线。
   const boxes = collectTextBoxes(svg);
-  const lefts = boxes
-    .map((b) => b.left)
-    .filter((x) => x > canvasW * 0.02 && x < canvasW * 0.8);
+  const cand = boxes.filter(
+    (b) => !b.anchored && b.left > canvasW * 0.02 && b.left < canvasW * 0.8,
+  );
   let driftFound = false;
-  for (let i = 0; i < lefts.length && !driftFound; i++) {
-    for (let j = i + 1; j < lefts.length; j++) {
-      const d = Math.abs(lefts[i] - lefts[j]);
+  for (let i = 0; i < cand.length && !driftFound; i++) {
+    for (let j = i + 1; j < cand.length; j++) {
+      if (Math.abs(cand[i].fontSize - cand[j].fontSize) > 1) continue;
+      const d = Math.abs(cand[i].left - cand[j].left);
       if (d >= 4 && d <= 24) {
         issues.push({
           severity: "warn",
-          message: `左缘对齐漂移：两处文本左缘相差 ${d.toFixed(0)}px（≥4 且 ≤24），像同一栏却没吸附，请统一到同一栏位 x（如 40/边距）`,
+          message: `左缘对齐漂移：同字号文本「${cand[i].snippet}」「${cand[j].snippet}」左缘相差 ${d.toFixed(0)}px（≥4 且 ≤24），像同一栏却没吸附，请统一到同一栏位 x（如 40/边距）`,
           location: "alignment",
         });
         driftFound = true;
@@ -1094,11 +1185,14 @@ export function checkVisualRhythm(
 }
 
 /**
- * 确定性原子修复（对标 §4.2/4.3 的「代码直接 patch，一次一处，净误差数下降才保留」）：
+ * 确定性原子修复（对标 §4.2/4.3 的「代码直接 patch，一次一处，净误差数不降才保留」）：
  * 只做纯属性改写、绝不改变几何结构，因此不可能引入新的越界/重叠：
- * 1) 非色板 HEX → 吸附到最近色板 token（小模型最高频的「乱用色」）
- * 2) CJK letter-spacing 超标 → 移除该属性（仅当该元素正文含 CJK）
- * 返回 patch 后的 svg 与变更条数；调用方以「修复后 error 数 < 修复前」决定是否保留。
+ * 1) 非色板 HEX → 吸附到最近色板 token——但**跳过 <text> 元素内部**的取色：
+ *    文字色往往正处对比度错误中，盲目吸附可能把 page 级塌陷换成 brand 级
+ *    （两端都成 token 后被重画环排除、却在导出锁处 hard 锁死），交给模型修。
+ * 2) CJK letter-spacing 超标 → 移除（属性与 style 内联两种写法、带/不带引号
+ *    与 checkVisualRhythm 的 letterSpacingOf 同口径）
+ * 返回 patch 后的 svg 与变更条数；调用方以 brand 计数不升、误差数不降才回滚。
  */
 export function autoPatchSvg(
   svg: string,
@@ -1107,12 +1201,23 @@ export function autoPatchSvg(
   const tokens = paletteTokenHexes(specLock);
   let changed = 0;
 
-  // 1) 颜色吸附：fill / stroke / stop-color 上的非 token HEX
+  // <text>…</text> 覆盖区间：其中的 fill 不参与吸附
+  const textSpans: [number, number][] = [];
+  const spanRe = /<text\b[\s\S]*?<\/text>/gi;
+  let sm: RegExpExecArray | null;
+  while ((sm = spanRe.exec(svg)) !== null) {
+    textSpans.push([sm.index, sm.index + sm[0].length]);
+  }
+  const inText = (idx: number) =>
+    textSpans.some(([a, b]) => idx >= a && idx < b);
+
+  // 1) 颜色吸附：fill / stroke / stop-color 上的非 token HEX（文字元素除外）
   let out = svg;
   if (tokens.size > 0) {
     out = out.replace(
       /\b(fill|stroke|stop-color)\s*=\s*["']#([0-9a-fA-F]{3,6})["']/g,
-      (m, name: string, hex: string) => {
+      (m, name: string, hex: string, offset: number) => {
+        if (inText(offset)) return m;
         const n = normalizeHex("#" + hex);
         if (!n || tokens.has(n)) return m;
         changed++;
@@ -1125,20 +1230,29 @@ export function autoPatchSvg(
   out = out.replace(
     /<(text|tspan)\b([^>]*)>([\s\S]*?)<\/\1>/gi,
     (m, tag: string, attrs: string, inner: string) => {
-      const lsRaw = attr(attrs, "letter-spacing");
-      if (lsRaw == null) return m;
-      const ls = Number.parseFloat(lsRaw);
-      if (!Number.isFinite(ls) || ls <= 0) return m;
+      const ls = letterSpacingOf(attrs);
+      if (ls == null || ls <= 0) return m;
       const fs = num(attr(attrs, "font-size")) ?? 16;
       const content = inner.replace(/<[^>]+>/g, "");
-      const hasCjk = [...content].some((ch) => ch.charCodeAt(0) > 0x2e80);
-      if (!hasCjk || ls / fs <= 0.05) return m;
+      if (!hasCjk(content) || ls / fs <= 0.05) return m;
       changed++;
-      const strippedAttrs = attrs.replace(
-        /\s*\bletter-spacing\s*=\s*["']?-?[\d.]+["']?/i,
+      // 属性写法（带/不带引号）与 style 内联写法都剥掉
+      let stripped = attrs.replace(
+        /\s*\bletter-spacing\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+)/i,
         "",
       );
-      return `<${tag}${strippedAttrs}>${inner}</${tag}>`;
+      stripped = stripped.replace(
+        /(\bstyle\b)(\s*=\s*)(["'])((?:(?!\3)[\s\S])*)\3/gi,
+        (_mm, k: string, eq: string, q: string, body: string) => {
+          const b2 = body
+            .replace(/letter-spacing\s*:\s*[^;\s"']+\s*;?\s*/gi, "")
+            .replace(/;\s*$/, "")
+            .trim();
+          return b2 ? `${k}${eq}${q}${b2}${q}` : "";
+        },
+      );
+      if (stripped === attrs) return m;
+      return `<${tag}${stripped}>${inner}</${tag}>`;
     },
   );
 

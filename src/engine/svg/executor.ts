@@ -177,10 +177,9 @@ export async function generateSlideSvg(
       ).trim();
     }
 
-    // 闸门错误集：结构契约 + 几何（含文本安全区/重叠）+ 图表/词表 + 内容必现。
-    // kind==="brand" 的对比度塌陷整份 deck 同现、逐页重画改不动（应在设计面板
-    // 换 token / 走 deck 级提示），排除出重画环，否则每页白白重画两轮。
-    const collectErrors = (s: string) =>
+    // 闸门错误全集（含 brand）：结构契约 + 几何（含文本安全区/重叠）+ 图表/词表
+    // + 内容必现。collectErrors 再剔除 brand（整份 deck 同现、逐页重画改不动）。
+    const collectAllErrors = (s: string) =>
       [
         ...checkSvg(s, opts.specLock),
         // 文本几何：小模型最高频的两类崩坏（贴边溢出、文字互叠）
@@ -208,14 +207,25 @@ export async function generateSlideSvg(
           title: opts.plan.title,
           bullets: opts.plan.bullets,
         }),
-      ].filter((i) => i.severity === "error" && i.kind !== "brand");
+      ].filter((i) => i.severity === "error");
+
+    const collectErrors = (s: string) =>
+      collectAllErrors(s).filter((i) => i.kind !== "brand");
 
     // 确定性原子修复（对标 §4.2/4.3）：非色板乱用色吸附回色板、CJK 字距移除。
-    // 纯属性改写不动几何结构，净误差数不降才保留，否则回滚原稿。
+    // 纯属性改写不动几何结构。保留条件：总误差数不升 **且 brand 级塌陷不增**——
+    // 否则一次「把越位文字色吸附成 token」会把 page 塌陷翻成 brand，被
+    // collectErrors 排除后假性归零，却在导出锁处把整份 deck hard 锁死。
     const patch = (s: string): string => {
       const { svg: p, changed } = autoPatchSvg(s, opts.specLock);
       if (changed === 0) return s;
-      return collectErrors(p).length <= collectErrors(s).length ? p : s;
+      const before = collectAllErrors(s);
+      const after = collectAllErrors(p);
+      const brand = (arr: typeof before) =>
+        arr.filter((i) => i.kind === "brand").length;
+      const noWorse = after.length <= before.length;
+      const noNewBrand = brand(after) <= brand(before);
+      return noWorse && noNewBrand ? p : s;
     };
 
     // 修复环保留「最优候选」：末轮重画可能比前轮更差，取错误最少的一版

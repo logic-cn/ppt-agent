@@ -1,17 +1,36 @@
 /**
  * 文本测量校准（参照 PPT Master text_measure.py calibrate）：
- * 宽度估算与 pptx-translator 的 glyphWidthPx 口径完全一致——
- * CJK 全角按 1.0 字号、其余按 0.55 字号，尾部 +0.4em。
- * 生成侧与校验侧共用这一份算术：模型拿到的「每行可容纳 N 字」
- * 与导出时的换行计算同源，页面就不会溢出。
+ * 全链路（prompt 字数预算 / 校验器 / pptx  translator 换行与估宽）的
+ * 唯一算术真源——CJK 全角按 1.0 字号、其余按 0.55 字号，尾部 +0.4em。
+ * 模型拿到的「每行可容纳 N 字」与导出时的换行计算同源，页面就不会溢出。
  */
 
-export function estimateTextWidthPx(text: string, fontSizePx: number): number {
+/** CJK（含全角标点）判定：0x2e80 以上按全角一个字号宽（与历史口径一致） */
+export function isCjkChar(ch: string): boolean {
+  return ch.charCodeAt(0) > 0x2e80;
+}
+
+/** 文本中是否含 CJK 字符 */
+export function hasCjk(text: string): boolean {
+  for (const ch of text) if (isCjkChar(ch)) return true;
+  return false;
+}
+
+/** 纯字形宽度（viewBox 像素，不含尾距/下限）：文本流推进用 */
+export function glyphWidthPx(text: string, fontSizePx: number): number {
   let w = 0;
   for (const ch of text) {
-    w += ch.charCodeAt(0) > 0x2e80 ? fontSizePx : fontSizePx * 0.55;
+    w += isCjkChar(ch) ? fontSizePx : fontSizePx * 0.55;
   }
-  return Math.max(w + fontSizePx * 0.4, fontSizePx);
+  return w;
+}
+
+/** 估算文本框宽度（viewBox 像素）：字形宽 + 0.4em 尾距（防贴边裁切），最小一字符 */
+export function estimateTextWidthPx(
+  text: string,
+  fontSizePx: number,
+): number {
+  return Math.max(glyphWidthPx(text, fontSizePx) + fontSizePx * 0.4, fontSizePx);
 }
 
 /** 文本节点内容转义（SVG/XML 实体五字符） */
@@ -61,7 +80,7 @@ export function wrapTextToWidth(
     const tokens: string[] = [];
     let buf = "";
     for (const ch of para) {
-      if (ch.charCodeAt(0) > 0x2e80) {
+      if (isCjkChar(ch)) {
         if (buf) {
           tokens.push(buf);
           buf = "";
@@ -77,18 +96,14 @@ export function wrapTextToWidth(
       }
     }
     if (buf) tokens.push(buf);
-    const tokenWidth = (t: string) =>
-      [...t].reduce(
-        (w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? fontSizePx : fontSizePx * 0.55),
-        0,
-      );
+    const tokenWidth = (t: string) => glyphWidthPx(t, fontSizePx);
     let cur = "";
     let curW = 0;
     for (const t of tokens) {
       const tw = tokenWidth(t);
       const lastChar = cur ? cur.charCodeAt(cur.length - 1) : 0;
       const needsSpace =
-        cur && t.charCodeAt(0) <= 0x2e80 && lastChar <= 0x2e80;
+        cur && !isCjkChar(t[0] ?? "") && lastChar <= 0x2e80;
       const gap = needsSpace ? fontSizePx * 0.3 : 0;
       if (cur && curW + gap + tw > maxWidthPx) {
         lines.push(cur);
