@@ -311,9 +311,11 @@ describe("端侧模型无头实跑", () => {
         columns: slide.svg ? columnCount(slide.svg) : 0,
       }));
 
-      // 跨页版式轮换的触发前提：相邻两页都是「无图表的正文页」
+      // 跨页版式轮换的触发前提：相邻两页都是「参与轮换的正文页」
+      // （与 executor 的 ROTATABLE_ROLES 对齐：content / section，且无图表）
       const isPlainContent = (i: number) =>
-        plan[i]?.role === "content" && !plan[i]?.chartType;
+        ["content", "section"].includes(plan[i]?.role ?? "") &&
+        !plan[i]?.chartType;
       const rotationPairs: number[] = [];
       for (let i = 1; i < plan.length; i++) {
         if (isPlainContent(i) && isPlainContent(i - 1)) rotationPairs.push(i);

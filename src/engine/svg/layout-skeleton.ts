@@ -33,7 +33,13 @@ const GAP = 24;
 function fontOf(spec: SpecLock, role: SkeletonBox["fontRole"]): number {
   const t = spec.typography;
   if (!t) {
-    return role === "title" ? 44 : role === "hero" ? 72 : role === "caption" ? 16 : 24;
+    return role === "title"
+      ? 44
+      : role === "hero"
+        ? 72
+        : role === "caption"
+          ? 16
+          : 24;
   }
   return role && t[role] ? t[role] : t.body;
 }
@@ -67,7 +73,12 @@ function renderBox(spec: SpecLock, b: SkeletonBox): string {
   return `- ${label}${text}: x=${b.x} y=${b.y} w=${b.w} h=${b.h}；${budgetLine(spec, b)}`;
 }
 
-function titleBox(spec: SpecLock, title: string, margin: number, w: number): SkeletonBox {
+function titleBox(
+  spec: SpecLock,
+  title: string,
+  margin: number,
+  w: number,
+): SkeletonBox {
   const fs = fontOf(spec, "title");
   const perLine = maxCharsPerLine(w - 2 * margin, fs);
   const lines = Math.ceil(Math.max(1, title.length) / Math.max(1, perLine));
@@ -94,7 +105,10 @@ function stackBullets(
   if (n === 0) return [];
   const area = bottom - top;
   const rowH = Math.max(fontOf(spec, "body") * 1.5, Math.floor(area / n) - 8);
-  const gap = Math.min(GAP, Math.max(12, Math.floor((area - rowH * n) / (n + 1))));
+  const gap = Math.min(
+    GAP,
+    Math.max(12, Math.floor((area - rowH * n) / (n + 1))),
+  );
   const boxes: SkeletonBox[] = [];
   let y = top + gap;
   for (const text of bullets) {
@@ -125,6 +139,49 @@ function skeletonFor(
   if (bullets.length > 7) return null; // 超长走通用规则，交由内容层裁剪
 
   switch (plan.role) {
+    case "section": {
+      // 章节页：端侧模型最常连续产出（第一章/第二章…），是「连续正文页版式
+      // 雷同」的高发区，因此同样给确定性骨架 + 整宽/双栏变体。
+      const title: SkeletonBox = {
+        kind: "title",
+        fontRole: "section",
+        x: margin,
+        y: margin,
+        w: w - 2 * margin,
+        h: Math.round(fontOf(spec, "section") * 1.3),
+        text: plan.title,
+      };
+      if (variant === 1 && bullets.length >= 4) {
+        const gutter = Math.round(w / 32);
+        const colW = Math.floor((w - 2 * margin - gutter) / 2);
+        const half = Math.ceil(bullets.length / 2);
+        const cols: SkeletonBox[] = [];
+        [bullets.slice(0, half), bullets.slice(half)].forEach((items, ci) => {
+          const x = margin + ci * (colW + gutter);
+          cols.push(
+            ...stackBullets(
+              spec,
+              items,
+              title.y + title.h,
+              bottom,
+              x,
+              x + colW,
+            ).map((b) => ({ ...b, x: x + 8, w: colW - 40 })),
+          );
+        });
+        return {
+          boxes: [title, ...cols],
+          note: `章节页双栏要点分块（左 ${half} 条 / 右 ${bullets.length - half} 条，各栏宽 ${colW}px、中缝 ${gutter}px），两栏顶对齐`,
+        };
+      }
+      return {
+        boxes: [
+          title,
+          ...stackBullets(spec, bullets, title.y + title.h, bottom, margin, w),
+        ],
+        note: "章节标题用 section 字号锚点，下方整宽列要点，每条要点前画 6-8px 圆点",
+      };
+    }
     case "content": {
       const title = titleBox(spec, plan.title, margin, w);
       // 跨页版式轮换（对标 deck 级多样性）：连续多页 content 默认会拿到完全相同
@@ -180,7 +237,14 @@ function skeletonFor(
         };
         cols.push(header);
         cols.push(
-          ...stackBullets(spec, items, header.y + header.h + 8, bottom, x, x + colW).map((b) => ({
+          ...stackBullets(
+            spec,
+            items,
+            header.y + header.h + 8,
+            bottom,
+            x,
+            x + colW,
+          ).map((b) => ({
             ...b,
             x: x + 8,
             w: colW - 24,
@@ -208,7 +272,9 @@ function skeletonFor(
           kind: "node",
           fontRole: "body",
           x: Math.round(cx - nodeW / 2),
-          y: above ? baseY - Math.round(fontOf(spec, "body") * 3.2) : baseY + 28,
+          y: above
+            ? baseY - Math.round(fontOf(spec, "body") * 3.2)
+            : baseY + 28,
           w: nodeW,
           h: Math.round(fontOf(spec, "body") * 3),
           text: bullets[i] ?? `第${i + 1}步`,
@@ -216,9 +282,10 @@ function skeletonFor(
       }
       return {
         boxes,
-        note: plan.role === "timeline"
-          ? `基线 <line x1="${margin}" y1="${baseY}" x2="${w - margin}" y2="${baseY}" stroke-width="2">，节点圆点半径 7-9px 置于基线上、与每个标签的水平中心对齐；标签上下交替（奇数在上、偶数在下），标签内文字居中（text-anchor="middle"）`
-          : `节点圆/圆角方块直径 ${Math.round(fontOf(spec, "body") * 1.6)}px 置于基线 y=${baseY} 上，内部写步骤编号 1-${n}；节点间用 2px 箭头线段连接（marker 不允许，用 polygon 画箭头）；标签居中于节点正上/正下方`,
+        note:
+          plan.role === "timeline"
+            ? `基线 <line x1="${margin}" y1="${baseY}" x2="${w - margin}" y2="${baseY}" stroke-width="2">，节点圆点半径 7-9px 置于基线上、与每个标签的水平中心对齐；标签上下交替（奇数在上、偶数在下），标签内文字居中（text-anchor="middle"）`
+            : `节点圆/圆角方块直径 ${Math.round(fontOf(spec, "body") * 1.6)}px 置于基线 y=${baseY} 上，内部写步骤编号 1-${n}；节点间用 2px 箭头线段连接（marker 不允许，用 polygon 画箭头）；标签居中于节点正上/正下方`,
       };
     }
     case "metrics": {

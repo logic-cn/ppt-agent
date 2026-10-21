@@ -331,9 +331,12 @@ export async function generateDeckSvgs(
 
   // 跨页版式轮换：连续的同角色正文页交替使用整宽/双栏两种骨架（对标 deck 级
   // 多样性）。顺序生成、按页缓存，Phase 2 的整改重画复用同一变体不漂移。
+  // 参与轮换的角色＝有确定性骨架且骨架支持双栏变体者（content / section）：
+  // 端侧模型最常连续产出的是章节页（第一章/第二章…），不纳入等于轮换常年不触发。
   const variantCache = new Map<number, number | undefined>();
+  const ROTATABLE_ROLES = new Set(["content", "section"]);
   const isPlainContent = (i: number) =>
-    plan[i].role === "content" && !plan[i].chartType;
+    ROTATABLE_ROLES.has(plan[i].role) && !plan[i].chartType;
   const variantFor = (i: number): number | undefined => {
     if (variantCache.has(i)) return variantCache.get(i);
     let v: number | undefined;

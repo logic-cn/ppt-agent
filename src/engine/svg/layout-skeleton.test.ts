@@ -65,8 +65,8 @@ describe("buildLayoutSkeleton 不变式", () => {
   it("每个文字区块都带正数字数预算", () => {
     const sk = buildLayoutSkeleton(plan(), SPEC)!;
     expect(sk.promptBlock).toContain("每行最多");
-    const perLine = [...sk.promptBlock.matchAll(/每行最多 (\d+) 字/g)].map((m) =>
-      Number(m[1]),
+    const perLine = [...sk.promptBlock.matchAll(/每行最多 (\d+) 字/g)].map(
+      (m) => Number(m[1]),
     );
     expect(perLine.length).toBeGreaterThan(0);
     for (const n of perLine) expect(n).toBeGreaterThan(0);
@@ -112,11 +112,23 @@ describe("buildLayoutSkeleton 不变式", () => {
     expect(ys.length - above).toBeGreaterThan(0);
   });
 
-  it("图表页与封面/章节页返回 null（不适用坐标下发）", () => {
+  it("图表页与封面/结尾页返回 null（不适用坐标下发）", () => {
     expect(buildLayoutSkeleton(plan({ chartType: "bar" }), SPEC)).toBeNull();
     expect(buildLayoutSkeleton(plan({ role: "cover" }), SPEC)).toBeNull();
-    expect(buildLayoutSkeleton(plan({ role: "section" }), SPEC)).toBeNull();
     expect(buildLayoutSkeleton(plan({ role: "closing" }), SPEC)).toBeNull();
+  });
+
+  it("章节页有确定性骨架（端侧模型最常连续产出，是版式雷同高发区）", () => {
+    const sk = buildLayoutSkeleton(
+      plan({ role: "section", bullets: ["甲", "乙", "丙", "丁"] }),
+      SPEC,
+    );
+    expect(sk).not.toBeNull();
+    expect(sk!.boxes[0].fontRole).toBe("section");
+    for (const b of sk!.boxes) {
+      expect(b.x + b.w).toBeLessThanOrEqual(SPEC.canvas.w);
+      expect(b.y + b.h).toBeLessThanOrEqual(SPEC.canvas.h);
+    }
   });
 
   it("要点超过 7 条回退 null（交由内容层裁剪）", () => {
@@ -161,14 +173,29 @@ describe("跨页版式轮换（content variant）", () => {
     const v1 = buildLayoutSkeleton(manyBullets, SPEC, { variant: 1 });
     expect(v0!.promptBlock).not.toContain("双栏");
     expect(v1!.promptBlock).toContain("双栏");
-    expect(v0!.boxes.map((b) => `${b.x},${b.y}`).join())
-      .not.toBe(v1!.boxes.map((b) => `${b.x},${b.y}`).join());
+    expect(v0!.boxes.map((b) => `${b.x},${b.y}`).join()).not.toBe(
+      v1!.boxes.map((b) => `${b.x},${b.y}`).join(),
+    );
   });
 
   it("要点 <4 时 variant=1 回落整宽列表", () => {
     const few = plan({ bullets: ["甲", "乙"] });
     const v1 = buildLayoutSkeleton(few, SPEC, { variant: 1 });
     expect(v1!.promptBlock).not.toContain("双栏");
+  });
+
+  it("章节页同样支持 variant=1 双栏（轮换覆盖章节页）", () => {
+    const sec = plan({ role: "section", bullets: ["甲", "乙", "丙", "丁"] });
+    const wide = buildLayoutSkeleton(sec, SPEC, { variant: 0 })!;
+    const two = buildLayoutSkeleton(sec, SPEC, { variant: 1 })!;
+    expect(two.promptBlock).not.toBe(wide.promptBlock);
+    // 双栏：要点起始 x 出现第二个列（> 画布中线）
+    const cols = new Set(
+      two.boxes
+        .filter((b) => b.kind === "bullet")
+        .map((b) => (b.x > 600 ? "right" : "left")),
+    );
+    expect(cols.size).toBe(2);
   });
 
   it("默认（不传 opts）等价 variant=0", () => {
