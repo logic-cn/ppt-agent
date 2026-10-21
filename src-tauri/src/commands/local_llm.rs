@@ -465,11 +465,25 @@ mod tests {
         assert!(gbnf.contains("root"));
     }
 
+    /// pagePlan 的「恰好 N 页」约束：minItems/maxItems 必须被转换器支持，
+    /// 否则 grammar 只约束结构不约束页数，端侧模型会提前收尾（少页）。
+    #[test]
+    fn page_plan_count_constraint_converts_to_grammar() {
+        let schema = r#"{"type":"object","properties":{"pages":{"type":"array","minItems":7,"maxItems":7,"items":{"type":"object","properties":{"role":{"type":"string"},"title":{"type":"string"},"intent":{"type":"string"}},"required":["role","title","intent"]}}},"required":["pages"]}"#;
+        let gbnf = json_schema_to_grammar(schema).expect("minItems/maxItems 应能转为 GBNF");
+        assert!(gbnf.contains("root"));
+        // 固定长度数组会在语法里展开为「恰好 7 项」的重复
+        // 固定长度数组会在语法里展开为「首项 + 恰好 N-1 次额外重复」
+        assert!(
+            gbnf.contains("6,6"),
+            "grammar 未体现 7 项约束:\n{gbnf}"
+        );
+    }
+
     /// zod v4 discriminatedUnion 的 JSON Schema 形态（anyOf + const）
     /// 必须能转 grammar，否则端侧 patch 生成的 op 枚举不受约束
     #[test]
-    fn discriminated_union_schema_converts_to_grammar() {
-        let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
+    fn discriminated_union_schema_converts_to_grammar() {        let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
         let gbnf = json_schema_to_grammar(schema).expect("anyOf+const 应能转为 GBNF");
         assert!(gbnf.contains("root"));
     }

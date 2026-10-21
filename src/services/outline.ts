@@ -17,7 +17,7 @@ import { isDesignLock } from "@/types/design";
 import { PagePlanItem } from "@/types/page-plan";
 import {
   pagePlanItemSchema,
-  pagePlanJsonSchema,
+  buildPagePlanJsonSchema,
 } from "./llm/page-plan-grammar";
 import { selectFewShot, buildFewShotPrompt } from "./llm/few-shot";
 import { nanoid } from "nanoid";
@@ -178,10 +178,12 @@ export async function generatePagePlan(params: {
       ],
       temperature: 0.6,
       responseFormat: "json",
-      maxTokens: 4000,
+      // 本地档：页数多时 JSON 体积随之膨胀，固定 4000 token 会把计划截断
+      // （截断 = 少页甚至解析失败）。按目标页数给足预算。
+      maxTokens: slim ? Math.max(4000, (options.pageCount ?? 8) * 400) : 4000,
       signal: params.signal,
       // 本地模型：grammar 约束输出结构（远程 provider 忽略）
-      jsonSchema: pagePlanJsonSchema,
+      jsonSchema: buildPagePlanJsonSchema(options.pageCount),
     },
     "outline",
   );

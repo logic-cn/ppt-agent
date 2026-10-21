@@ -1,31 +1,78 @@
-import { describe, it, expect } from "vitest";
-import { pagePlanItemSchema, pagePlanRootSchema } from "./page-plan-grammar";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-describe("pagePlan 语法 schema 接受演讲备注 notes", () => {
-  it("item 带 notes 可解析并保留", () => {
-    const r = pagePlanItemSchema.safeParse({
-      role: "content",
-      title: "市场规模",
-      intent: "说明规模",
-      bullets: ["a"],
-      notes: "本页讲稿……",
-    });
-    expect(r.success).toBe(true);
-    expect(r.success && r.data.notes).toBe("本页讲稿……");
+vi.mock("@/services/llm", () => ({
+  chat: vi.fn(),
+  isLocalModelActive: vi.fn(() => true),
+}));
+
+import { chat } from "@/services/llm";
+import { generatePagePlan } from "@/services/outline";
+import { buildPagePlanJsonSchema } from "@/services/llm/page-plan-grammar";
+import { DEFAULT_DESIGN } from "@/types/design";
+
+function pagesSchemaOf(schema: unknown): Record<string, unknown> {
+  return (schema as { properties: { pages: Record<string, unknown> } })
+    .properties.pages;
+}
+
+describe("buildPagePlanJsonSchema", () => {
+  it("不传页数时返回原 schema（页数自由）", () => {
+    const schema = buildPagePlanJsonSchema(undefined) as {
+      properties: { pages: Record<string, unknown> };
+    };
+    expect(schema.properties.pages.minItems).toBeUndefined();
+    expect(schema.properties.pages.maxItems).toBeUndefined();
   });
 
-  it("notes 可选：缺省解析通过且为 undefined", () => {
-    const r = pagePlanItemSchema.safeParse({
-      role: "cover",
-      title: "封面",
-      intent: "点题",
-    });
-    expect(r.success).toBe(true);
-    expect(r.success && r.data.notes).toBeUndefined();
+  it("传页数时把 pages 锁成恰好 N 项", () => {
+    const schema = buildPagePlanJsonSchema(7) as {
+      properties: { pages: Record<string, unknown> };
+    };
+    expect(schema.properties.pages.minItems).toBe(7);
+    expect(schema.properties.pages.maxItems).toBe(7);
   });
 
-  it("toJSONSchema 派生的 grammar 含 notes 字段（约束解码可用）", () => {
-    const json = JSON.stringify(pagePlanRootSchema);
-    expect(json).toContain("pages");
+  it("保留 items 结构（模型仍只能产出合法 pagePlan 项）", () => {
+    const schema = buildPagePlanJsonSchema(5) as {
+      properties: { pages: { items: Record<string, unknown> } };
+    };
+    expect(schema.properties.pages.items).toBeTruthy();
+    expect(schema.properties.pages.items.type).toBe("object");
+  });
+});
+
+describe("generatePagePlan · 本地档页数约束", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (chat as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      content: JSON.stringify({
+        pages: [
+          { role: "cover", title: "封面", intent: "定调" },
+          { role: "content", title: "正文", intent: "展开" },
+        ],
+      }),
+    });
+  });
+
+  it("把目标页数写进 grammar schema（端侧模型提前收尾的根因修复）", async () => {
+    await generatePagePlan({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+      pageCount: 6,
+    });
+    const req = (chat as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+    const pages = pagesSchemaOf(req.jsonSchema);
+    expect(pages.minItems).toBe(6);
+    expect(pages.maxItems).toBe(6);
+  });
+
+  it("本地档按页数放大 token 预算（避免 JSON 被截断）", async () => {
+    await generatePagePlan({
+      topic: "测试主题",
+      design: DEFAULT_DESIGN,
+      pageCount: 10,
+    });
+    const req = (chat as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+    expect(req.maxTokens).toBeGreaterThanOrEqual(4000);
   });
 });
