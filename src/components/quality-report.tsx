@@ -1,7 +1,9 @@
 import { AlertTriangle, XCircle, Wand2, X, Eye } from "lucide-react";
 import type { QualityFinding, Severity } from "@/services/quality";
 import { qualityScore } from "@/services/quality";
+import { localizeFinding } from "@/services/quality/message-i18n";
 import { useT } from "@/hooks/use-page-t";
+import { useSettingsStore } from "@/store/settings";
 
 interface QualityReportProps {
   findings: QualityFinding[];
@@ -36,6 +38,7 @@ export function QualityReport({
   visualReviewing = false,
 }: QualityReportProps) {
   const t = useT();
+  const lang = useSettingsStore((s) => s.settings.lang);
   if (findings.length === 0) return null;
 
   const score = qualityScore(findings);
@@ -89,7 +92,7 @@ export function QualityReport({
               className="flex items-start gap-1.5 text-xs text-text-secondary"
             >
               <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${meta.color}`} />
-              <span>{finding.message}</span>
+              <span>{localizeFinding(finding, lang)}</span>
             </li>
           );
         })}

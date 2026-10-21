@@ -14,37 +14,50 @@ describe("validateSvgContract", () => {
 
   it("拒绝缺少 svg 根元素", () => {
     const errs = validateSvgContract(`<rect/>`);
-    expect(errs.some((e) => e.includes("svg"))).toBe(true);
+    expect(errs.some((e) => e.message.includes("svg"))).toBe(true);
+    expect(errs[0].code).toBe("svg.contractMissingRoot");
   });
 
   it("拒绝 viewBox 非 0 0 1280 720", () => {
     const errs = validateSvgContract(
       `<svg viewBox="0 0 800 600"><rect/></svg>`,
     );
-    expect(errs.some((e) => e.includes("viewBox"))).toBe(true);
+    expect(errs.some((e) => e.message.includes("viewBox"))).toBe(true);
+    expect(errs[0].code).toBe("svg.contractBadViewBox");
+    expect(errs[0].params).toMatchObject({
+      required: "0 0 1280 720",
+      actual: "0 0 800 600",
+    });
   });
 
   it("拒绝禁用元素 foreignObject", () => {
     const errs = validateSvgContract(
       `<svg viewBox="0 0 1280 720"><foreignObject/></svg>`,
     );
-    expect(errs.some((e) => e.includes("foreignObject"))).toBe(true);
+    expect(errs.some((e) => e.message.includes("foreignObject"))).toBe(true);
+    expect(errs[0].code).toBe("svg.contractForbiddenElement");
+    expect(errs[0].params).toMatchObject({ name: "foreignObject" });
   });
 
   it("拒绝 script 元素", () => {
     const errs = validateSvgContract(
       `<svg viewBox="0 0 1280 720"><script>alert(1)</script></svg>`,
     );
-    expect(errs.some((e) => e.includes("script"))).toBe(true);
+    expect(errs.some((e) => e.message.includes("script"))).toBe(true);
+    expect(errs[0].code).toBe("svg.contractForbiddenElement");
   });
 
   it("拒绝外部引用 image href 非 data URI", () => {
     const errs = validateSvgContract(
       `<svg viewBox="0 0 1280 720"><image href="https://example.com/a.png"/></svg>`,
     );
-    expect(errs.some((e) => e.includes("外部") || e.includes("href"))).toBe(
-      true,
-    );
+    expect(
+      errs.some(
+        (e) => e.message.includes("外部") || e.message.includes("href"),
+      ),
+    ).toBe(true);
+    expect(errs[0].code).toBe("svg.contractExternalRef");
+    expect(errs[0].params).toMatchObject({ url: "https://example.com/a.png" });
   });
 
   it("接受 data URI 的 image", () => {
@@ -56,7 +69,8 @@ describe("validateSvgContract", () => {
     const errs = validateSvgContract(
       `<svg viewBox="0 0 1280 720"><foo/></svg>`,
     );
-    expect(errs.some((e) => e.includes("foo"))).toBe(true);
+    expect(errs.some((e) => e.message.includes("foo"))).toBe(true);
+    expect(errs[0].code).toBe("svg.contractUnsupportedElement");
   });
 
   it("接受含 defs 与渐变定义的合法 svg", () => {

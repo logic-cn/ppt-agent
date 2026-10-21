@@ -90,7 +90,8 @@ export const en = {
   "settings.installUpdate": "Download & install",
   "settings.installingUpdate": "Downloading {percent}%",
   "settings.updateInstalled": "Update installed — restart the app to apply",
-  "settings.updateUnsupported": "Auto-update is available in the desktop app only",
+  "settings.updateUnsupported":
+    "Auto-update is available in the desktop app only",
   "settings.updateFailed": "Update check failed: {message}",
 
   "home.slideCountSummary": "{slidesCount} pages",
@@ -162,7 +163,8 @@ export const en = {
   "preview.textContent": "Text",
   "preview.fontSize": "Font size (px)",
   "preview.fill": "Fill color",
-  "preview.nudgeHint": "Drag to move · Arrow keys nudge (Shift ×10) · Right-click to pick overlapping elements · Esc to deselect",
+  "preview.nudgeHint":
+    "Drag to move · Arrow keys nudge (Shift ×10) · Right-click to pick overlapping elements · Esc to deselect",
   "preview.editMode": "Edit on canvas",
   "preview.exitEditMode": "Exit editing",
   "preview.aiEditPlaceholder": "Describe how to change this element…",
@@ -410,6 +412,109 @@ export const en = {
   "quality.softCount": "Tip {count}",
   "quality.fixing": "Fixing…",
   "quality.autoFix": "Fix All ({count})",
+  "quality.pageContext": "Page {index} “{title}”: ",
+  "quality.svg.contractMissingRoot": "Missing <svg> root element",
+  "quality.svg.contractMissingViewBox": "svg is missing viewBox",
+  "quality.svg.contractBadViewBox":
+    "viewBox must be “{required}”, got “{actual}”",
+  "quality.svg.contractForbiddenElement": "Forbidden SVG element <{name}>",
+  "quality.svg.contractUnsupportedElement": "Unsupported SVG element <{name}>",
+  "quality.svg.contractExternalRef":
+    "External resource reference is not allowed: {attr}=“{url}”",
+  "quality.svg.textOutOfBounds":
+    "Text out of bounds: x={x}, y={y}, estimated width={width} exceeds canvas width {canvasW}",
+  "quality.svg.textBelowCanvas":
+    "Text below canvas: y+height={bottom} ({lineCount} lines × {fontSize}px) > canvas height {canvasH}",
+  "quality.svg.textSizeBudget":
+    "Text size budget exceeded: estimated width {width} exceeds canvas width {canvasW}",
+  "quality.svg.textRightOutsideSafe":
+    "Text “{snippet}” reaches x={right}, past the safe area (canvas {canvasW} − margin {safe}): shorten or wrap it",
+  "quality.svg.textLeftOutsideSafe":
+    "Text “{snippet}” starts at x={left}, outside the safe area (< {limit})",
+  "quality.svg.textBottomOutsideSafe":
+    "Text “{snippet}” bottom at y={bottom}, past the lower safe area (canvas {canvasH} − {safe})",
+  "quality.svg.textOverlap":
+    "Text overlap: “{a}” and “{b}” bounding boxes overlap {overlapX}×{overlapY}px — adjust spacing or shorten",
+  "quality.svg.elementLeftOut": "Element out of bounds: left edge x={x} < 0",
+  "quality.svg.elementTopOut": "Element out of bounds: top edge y={y} < 0",
+  "quality.svg.elementRightOut":
+    "Element past the right edge: x+width={right} > {canvasW}",
+  "quality.svg.elementBottomOut":
+    "Element past the bottom edge: y+height={bottom} > {canvasH}",
+  "quality.svg.typographyOffAnchor":
+    "Font size off anchor: {sizes}px is outside anchors {anchors} ±{tolerance}px ({count} places) — use the anchor sizes",
+  "quality.svg.chartInvalidType":
+    "Invalid chart type: data-chart-type=“{type}” (supported: {supported})",
+  "quality.svg.chartMissingData":
+    "Chart has no data: data-chart-data not provided ({type} charts cannot be exported)",
+  "quality.svg.chartInvalidJson":
+    "Invalid chart JSON: data-chart-data cannot be parsed ({type} charts cannot be exported)",
+  "quality.svg.chartEmptyData":
+    "Empty chart data: data-chart-data must be a non-empty array of label/value ({type} charts cannot be exported)",
+  "quality.svg.chartMissingMarker":
+    "Chart missing: this page calls for a {type} chart, but no data-chart-type marker appears in the SVG",
+  "quality.svg.chartBarCountMismatch":
+    "Bar geometry mismatch: drew {bars} bars but the data has {points} points — redraw",
+  "quality.svg.chartBarRatioMismatch":
+    "Bar geometry distorted: bar {index} height ratio {barPercent}% differs from value ratio {valuePercent}% by more than 12% — recompute the bar heights",
+  "quality.svg.contentMissingTitle":
+    "Content missing: title “{title}” does not appear in the SVG text",
+  "quality.svg.contentMissingBullet":
+    "Content missing: bullet “{bullet}” does not appear in the SVG text",
+  "quality.svg.contentMissingSnippet":
+    "Content missing: key fragment “{snippet}” does not appear in the SVG text",
+  "quality.svg.cohortColorOffLock":
+    "Colour off-lock: used colours outside the design lock {colors} — only palette colours are allowed",
+  "quality.svg.cohortFontOffLock":
+    "Font off-lock: used {fonts} — only {allowed} are allowed",
+  "quality.svg.shapeInvalidPreset":
+    "Invalid preset shape: data-prst=“{id}” is not supported ({supported})",
+  "quality.svg.iconUnknown":
+    "Unknown icon: data-icon=“{id}” is not in the icon library ({supported})",
+  "quality.svg.aestheticsBrandContrast":
+    "Palette combination fails: token #{fg} text on #{bg} has contrast {ratio} < {min} — this is a deck-wide design issue, repainting page by page will not help; swap the text/background token in the design panel",
+  "quality.svg.aestheticsLowContrast":
+    "Contrast too low: text (#{fg}) on its background (#{bg}) has contrast {ratio} < {min} — pick a stronger pair from the palette, add a background/surface scrim, or raise the font size to ≥26px",
+  "quality.svg.aestheticsAccentArea":
+    "Accent colour covers {percent}% of the canvas, above the 10% cap of the 60-30-10 rule — accent is for highlights only, use background/surface for large areas",
+  "quality.svg.aestheticsMissingBackground":
+    "Page has no large background fill (background {background} covers <40%) — the page looks unanchored",
+  "quality.svg.aestheticsShadowOpacity":
+    "Shadow opacity flood-opacity={value} is outside the 0.03–0.12 range — too heavy, lighten it",
+  "quality.svg.aestheticsPaletteContrast":
+    "Palette token combination “{fgToken} {fg}” on “{bgToken} {bg}” has contrast {ratio} < 4.5 — every page using it looks washed out; darken the text or brighten the background in the design panel",
+  "quality.svg.balanceBottomGap":
+    "Layout imbalance: the bottom {percent}% is empty and all content is piled in the upper half — increase spacing or move the visual centre down",
+  "quality.svg.balanceLeftAlignment":
+    "Left-edge fragmentation: {count} different left edges ({lefts}px) — snap the text to one column x (e.g. margin 40)",
+  "quality.svg.rhythmCjkLetterSpacing":
+    "CJK letter spacing too large: letter-spacing={spacing} is {percent}% of font size {fontSize} (>5%) — Chinese needs no letter spacing, remove it",
+  "quality.svg.rhythmLeftDrift":
+    "Left-edge drift: same-size text “{a}” and “{b}” differ by {delta}px (≥4 and ≤24) — they look like one column but are not aligned; snap them to the same x",
+  "quality.svg.rhythmGridSpacing":
+    "Uneven card spacing: {count} cards in the same row differ by {percent}% — distribute the x spacing evenly",
+  "quality.deck.missingCover":
+    "The first page is not a cover layout, or its title is empty",
+  "quality.deck.missingClosing": "The last page is not a closing layout",
+  "quality.deck.duplicateTitle":
+    "Title “{title}” is duplicated on another page",
+  "quality.deck.tooManyBullets":
+    "Page “{title}” has more than 7 top-level bullets ({count} in total)",
+  "quality.deck.emptyChart": "Page “{title}” has a chart with no data",
+  "quality.deck.missingImage":
+    "Page “{title}” uses an image layout but has no image",
+  "quality.deck.twoColumnIncomplete":
+    "Page “{title}” uses a two-column layout but has fewer than two columns",
+  "quality.deck.genericTitle":
+    "Page “{title}” has a vague title — add a subtitle or a more specific title",
+  "quality.deck.chartUnverified":
+    "Page “{title}” shows chart values {values} that were not found in the source material — check whether they were fabricated",
+  "quality.deck.pageCountMismatch":
+    "Expected {expected} pages, got {actual} (off by {diff})",
+  "quality.deck.templateNeedsChart":
+    "This template requires at least one chart page",
+  "quality.deck.pyramidTitle":
+    "Conclusion-first mode requires the first-page title to be a conclusion",
 
   "redraw.failed": "Slide redraw failed",
   "redraw.redrawing": "Redrawing…",

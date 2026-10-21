@@ -35,6 +35,16 @@ interface SvgTag {
 }
 
 /**
+ * 契约校验结果：code 是稳定语义 id（可映射到 locale key 做界面本地化），
+ * message 是中文规范文案（同时用于 LLM 回喂与无法本地化时的兜底展示）。
+ */
+export interface SvgContractIssue {
+  code: string;
+  params: Record<string, string | number>;
+  message: string;
+}
+
+/**
  * 扫描 SVG 的真实标签序列。
  *
  * 与「整篇正则扫标签」相比，这里额外处理两类假阳性来源：
@@ -90,10 +100,10 @@ function scanTags(svg: string): SvgTag[] {
 export function validateSvgContract(
   svg: string,
   expected?: { w: number; h: number },
-): string[] {
+): SvgContractIssue[] {
   const canvas = expected ?? DEFAULT_CANVAS;
   const requiredViewBox = `0 0 ${canvas.w} ${canvas.h}`;
-  const errors: string[] = [];
+  const errors: SvgContractIssue[] = [];
 
   const tags = scanTags(svg);
 
@@ -101,18 +111,30 @@ export function validateSvgContract(
     (t) => !t.closing && t.name.toLowerCase() === "svg",
   );
   if (!rootTag) {
-    errors.push("缺少 <svg> 根元素");
+    errors.push({
+      code: "svg.contractMissingRoot",
+      params: {},
+      message: "缺少 <svg> 根元素",
+    });
     return errors;
   }
 
   const vb = rootTag.raw.match(/viewBox=["']([^"']+)["']/i);
   if (!vb) {
-    errors.push("svg 缺少 viewBox");
+    errors.push({
+      code: "svg.contractMissingViewBox",
+      params: {},
+      message: "svg 缺少 viewBox",
+    });
     return errors;
   }
   const normalized = vb[1].trim().replace(/,/g, " ").replace(/\s+/g, " ");
   if (normalized !== requiredViewBox) {
-    errors.push(`viewBox 必须为 "${requiredViewBox}"，实际 "${vb[1].trim()}"`);
+    errors.push({
+      code: "svg.contractBadViewBox",
+      params: { required: requiredViewBox, actual: vb[1].trim() },
+      message: `viewBox 必须为 "${requiredViewBox}"，实际 "${vb[1].trim()}"`,
+    });
   }
 
   for (const t of tags) {
@@ -121,11 +143,19 @@ export function validateSvgContract(
     if (name === "svg") continue;
 
     if (FORBIDDEN.has(name)) {
-      errors.push(`禁止的 SVG 元素 <${name}>`);
+      errors.push({
+        code: "svg.contractForbiddenElement",
+        params: { name },
+        message: `禁止的 SVG 元素 <${name}>`,
+      });
       continue;
     }
     if (!ALLOWED.has(name)) {
-      errors.push(`不支持的 SVG 元素 <${name}>`);
+      errors.push({
+        code: "svg.contractUnsupportedElement",
+        params: { name },
+        message: `不支持的 SVG 元素 <${name}>`,
+      });
     }
   }
 
@@ -138,7 +168,11 @@ export function validateSvgContract(
       const url = hrefMatch[2];
       if (url.startsWith("data:")) continue;
       if (url.startsWith("#")) continue;
-      errors.push(`禁止外部引用资源: ${hrefMatch[1]}="${url}"`);
+      errors.push({
+        code: "svg.contractExternalRef",
+        params: { attr: hrefMatch[1], url },
+        message: `禁止外部引用资源: ${hrefMatch[1]}="${url}"`,
+      });
     }
   }
 

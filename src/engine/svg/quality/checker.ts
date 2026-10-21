@@ -5,7 +5,15 @@ import { validateSvgContract } from "../spec-contract";
 
 export type SvgIssue = {
   severity: "error" | "warn";
+  /**
+   * 中文规范文案：同时用于 LLM 重画回喂（端侧小模型吃中文）与界面兜底展示。
+   * 界面本地化走 code + params（见 services/quality/message-i18n.ts）。
+   */
   message: string;
+  /** 稳定语义 id，对应 locale key `quality.<code>` */
+  code?: string;
+  /** 本地化插值参数 */
+  params?: Record<string, string | number>;
   location?: string;
   /**
    * 分类标记，供修复环与导出锁分流处置：
@@ -89,7 +97,12 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
     h: canvasH,
   });
   for (const e of contractErrors) {
-    issues.push({ severity: "error", message: e });
+    issues.push({
+      severity: "error",
+      message: e.message,
+      code: e.code,
+      params: e.params,
+    });
   }
 
   const tagRegex = /<([a-zA-Z][\w:-]*)(?:\s[^>]*?)?\/?>/g;
@@ -159,6 +172,8 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
         issues.push({
           severity: "error",
           message: `text 越界：x=${x}, y=${y}, 估算宽度=${estWidth.toFixed(0)} 超出画布宽度 ${canvasW}`,
+          code: "svg.textOutOfBounds",
+          params: { x, y, width: estWidth.toFixed(0), canvasW },
           location: loc,
         });
       }
@@ -166,6 +181,13 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
         issues.push({
           severity: "error",
           message: `text 下越界：y+height=${(y + estHeight).toFixed(0)} (${lineCount} 行 × ${fontSize}px) > 画布高度 ${canvasH}`,
+          code: "svg.textBelowCanvas",
+          params: {
+            bottom: (y + estHeight).toFixed(0),
+            lineCount,
+            fontSize,
+            canvasH,
+          },
           location: loc,
         });
       }
@@ -173,6 +195,8 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
         issues.push({
           severity: "warn",
           message: `text 字号预算溢出：估算宽度 ${estWidth.toFixed(0)} 超过画布宽度 ${canvasW}`,
+          code: "svg.textSizeBudget",
+          params: { width: estWidth.toFixed(0), canvasW },
           location: loc,
         });
       }
@@ -234,6 +258,11 @@ export function checkChartData(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `图表类型非法：data-chart-type="${type ?? ""}"（支持 ${[...VALID_CHART_TYPES].join("/")}）`,
+        code: "svg.chartInvalidType",
+        params: {
+          type: type ?? "",
+          supported: [...VALID_CHART_TYPES].join("/"),
+        },
         location: "g",
       });
       continue;
@@ -243,6 +272,8 @@ export function checkChartData(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `图表缺少数据：data-chart-data 未提供（${type} 图将无法导出）`,
+        code: "svg.chartMissingData",
+        params: { type },
         location: "g",
       });
       continue;
@@ -254,6 +285,8 @@ export function checkChartData(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `图表数据非法 JSON：data-chart-data 无法解析（${type} 图将无法导出）`,
+        code: "svg.chartInvalidJson",
+        params: { type },
         location: "g",
       });
       continue;
@@ -262,6 +295,8 @@ export function checkChartData(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `图表数据为空：data-chart-data 需为包含 label/value 的非空数组（${type} 图将无法导出）`,
+        code: "svg.chartEmptyData",
+        params: { type },
         location: "g",
       });
     }
@@ -322,6 +357,8 @@ export function checkContentPresence(
       issues.push({
         severity: "error",
         message: `内容缺失：标题「${content.title}」未出现在 SVG 文本中`,
+        code: "svg.contentMissingTitle",
+        params: { title: content.title },
         location: "text",
       });
     }
@@ -333,6 +370,8 @@ export function checkContentPresence(
       issues.push({
         severity: "error",
         message: `内容缺失：要点「${bullet.slice(0, 40)}」未出现在 SVG 文本中`,
+        code: "svg.contentMissingBullet",
+        params: { bullet: bullet.slice(0, 40) },
         location: "text",
       });
     }
@@ -344,6 +383,8 @@ export function checkContentPresence(
       issues.push({
         severity: "warn",
         message: `内容缺失：关键片段「${assert.slice(0, 40)}」未出现在 SVG 文本中`,
+        code: "svg.contentMissingSnippet",
+        params: { snippet: assert.slice(0, 40) },
         location: "text",
       });
     }
@@ -366,6 +407,8 @@ function checkBounds(
     issues.push({
       severity: "error",
       message: `元素越界：左边界 x=${x} < 0`,
+      code: "svg.elementLeftOut",
+      params: { x },
       location: loc,
     });
   }
@@ -373,6 +416,8 @@ function checkBounds(
     issues.push({
       severity: "error",
       message: `元素越界：上边界 y=${y} < 0`,
+      code: "svg.elementTopOut",
+      params: { y },
       location: loc,
     });
   }
@@ -380,6 +425,8 @@ function checkBounds(
     issues.push({
       severity: "error",
       message: `元素超出右边界：x+width=${x + w} > ${canvasW}`,
+      code: "svg.elementRightOut",
+      params: { right: x + w, canvasW },
       location: loc,
     });
   }
@@ -387,6 +434,8 @@ function checkBounds(
     issues.push({
       severity: "error",
       message: `元素超出下边界：y+height=${y + h} > ${canvasH}`,
+      code: "svg.elementBottomOut",
+      params: { bottom: y + h, canvasH },
       location: loc,
     });
   }
@@ -435,6 +484,13 @@ export function checkTypographyAnchors(
     {
       severity: "warn",
       message: `字号偏离锚点：${uniq.join("/")}px 不在锚点 ${anchorValues.join("/")} ±${FONT_SIZE_ANCHOR_TOLERANCE_PX}px 内（${offAnchor.length} 处），请统一到锚点字号`,
+      code: "svg.typographyOffAnchor",
+      params: {
+        sizes: uniq.join("/"),
+        anchors: anchorValues.join("/"),
+        tolerance: FONT_SIZE_ANCHOR_TOLERANCE_PX,
+        count: offAnchor.length,
+      },
       location: "text",
     },
   ];
@@ -479,12 +535,15 @@ export function checkCohortConsistency(
     .filter(([hex]) => !allowedColors.has(hex))
     .sort((a, b) => b[1] - a[1]);
   if (offColors.length > 0) {
+    const colors = offColors
+      .slice(0, 3)
+      .map(([hex, n]) => `#${hex}(×${n})`)
+      .join("、");
     issues.push({
       severity: "error",
-      message: `配色越锁：使用了设计锁之外的颜色 ${offColors
-        .slice(0, 3)
-        .map(([hex, n]) => `#${hex}(×${n})`)
-        .join("、")}，只允许使用配色表中的颜色`,
+      message: `配色越锁：使用了设计锁之外的颜色 ${colors}，只允许使用配色表中的颜色`,
+      code: "svg.cohortColorOffLock",
+      params: { colors },
       location: "cohort",
     });
   }
@@ -493,12 +552,15 @@ export function checkCohortConsistency(
     ([name]) => !allowedFonts.has(name.toLowerCase()),
   );
   if (offFonts.length > 0) {
+    const fonts = offFonts
+      .slice(0, 3)
+      .map(([name]) => name)
+      .join("、");
     issues.push({
       severity: "error",
-      message: `字体越锁：使用了 ${offFonts
-        .slice(0, 3)
-        .map(([name]) => name)
-        .join("、")}，只允许 ${[...allowedFonts].join(" / ")}`,
+      message: `字体越锁：使用了 ${fonts}，只允许 ${[...allowedFonts].join(" / ")}`,
+      code: "svg.cohortFontOffLock",
+      params: { fonts, allowed: [...allowedFonts].join(" / ") },
       location: "cohort",
     });
   }
@@ -526,6 +588,8 @@ export function checkPresetShapes(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `预设形状非法：data-prst="${id}" 不在支持列表（${Object.keys(PRESET_SHAPES).join("/")}）`,
+        code: "svg.shapeInvalidPreset",
+        params: { id, supported: Object.keys(PRESET_SHAPES).join("/") },
         location: "data-prst",
       });
     }
@@ -549,6 +613,8 @@ export function checkSvgIcons(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `图标非法：data-icon="${id}" 不在图标库（${Object.keys(ICONS).join("/")}）`,
+        code: "svg.iconUnknown",
+        params: { id, supported: Object.keys(ICONS).join("/") },
         location: "data-icon",
       });
     }
@@ -605,7 +671,7 @@ function letterSpacingOf(openAttrs: string): number | undefined {
   const attrM = openAttrs.match(
     /\bletter-spacing\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i,
   );
-  const rawAttr = attrM ? attrM[1] ?? attrM[2] ?? attrM[3] : undefined;
+  const rawAttr = attrM ? (attrM[1] ?? attrM[2] ?? attrM[3]) : undefined;
   let v = rawAttr != null ? Number.parseFloat(rawAttr) : NaN;
   if (!Number.isFinite(v)) {
     const styleM = openAttrs.match(
@@ -665,7 +731,10 @@ function collectTextBoxes(svg: string): TextBox[] {
       .replace(/<tspan[\s\S]*?<\/tspan>/gi, "")
       .replace(/<[^>]+>/g, "")
       .trim();
-    const lineCount = Math.max(tspans > 0 ? tspans + (outsideTspan ? 1 : 0) : 1, 1);
+    const lineCount = Math.max(
+      tspans > 0 ? tspans + (outsideTspan ? 1 : 0) : 1,
+      1,
+    );
     const anchor = attr(full, "text-anchor");
     let left = x;
     if (anchor === "middle") left = x - estWidth / 2;
@@ -706,6 +775,13 @@ export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `文字「${b.snippet}」右缘到达 ${b.right.toFixed(0)}，越出安全区（画布 ${canvasW} − 安全边距 ${safe}）：缩短文字或换行`,
+        code: "svg.textRightOutsideSafe",
+        params: {
+          snippet: b.snippet,
+          right: b.right.toFixed(0),
+          canvasW,
+          safe,
+        },
         location: b.loc,
       });
     }
@@ -713,6 +789,12 @@ export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `文字「${b.snippet}」左缘 ${b.left.toFixed(0)} 越出安全区（< ${Math.round(safe * 0.5)}）`,
+        code: "svg.textLeftOutsideSafe",
+        params: {
+          snippet: b.snippet,
+          left: b.left.toFixed(0),
+          limit: Math.round(safe * 0.5),
+        },
         location: b.loc,
       });
     }
@@ -720,6 +802,13 @@ export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `文字「${b.snippet}」底缘 ${b.bottom.toFixed(0)} 越出下安全区（画布 ${canvasH} − ${safe}）`,
+        code: "svg.textBottomOutsideSafe",
+        params: {
+          snippet: b.snippet,
+          bottom: b.bottom.toFixed(0),
+          canvasH,
+          safe,
+        },
         location: b.loc,
       });
     }
@@ -738,6 +827,13 @@ export function checkTextGeometry(svg: string, specLock: SpecLock): SvgIssue[] {
         issues.push({
           severity: "error",
           message: `文字重叠：「${a.snippet}」与「${c.snippet}」包围盒交叠 ${ox.toFixed(0)}×${oy.toFixed(0)}px，调整间距或缩短文字`,
+          code: "svg.textOverlap",
+          params: {
+            a: a.snippet,
+            b: c.snippet,
+            overlapX: ox.toFixed(0),
+            overlapY: oy.toFixed(0),
+          },
           location: c.loc,
         });
       }
@@ -809,7 +905,7 @@ function collectFilledRects(svg: string): FilledRect[] {
 
 /**
  * 量化美学校验：
- * 1) 文字与其直接底面色块的 WCAG 对比度——正文 <4.5、大字(<26px 以下按小字) 
+ * 1) 文字与其直接底面色块的 WCAG 对比度——正文 <4.5、大字(<26px 以下按小字)
  *    与 ≥26px 大字 <3.0 判 error（小模型最爱干的事就是浅字压浅底）；
  * 2) 60-30-10 色比例——accent 着色面积 >12% 画布 warn、页面缺底色 warn；
  * 3) 阴影参数域——flood-opacity 落在 0.03–0.12 之外 warn。
@@ -858,6 +954,15 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
         message: bothTokens
           ? `配色组合不达标：token #${fill} 文字压在 #${bg} 上对比度 ${ratio.toFixed(2)} < ${min}——这是整份 deck 的设计问题，逐页重画无效，请在设计面板更换文字/底色 token`
           : `对比度不足：文字（#${fill}）与其底面（#${bg}）对比度 ${ratio.toFixed(2)} < ${min}——请改用配色表中对比更强的组合，或在文字下垫 background/surface scrim，或把字号抬到 ≥26px`,
+        code: bothTokens
+          ? "svg.aestheticsBrandContrast"
+          : "svg.aestheticsLowContrast",
+        params: {
+          fg: fill,
+          bg,
+          ratio: ratio.toFixed(2),
+          min,
+        },
         location: `text@${tm.index}`,
       });
     }
@@ -874,6 +979,8 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
       issues.push({
         severity: "warn",
         message: `强调色面积 ${pct.toFixed(0)}%，超出 60-30-10 配色的 10% 上限——accent 只用于点睛，大面积请换 background/surface`,
+        code: "svg.aestheticsAccentArea",
+        params: { percent: pct.toFixed(0) },
         location: "color-ratio",
       });
     }
@@ -886,6 +993,8 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
     issues.push({
       severity: "warn",
       message: `页面缺少大面积底色（background ${specLock.colors.background} 覆盖 <40%），画面发飘`,
+      code: "svg.aestheticsMissingBackground",
+      params: { background: specLock.colors.background },
       location: "color-ratio",
     });
   }
@@ -900,6 +1009,8 @@ export function checkAesthetics(svg: string, specLock: SpecLock): SvgIssue[] {
       issues.push({
         severity: "warn",
         message: `阴影浓度 flood-opacity=${v} 超出参数域 0.03–0.12，AI 感重，请调淡`,
+        code: "svg.aestheticsShadowOpacity",
+        params: { value: v },
         location: "shadow",
       });
     }
@@ -952,7 +1063,7 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
       const w = num(attr(bm[0], "width")) ?? 0;
       const h = num(attr(bm[0], "height")) ?? 0;
       if (h <= 0 || w <= 0) continue;
-      rects.push({ x: (num(attr(bm[0], "x")) ?? 0), w, h });
+      rects.push({ x: num(attr(bm[0], "x")) ?? 0, w, h });
     }
     // 铺底板按「宽度离群」剔除：柱体等宽，底板远宽于任何一根柱。
     // （旧式 h²<面积×12 的量纲错误会把高而窄的柱当底板删掉 → 假柱数不符）
@@ -969,6 +1080,8 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
       issues.push({
         severity: "error",
         message: `柱图几何不符：画了 ${bars.length} 根柱但数据有 ${points.length} 个点，请重画`,
+        code: "svg.chartBarCountMismatch",
+        params: { bars: bars.length, points: points.length },
         location: "g",
       });
       continue;
@@ -983,6 +1096,12 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
         issues.push({
           severity: "error",
           message: `柱图几何失真：第 ${i + 1} 根柱高度比例 ${(hr * 100).toFixed(0)}% 与数值比例 ${(vr * 100).toFixed(0)}% 偏差超过 12%，请按数据重算柱高`,
+          code: "svg.chartBarRatioMismatch",
+          params: {
+            index: i + 1,
+            barPercent: (hr * 100).toFixed(0),
+            valuePercent: (vr * 100).toFixed(0),
+          },
           location: "g",
         });
         break;
@@ -997,7 +1116,10 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
  * 1) 内容整体缩在上部（底部 >38% 画布空白且内容未下沉）warn；
  * 2) 左缘对齐碎片化：>4 个互不相邻的左缘值 warn（应吸附到统一栏格）。
  */
-export function checkLayoutBalance(svg: string, specLock: SpecLock): SvgIssue[] {
+export function checkLayoutBalance(
+  svg: string,
+  specLock: SpecLock,
+): SvgIssue[] {
   const issues: SvgIssue[] = [];
   const { w: canvasW, h: canvasH } = specLock.canvas;
   const rects = collectFilledRects(svg).filter(
@@ -1026,6 +1148,8 @@ export function checkLayoutBalance(svg: string, specLock: SpecLock): SvgIssue[] 
     issues.push({
       severity: "warn",
       message: `版面失衡：底部 ${Math.round(bottomGapRatio * 100)}% 空白且内容全部堆积在上半部，请加大行距/分布或下移视觉重心`,
+      code: "svg.balanceBottomGap",
+      params: { percent: Math.round(bottomGapRatio * 100) },
       location: "balance",
     });
   }
@@ -1043,6 +1167,8 @@ export function checkLayoutBalance(svg: string, specLock: SpecLock): SvgIssue[] 
     issues.push({
       severity: "warn",
       message: `左缘对齐碎片化：出现 ${clusters.length} 个不同左缘（${clusters.slice(0, 6).join("/")}px），文本请吸附到统一栏位 x（如边距 40 或各栏起始）`,
+      code: "svg.balanceLeftAlignment",
+      params: { count: clusters.length, lefts: clusters.slice(0, 6).join("/") },
       location: "balance",
     });
   }
@@ -1071,15 +1197,13 @@ export function paletteTokenHexes(specLock: SpecLock): Set<string> {
 }
 
 /** 取 token 集合中离 hex 最近者（RGB 欧氏距离）；集合空则返回原值。 */
-export function nearestTokenHex(
-  hex: string,
-  tokens: Set<string>,
-): string {
+export function nearestTokenHex(hex: string, tokens: Set<string>): string {
   const withHash = hex.trim().startsWith("#") ? hex.trim() : "#" + hex.trim();
   const n = normalizeHex(withHash);
   if (!n || tokens.size === 0) return hex;
   if (tokens.has(n)) return "#" + n;
-  const to = (h: string) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const to = (h: string) =>
+    [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
   const [r, g, b] = to(n);
   let best = n;
   let bestD = Infinity;
@@ -1101,10 +1225,7 @@ export function nearestTokenHex(
  * - S4 对齐漂移：两个本应同栏的 <text> 左缘相差 4–24px（近似对齐却没吸附）
  * - S5 栅格不均：同 y 带的卡片 rect 相邻 x 间距差异 >5%
  */
-export function checkVisualRhythm(
-  svg: string,
-  specLock: SpecLock,
-): SvgIssue[] {
+export function checkVisualRhythm(svg: string, specLock: SpecLock): SvgIssue[] {
   const issues: SvgIssue[] = [];
   const { w: canvasW } = specLock.canvas;
 
@@ -1120,6 +1241,12 @@ export function checkVisualRhythm(
       issues.push({
         severity: "warn",
         message: `CJK 字距过大：letter-spacing=${ls} 为字号 ${fs} 的 ${((ls / fs) * 100).toFixed(0)}%（>5%），中文不加字距，请移除 letter-spacing`,
+        code: "svg.rhythmCjkLetterSpacing",
+        params: {
+          spacing: ls,
+          fontSize: fs,
+          percent: ((ls / fs) * 100).toFixed(0),
+        },
         location: "letter-spacing",
       });
     }
@@ -1142,6 +1269,12 @@ export function checkVisualRhythm(
         issues.push({
           severity: "warn",
           message: `左缘对齐漂移：同字号文本「${cand[i].snippet}」「${cand[j].snippet}」左缘相差 ${d.toFixed(0)}px（≥4 且 ≤24），像同一栏却没吸附，请统一到同一栏位 x（如 40/边距）`,
+          code: "svg.rhythmLeftDrift",
+          params: {
+            a: cand[i].snippet,
+            b: cand[j].snippet,
+            delta: d.toFixed(0),
+          },
           location: "alignment",
         });
         driftFound = true;
@@ -1176,6 +1309,8 @@ export function checkVisualRhythm(
       issues.push({
         severity: "warn",
         message: `同排 ${arr.length} 张卡片间距不均（最大/最小差 ${(spread * 100).toFixed(0)}%），请等分 x 间距`,
+        code: "svg.rhythmGridSpacing",
+        params: { count: arr.length, percent: (spread * 100).toFixed(0) },
         location: "grid",
       });
     }
@@ -1287,6 +1422,14 @@ export function checkPaletteContrast(specLock: SpecLock): SvgIssue[] {
           severity: "warn",
           kind: "brand",
           message: `配色 token 组合「${fn} ${f}」压在「${bn} ${b}」上对比度 ${ratio.toFixed(2)} < 4.5，全 deck 该组合都会发虚——请在设计面板调深文字或提亮底色`,
+          code: "svg.aestheticsPaletteContrast",
+          params: {
+            fgToken: fn,
+            fg: f,
+            bgToken: bn,
+            bg: b,
+            ratio: ratio.toFixed(2),
+          },
           location: "palette",
         });
       }

@@ -22,9 +22,7 @@ export function runFirstPageGate(
   const findings = checkDeckQuality(
     { ...deck, slides: [first] },
     { skipSvgChecks: true },
-  ).filter(
-    (f) => !DECK_WIDE_RULES.has(f.rule) && !/page_count/i.test(f.rule),
-  );
+  ).filter((f) => !DECK_WIDE_RULES.has(f.rule) && !/page_count/i.test(f.rule));
 
   // 模式专属首屏规则：结论先行模式下首屏标题必须是结论句而非话题词
   if (
@@ -36,6 +34,7 @@ export function runFirstPageGate(
       rule: "pyramid_title",
       severity: "hard",
       message: "结论先行模式要求首屏标题为结论句",
+      code: "deck.pyramidTitle",
       slideId: first.id,
       autoFixable: false,
     });

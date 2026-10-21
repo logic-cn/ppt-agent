@@ -16,7 +16,17 @@ export type Severity = "hard" | "soft";
 export interface QualityFinding {
   rule: string;
   severity: Severity;
+  /**
+   * 中文规范文案（不含页面前缀）：界面本地化走 code + params，
+   * 无法本地化时回落此文案。
+   */
   message: string;
+  /** 稳定语义 id，对应 locale key `quality.<code>` */
+  code?: string;
+  /** 本地化插值参数 */
+  params?: Record<string, string | number>;
+  /** 页面前缀来源（页码 + 页标题） */
+  page?: { index: number; title: string };
   slideId?: string;
   autoFixable: boolean;
 }
@@ -63,6 +73,7 @@ function checkMissingCover(deck: Deck): QualityFinding[] {
         severity: "hard",
         slideId: first.id,
         message: "第一页不是封面布局或标题为空",
+        code: "deck.missingCover",
         autoFixable: false,
       },
     ];
@@ -80,6 +91,7 @@ function checkMissingClosing(deck: Deck): QualityFinding[] {
         severity: "hard",
         slideId: last.id,
         message: "最后一页不是结尾布局",
+        code: "deck.missingClosing",
         autoFixable: false,
       },
     ];
@@ -107,6 +119,8 @@ function checkDuplicateTitles(deck: Deck): QualityFinding[] {
           severity: "soft",
           slideId: deck.slides[idx].id,
           message: `标题「${deck.slides[idx].title}」与其他页面重复`,
+          code: "deck.duplicateTitle",
+          params: { title: deck.slides[idx].title },
           autoFixable: false,
         });
       }
@@ -124,6 +138,8 @@ function checkTooManyBullets(deck: Deck): QualityFinding[] {
         severity: "soft",
         slideId: slide.id,
         message: `页面「${slide.title}」一级要点超过 7 条（共 ${slide.bullets.length} 条）`,
+        code: "deck.tooManyBullets",
+        params: { title: slide.title, count: slide.bullets.length },
         autoFixable: true,
       });
     }
@@ -141,6 +157,8 @@ function checkEmptyChart(deck: Deck): QualityFinding[] {
           severity: "hard",
           slideId: slide.id,
           message: `页面「${slide.title}」图表无数据`,
+          code: "deck.emptyChart",
+          params: { title: slide.title },
           autoFixable: false,
         });
       }
@@ -158,6 +176,8 @@ function checkLayoutContentMismatch(deck: Deck): QualityFinding[] {
         severity: "soft",
         slideId: slide.id,
         message: `页面「${slide.title}」布局为配图但未配置图片`,
+        code: "deck.missingImage",
+        params: { title: slide.title },
         autoFixable: false,
       });
     }
@@ -170,6 +190,8 @@ function checkLayoutContentMismatch(deck: Deck): QualityFinding[] {
         severity: "soft",
         slideId: slide.id,
         message: `页面「${slide.title}」布局为双栏但不足两栏内容`,
+        code: "deck.twoColumnIncomplete",
+        params: { title: slide.title },
         autoFixable: false,
       });
     }
@@ -186,6 +208,8 @@ function checkGenericTitle(deck: Deck): QualityFinding[] {
         severity: "soft",
         slideId: slide.id,
         message: `页面「${slide.title}」标题较为空泛，建议添加副标题或更具体的标题`,
+        code: "deck.genericTitle",
+        params: { title: slide.title },
         autoFixable: false,
       });
     }
@@ -254,6 +278,8 @@ function checkChartFacts(
       message: `页面「${slide.title}」图表数值 ${unverified
         .slice(0, 4)
         .join("、")} 未在来源材料中找到，请核对是否为编造数据`,
+      code: "deck.chartUnverified",
+      params: { title: slide.title, values: unverified.slice(0, 4).join("、") },
       autoFixable: false,
     });
   }
@@ -272,6 +298,12 @@ function checkPageCount(
         rule: "page_count_mismatch",
         severity: "soft",
         message: `期望 ${options.pageCount} 页，实际 ${deck.slides.length} 页（偏差 ${diff} 页）`,
+        code: "deck.pageCountMismatch",
+        params: {
+          expected: options.pageCount,
+          actual: deck.slides.length,
+          diff,
+        },
         autoFixable: false,
       },
     ];
@@ -293,16 +325,25 @@ export function checkSvgFindings(deck: Deck): QualityFinding[] {
   const findings: QualityFinding[] = [];
   const spec = buildSpecLock(deck.design);
   const push = (
-    it: { severity: "error" | "warn"; message: string; kind?: string },
+    it: {
+      severity: "error" | "warn";
+      message: string;
+      code?: string;
+      params?: Record<string, string | number>;
+      kind?: string;
+    },
     rule: string,
     slideId?: string,
-    prefix = "",
+    page?: { index: number; title: string },
   ) =>
     findings.push({
       rule,
       severity: it.severity === "error" ? "hard" : "soft",
       slideId,
-      message: prefix + it.message,
+      message: it.message,
+      code: it.code,
+      params: it.params,
+      page,
       autoFixable: false,
     });
 
@@ -313,6 +354,8 @@ export function checkSvgFindings(deck: Deck): QualityFinding[] {
       rule: "svg_palette",
       severity: "soft",
       message: it.message,
+      code: it.code,
+      params: it.params,
       autoFixable: false,
     });
     const m = it.message.match(/#([0-9a-fA-F]{3,6}).*?#([0-9a-fA-F]{3,6})/);
@@ -321,9 +364,16 @@ export function checkSvgFindings(deck: Deck): QualityFinding[] {
 
   deck.slides.forEach((slide, i) => {
     if (!slide.svg) return;
-    const page = `第 ${i + 1} 页「${slide.title}」：`;
+    // 页面前缀独立成字段：界面按当前语言渲染，中文规范文案不再内嵌前缀
+    const page = { index: i + 1, title: slide.title };
     const groups: {
-      issues: { severity: "error" | "warn"; message: string; kind?: string }[];
+      issues: {
+        severity: "error" | "warn";
+        message: string;
+        code?: string;
+        params?: Record<string, string | number>;
+        kind?: string;
+      }[];
       rule: string;
     }[] = [
       { issues: checkSvg(slide.svg, spec), rule: "svg_contract" },
@@ -338,7 +388,9 @@ export function checkSvgFindings(deck: Deck): QualityFinding[] {
         // brand 级对比度塌陷：整份 deck 系统问题，已由 deck 级/首个页级代表，
         // 同一 token 组合不在每页重复。
         if (it.kind === "brand") {
-          const m = it.message.match(/#([0-9a-fA-F]{3,6}).*?#([0-9a-fA-F]{3,6})/);
+          const m = it.message.match(
+            /#([0-9a-fA-F]{3,6}).*?#([0-9a-fA-F]{3,6})/,
+          );
           const key = m
             ? m[1].toUpperCase() + "/" + m[2].toUpperCase()
             : it.message;
@@ -388,6 +440,7 @@ export function checkDeckQuality(
         rule: "chart_required",
         severity: "hard",
         message: "该模板要求至少包含一个图表页",
+        code: "deck.templateNeedsChart",
         autoFixable: false,
       });
     }
@@ -404,6 +457,8 @@ export function checkDeckQuality(
           severity: "hard",
           slideId: slide.id,
           message: `页面「${slide.title}」图表无数据`,
+          code: "deck.emptyChart",
+          params: { title: slide.title },
           autoFixable: false,
         });
       }

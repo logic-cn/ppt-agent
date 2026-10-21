@@ -132,8 +132,7 @@ export async function generateSlideSvg(
           signal: pageLevel.signal,
           // 本地档：逐 token 上屏，生成期间可见真实输出
           onPartial: local
-            ? (text) =>
-                useGenerationFollowStore.getState().setPartialText(text)
+            ? (text) => useGenerationFollowStore.getState().setPartialText(text)
             : undefined,
         },
         "svg",
@@ -199,6 +198,8 @@ export async function generateSlideSvg(
               {
                 severity: "error" as const,
                 message: `图表缺失：该页计划要求 ${opts.plan.chartType} 图，但 SVG 中未出现 data-chart-type 标记`,
+                code: "svg.chartMissingMarker",
+                params: { type: opts.plan.chartType },
               },
             ]
           : []),
@@ -260,7 +261,7 @@ export async function generateSlideSvg(
     if (errors.length > 0) {
       throw new Error(
         `SVG 契约校验未通过（第 ${opts.pageIndex + 1} 页）：\n` +
-          errors.map((e) => "- " + e).join("\n"),
+          errors.map((e) => "- " + e.message).join("\n"),
       );
     }
     // 规范化标记元素：data-icon 展开为形状序列、data-prst → canonical path

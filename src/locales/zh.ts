@@ -38,7 +38,8 @@ export const zh: Record<TranslationKey, string> = {
   "settings.useModel": "使用",
   "settings.addCustomModel": "添加自定义模型",
   "settings.removeCustomModel": "删除自定义模型",
-  "settings.removeCustomConfirm": "确定删除该自定义模型？对应的 API Key 也会被清除。",
+  "settings.removeCustomConfirm":
+    "确定删除该自定义模型？对应的 API Key 也会被清除。",
   "settings.customNamePlaceholder": "名称（如 Moonshot）",
   "settings.customBaseUrlPlaceholder": "https://api.example.com/v1",
   "settings.customModelPlaceholder": "模型名称（如 moonshot-v1-32k）",
@@ -156,7 +157,8 @@ export const zh: Record<TranslationKey, string> = {
   "preview.textContent": "文字",
   "preview.fontSize": "字号 (px)",
   "preview.fill": "填充色",
-  "preview.nudgeHint": "拖拽移动 · 方向键微调（Shift ×10）· 右键挑选重叠元素 · Esc 取消选中",
+  "preview.nudgeHint":
+    "拖拽移动 · 方向键微调（Shift ×10）· 右键挑选重叠元素 · Esc 取消选中",
   "preview.editMode": "画布编辑",
   "preview.exitEditMode": "退出编辑",
   "preview.aiEditPlaceholder": "描述怎么改这个元素…",
@@ -391,6 +393,100 @@ export const zh: Record<TranslationKey, string> = {
   "quality.softCount": "提示 {count}",
   "quality.fixing": "修复中…",
   "quality.autoFix": "一键修复（{count}）",
+  "quality.pageContext": "第 {index} 页「{title}」：",
+  "quality.svg.contractMissingRoot": "缺少 <svg> 根元素",
+  "quality.svg.contractMissingViewBox": "svg 缺少 viewBox",
+  "quality.svg.contractBadViewBox":
+    "viewBox 必须为 “{required}”，实际 “{actual}”",
+  "quality.svg.contractForbiddenElement": "禁止的 SVG 元素 <{name}>",
+  "quality.svg.contractUnsupportedElement": "不支持的 SVG 元素 <{name}>",
+  "quality.svg.contractExternalRef": "禁止外部引用资源: {attr}=“{url}”",
+  "quality.svg.textOutOfBounds":
+    "text 越界：x={x}, y={y}, 估算宽度={width} 超出画布宽度 {canvasW}",
+  "quality.svg.textBelowCanvas":
+    "text 下越界：y+height={bottom} ({lineCount} 行 × {fontSize}px) > 画布高度 {canvasH}",
+  "quality.svg.textSizeBudget":
+    "text 字号预算溢出：估算宽度 {width} 超过画布宽度 {canvasW}",
+  "quality.svg.textRightOutsideSafe":
+    "文字「{snippet}」右缘到达 {right}，越出安全区（画布 {canvasW} − 安全边距 {safe}）：缩短文字或换行",
+  "quality.svg.textLeftOutsideSafe":
+    "文字「{snippet}」左缘 {left} 越出安全区（< {limit}）",
+  "quality.svg.textBottomOutsideSafe":
+    "文字「{snippet}」底缘 {bottom} 越出下安全区（画布 {canvasH} − {safe}）",
+  "quality.svg.textOverlap":
+    "文字重叠：「{a}」与「{b}」包围盒交叠 {overlapX}×{overlapY}px，调整间距或缩短文字",
+  "quality.svg.elementLeftOut": "元素越界：左边界 x={x} < 0",
+  "quality.svg.elementTopOut": "元素越界：上边界 y={y} < 0",
+  "quality.svg.elementRightOut": "元素超出右边界：x+width={right} > {canvasW}",
+  "quality.svg.elementBottomOut":
+    "元素超出下边界：y+height={bottom} > {canvasH}",
+  "quality.svg.typographyOffAnchor":
+    "字号偏离锚点：{sizes}px 不在锚点 {anchors} ±{tolerance}px 内（{count} 处），请统一到锚点字号",
+  "quality.svg.chartInvalidType":
+    "图表类型非法：data-chart-type=“{type}”（支持 {supported}）",
+  "quality.svg.chartMissingData":
+    "图表缺少数据：data-chart-data 未提供（{type} 图将无法导出）",
+  "quality.svg.chartInvalidJson":
+    "图表数据非法 JSON：data-chart-data 无法解析（{type} 图将无法导出）",
+  "quality.svg.chartEmptyData":
+    "图表数据为空：data-chart-data 需为包含 label/value 的非空数组（{type} 图将无法导出）",
+  "quality.svg.chartMissingMarker":
+    "图表缺失：该页计划要求 {type} 图，但 SVG 中未出现 data-chart-type 标记",
+  "quality.svg.chartBarCountMismatch":
+    "柱图几何不符：画了 {bars} 根柱但数据有 {points} 个点，请重画",
+  "quality.svg.chartBarRatioMismatch":
+    "柱图几何失真：第 {index} 根柱高度比例 {barPercent}% 与数值比例 {valuePercent}% 偏差超过 12%，请按数据重算柱高",
+  "quality.svg.contentMissingTitle":
+    "内容缺失：标题「{title}」未出现在 SVG 文本中",
+  "quality.svg.contentMissingBullet":
+    "内容缺失：要点「{bullet}」未出现在 SVG 文本中",
+  "quality.svg.contentMissingSnippet":
+    "内容缺失：关键片段「{snippet}」未出现在 SVG 文本中",
+  "quality.svg.cohortColorOffLock":
+    "配色越锁：使用了设计锁之外的颜色 {colors}，只允许使用配色表中的颜色",
+  "quality.svg.cohortFontOffLock": "字体越锁：使用了 {fonts}，只允许 {allowed}",
+  "quality.svg.shapeInvalidPreset":
+    "预设形状非法：data-prst=“{id}” 不在支持列表（{supported}）",
+  "quality.svg.iconUnknown":
+    "图标非法：data-icon=“{id}” 不在图标库（{supported}）",
+  "quality.svg.aestheticsBrandContrast":
+    "配色组合不达标：token #{fg} 文字压在 #{bg} 上对比度 {ratio} < {min}——这是整份 deck 的设计问题，逐页重画无效，请在设计面板更换文字/底色 token",
+  "quality.svg.aestheticsLowContrast":
+    "对比度不足：文字（#{fg}）与其底面（#{bg}）对比度 {ratio} < {min}——请改用配色表中对比更强的组合，或在文字下垫 background/surface scrim，或把字号抬到 ≥26px",
+  "quality.svg.aestheticsAccentArea":
+    "强调色面积 {percent}%，超出 60-30-10 配色的 10% 上限——accent 只用于点睛，大面积请换 background/surface",
+  "quality.svg.aestheticsMissingBackground":
+    "页面缺少大面积底色（background {background} 覆盖 <40%），画面发飘",
+  "quality.svg.aestheticsShadowOpacity":
+    "阴影浓度 flood-opacity={value} 超出参数域 0.03–0.12，AI 感重，请调淡",
+  "quality.svg.aestheticsPaletteContrast":
+    "配色 token 组合「{fgToken} {fg}」压在「{bgToken} {bg}」上对比度 {ratio} < 4.5，全 deck 该组合都会发虚——请在设计面板调深文字或提亮底色",
+  "quality.svg.balanceBottomGap":
+    "版面失衡：底部 {percent}% 空白且内容全部堆积在上半部，请加大行距/分布或下移视觉重心",
+  "quality.svg.balanceLeftAlignment":
+    "左缘对齐碎片化：出现 {count} 个不同左缘（{lefts}px），文本请吸附到统一栏位 x（如边距 40 或各栏起始）",
+  "quality.svg.rhythmCjkLetterSpacing":
+    "CJK 字距过大：letter-spacing={spacing} 为字号 {fontSize} 的 {percent}%（>5%），中文不加字距，请移除 letter-spacing",
+  "quality.svg.rhythmLeftDrift":
+    "左缘对齐漂移：同字号文本「{a}」「{b}」左缘相差 {delta}px（≥4 且 ≤24），像同一栏却没吸附，请统一到同一栏位 x（如 40/边距）",
+  "quality.svg.rhythmGridSpacing":
+    "同排 {count} 张卡片间距不均（最大/最小差 {percent}%），请等分 x 间距",
+  "quality.deck.missingCover": "第一页不是封面布局或标题为空",
+  "quality.deck.missingClosing": "最后一页不是结尾布局",
+  "quality.deck.duplicateTitle": "标题「{title}」与其他页面重复",
+  "quality.deck.tooManyBullets":
+    "页面「{title}」一级要点超过 7 条（共 {count} 条）",
+  "quality.deck.emptyChart": "页面「{title}」图表无数据",
+  "quality.deck.missingImage": "页面「{title}」布局为配图但未配置图片",
+  "quality.deck.twoColumnIncomplete": "页面「{title}」布局为双栏但不足两栏内容",
+  "quality.deck.genericTitle":
+    "页面「{title}」标题较为空泛，建议添加副标题或更具体的标题",
+  "quality.deck.chartUnverified":
+    "页面「{title}」图表数值 {values} 未在来源材料中找到，请核对是否为编造数据",
+  "quality.deck.pageCountMismatch":
+    "期望 {expected} 页，实际 {actual} 页（偏差 {diff} 页）",
+  "quality.deck.templateNeedsChart": "该模板要求至少包含一个图表页",
+  "quality.deck.pyramidTitle": "结论先行模式要求首屏标题为结论句",
 
   "redraw.failed": "单页重画失败",
   "redraw.redrawing": "重画中…",
