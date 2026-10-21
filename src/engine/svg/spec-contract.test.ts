@@ -65,6 +65,26 @@ describe("validateSvgContract", () => {
     expect(SVG_CONTRACT.allowedElements.has("defs")).toBe(true);
   });
 
+  it("正文里的尖括号不被当成标签", () => {
+    const ok = `<svg viewBox="0 0 1280 720"><text x="10" y="20">对比 &lt;b&gt; 与普通方案</text><text x="10" y="60">使用 &lt;script&gt; 会被拒绝</text></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
+  it("文本节点内的裸尖括号不被当成标签", () => {
+    const ok = `<svg viewBox="0 0 1280 720"><text x="10" y="20">请使用 <b> 加粗强调</text></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
+  it("注释里的元素不被判定为标签", () => {
+    const ok = `<svg viewBox="0 0 1280 720"><!-- <script>alert(1)</script> --><rect x="1" y="1" width="10" height="10"/></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
+  it("正文里的 href 文本不触发外部引用检查", () => {
+    const ok = `<svg viewBox="0 0 1280 720"><text x="10" y="20">详见 href="https://example.com"</text></svg>`;
+    expect(validateSvgContract(ok)).toHaveLength(0);
+  });
+
   it("SVG_CONTRACT 暴露白名单与尺寸", () => {
     expect(SVG_CONTRACT.width).toBe(1280);
     expect(SVG_CONTRACT.height).toBe(720);

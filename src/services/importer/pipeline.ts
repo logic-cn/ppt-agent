@@ -12,6 +12,7 @@ import type {
 import type { Slide, SlideSourceRef, Deck } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
+import { extractSvgTexts } from "@/engine/svg/quality/checker";
 import { chat } from "@/services/llm";
 
 const CHUNK_MAX_CHARS = 3000;
@@ -287,7 +288,7 @@ export async function generateOutlineFromDocument(
 
   // X1 管线：用 buildDeckSvgs 生成 svg 设计真相（先构造一个空 deck 供其对齐页数与 title）
   const baseDeck: Deck = {
-    id: "import-temp",
+    id: nanoid(),
     title: context.source.title,
     design: DEFAULT_DESIGN,
     slides: [],
@@ -305,9 +306,7 @@ export async function generateOutlineFromDocument(
   const slides = newDeck.slides;
 
   const slidesWithRefs: Slide[] = slides.map((slide) => {
-    const quote = slide.bullets?.length
-      ? slide.bullets.map((b) => b.text).join(" ")
-      : slide.title;
+    const quote = slideMatchText(slide);
     const matchedChunk = findMatchingChunk(context.chunks, quote);
     const refs: SlideSourceRef[] = matchedChunk
       ? [
@@ -326,26 +325,68 @@ export async function generateOutlineFromDocument(
   return slidesWithRefs;
 }
 
+/**
+ * 参与来源匹配的页面文本：标题 + 要点 + SVG 里实际渲染的文字。
+ *
+ * X1 管线产出的页面要点常为空（内容在 SVG 里），只取 bullets 会退化成
+ * 「按标题逐字匹配」，中文释义标题几乎必然匹配不上。
+ */
+function slideMatchText(slide: Slide): string {
+  const parts: string[] = [];
+  if (slide.title) parts.push(slide.title);
+  if (slide.bullets?.length) parts.push(...slide.bullets.map((b) => b.text));
+  if (slide.svg) parts.push(...extractSvgTexts(slide.svg));
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * 抽取匹配关键词：ASCII 单词 + 中文二元组。
+ *
+ * 中文没有空格，按空白切词会把整句变成一个词，导致「释义标题」永远匹配不上；
+ * 二元组（行业/市场/规模）粒度足够细，又能容忍同义改写。
+ */
+function extractMatchKeywords(text: string): string[] {
+  const keywords = new Set<string>();
+
+  for (const w of text.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (w.length >= 3) keywords.add(w);
+  }
+
+  for (const run of text.replace(/[^一-龥]/g, " ").split(/\s+/)) {
+    if (!run) continue;
+    if (run.length === 1) {
+      keywords.add(run);
+      continue;
+    }
+    for (let i = 0; i + 1 < run.length; i++) keywords.add(run.slice(i, i + 2));
+  }
+
+  return [...keywords];
+}
+
 function findMatchingChunk(
   chunks: DocumentChunk[],
   text: string,
 ): DocumentChunk | undefined {
-  const keywords = text
-    .split(/\s+/)
-    .filter((w) => w.length > 2)
-    .map((w) => w.toLowerCase());
+  const keywords = extractMatchKeywords(text);
+  if (keywords.length === 0) return undefined;
 
   let best: DocumentChunk | undefined;
-  let bestScore = 0;
+  let bestHits = 0;
 
   for (const chunk of chunks) {
-    const chunkLower = chunk.text.toLowerCase();
-    const score = keywords.filter((kw) => chunkLower.includes(kw)).length;
-    if (score > bestScore) {
-      bestScore = score;
+    const haystack = chunk.text.toLowerCase();
+    let hits = 0;
+    for (const kw of keywords) {
+      if (haystack.includes(kw)) hits++;
+    }
+    if (hits > bestHits) {
+      bestHits = hits;
       best = chunk;
     }
   }
 
-  return best && bestScore > 0 ? best : undefined;
+  // 关键词多时要求至少命中 2 个，避免单个常见二元组造成误匹配
+  const threshold = keywords.length <= 2 ? 1 : 2;
+  return bestHits >= threshold ? best : undefined;
 }
