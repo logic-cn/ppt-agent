@@ -4,6 +4,7 @@ import { buildSvgGenPrompt } from "@/services/llm/prompts/svg-gen";
 import type { SpecLock } from "@/design/spec-lock";
 import type { PagePlanItem } from "@/types/page-plan";
 import { validateSvgContract } from "./spec-contract";
+import { clipBaseSvg, sanitizePlanForPrompt } from "./plan-budget";
 import {
   checkSvg,
   checkContentPresence,
@@ -103,11 +104,13 @@ export async function generateSlideSvg(
 ): Promise<string> {
   // 本地小模型档：精简设备菜单与词汇表，降低 prefill 开销
   const local = isLocalModelActive();
-  const prompt = buildSvgGenPrompt({ ...opts, slim: local });
+  // 字段预算护栏：plan 任一字段异常膨胀都会把提示词顶穿端侧上下文
+  const plan = sanitizePlanForPrompt(opts.plan);
+  const prompt = buildSvgGenPrompt({ ...opts, plan, slim: local });
   // 有底稿的定向修改用低温度保证稳定；从零生成保持多样性
   const temperature = opts.baseSvg ? 0.4 : 0.7;
   const baseBlock = opts.baseSvg
-    ? `\n\n以下是该页当前的 SVG 设计稿，请在其基础上修改（保持整体版式、元素结构与风格不变，仅落实上述要求），输出修改后的完整 SVG：\n${compactSvgForPrompt(opts.baseSvg)}`
+    ? `\n\n以下是该页当前的 SVG 设计稿，请在其基础上修改（保持整体版式、元素结构与风格不变，仅落实上述要求），输出修改后的完整 SVG：\n${clipBaseSvg(compactSvgForPrompt(opts.baseSvg))}`
     : "";
 
   // 页面级取消：合并用户取消信号 + 软超时（超时按取消处理）
@@ -204,9 +207,10 @@ export async function generateSlideSvg(
             ]
           : []),
         // 内容必现性：标题/要点必须出现在 SVG 文本中，防止 LLM 丢字/改写关键内容
+        // （与提示词对齐：模型是被要求渲染裁剪后的文本，校验也用同一份）
         ...checkContentPresence(s, {
-          title: opts.plan.title,
-          bullets: opts.plan.bullets,
+          title: plan.title,
+          bullets: plan.bullets,
         }),
       ].filter((i) => i.severity === "error");
 

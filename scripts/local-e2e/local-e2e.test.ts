@@ -25,6 +25,7 @@ import {
 } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import JSZip from "jszip";
 import { join, resolve } from "node:path";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
@@ -215,27 +216,51 @@ describe("端侧模型无头实跑", () => {
       const t0 = Date.now();
       let plan: PagePlanItem[] = [];
       const pageErrors: { page: number; error: string }[] = [];
-      const { deck, failedPages } = await buildDeckSvgsDetailed(
-        baseDeck,
-        DEFAULT_DESIGN,
-        {
+      const runErrors: string[] = [];
+      // 走 App 实际路径（isolatePageFailures 默认 false：含 cohort 早期门与
+      // 跨页版式轮换）；若整份生成中断，降级为逐页隔离再取一次产物用于诊断。
+      let deck: Deck;
+      let pathUsed = "app-default(isolate=false)";
+      try {
+        deck = (
+          await buildDeckSvgsDetailed(baseDeck, DEFAULT_DESIGN, {
+            topic: TOPIC,
+            pageCount: PAGE_COUNT,
+            onPlanReady: (pages) => {
+              plan = pages;
+            },
+            onPageError: (pageIndex, error) => {
+              pageErrors.push({ page: pageIndex + 1, error: error.message });
+            },
+          })
+        ).deck;
+      } catch (e) {
+        runErrors.push(String((e as Error).message ?? e));
+        pathUsed = "app-default 失败 → 降级 isolate=true 取诊断产物";
+        const fallback = await buildDeckSvgsDetailed(baseDeck, DEFAULT_DESIGN, {
           topic: TOPIC,
           pageCount: PAGE_COUNT,
           isolatePageFailures: true,
           onPlanReady: (pages) => {
-            plan = pages;
+            if (plan.length === 0) plan = pages;
           },
           onPageError: (pageIndex, error) => {
             pageErrors.push({ page: pageIndex + 1, error: error.message });
           },
-        },
-      );
+        });
+        deck = fallback.deck;
+      }
       const elapsed = Date.now() - t0;
 
       // ---- 产物落盘 ----
       writeFileSync(
         join(outDir, "deck.json"),
         JSON.stringify(deck, null, 2),
+        "utf8",
+      );
+      writeFileSync(
+        join(outDir, "plan.json"),
+        JSON.stringify(plan, null, 2),
         "utf8",
       );
       deck.slides.forEach((slide, i) => {
@@ -252,9 +277,22 @@ describe("端侧模型无头实跑", () => {
       const pages = deck.slides.map((slide, i) => ({
         index: i + 1,
         role: plan[i]?.role ?? "-",
+        chartType: plan[i]?.chartType ?? null,
         layout: slide.layout,
         title: slide.title,
         planBullets: plan[i]?.bullets?.length ?? 0,
+        planFieldChars: plan[i]
+          ? {
+              title: plan[i].title.length,
+              intent: plan[i].intent.length,
+              bullets: (plan[i].bullets ?? []).reduce(
+                (s, b) => s + b.length,
+                0,
+              ),
+              quote: (plan[i].quote ?? "").length,
+              attribution: (plan[i].attribution ?? "").length,
+            }
+          : null,
         hasSvg: !!slide.svg,
         svgLength: slide.svg?.length ?? 0,
         notesLength: (slide.notes ?? "").length,
@@ -279,15 +317,37 @@ describe("端侧模型无头实跑", () => {
       const bytes = await blobToBytes(blob);
       writeFileSync(join(outDir, "deck.pptx"), bytes);
 
+      // 演讲备注是否真的落进 PPTX（notesSlide 部件）
+      const zip = await JSZip.loadAsync(bytes);
+      const notesSlides = Object.keys(zip.files).filter((n) =>
+        n.startsWith("ppt/notesSlides/notesSlide"),
+      );
+      const notesText: string[] = [];
+      for (const name of notesSlides) {
+        const xml = await zip.file(name)?.async("string");
+        if (!xml) continue;
+        notesText.push(
+          [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
+            .map((m) => m[1])
+            .join("")
+            .trim(),
+        );
+      }
+      const notesWithContent = notesText.filter((t) => t.length > 0);
+
       const report = {
         topic: TOPIC,
+        pathUsed,
         pageCount: deck.slides.length,
         elapsedMs: elapsed,
         modelPath: MODEL_PATH,
         pages,
-        failedPages,
+        runErrors,
         pageErrors,
         rotationPairs,
+        notesSlideCount: notesSlides.length,
+        notesSlideWithContent: notesWithContent.length,
+        notesSlides: notesText,
         findings: findings.map((f) => ({
           rule: f.rule,
           severity: f.severity,
@@ -337,6 +397,12 @@ describe("端侧模型无头实跑", () => {
 
       // 导出锁：hard 级检查项存在时必须锁住导出
       expect(hasHardError(findings)).toBe(hard.length > 0);
+
+      // 演讲备注要真的落进 PPTX 备注页
+      expect(
+        notesSlides.length,
+        "导出产物里没有 notesSlide 部件，演讲备注未落 PPTX",
+      ).toBeGreaterThan(0);
 
       // 导出产物非空
       expect(bytes.length).toBeGreaterThan(10_000);
