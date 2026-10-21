@@ -69,6 +69,7 @@ fn main() {
                     "cancelled": res.cancelled,
                     "truncated": res.truncated,
                     "elapsed_ms": started.elapsed().as_millis() as u64,
+                    "prompt_tokens": res.prompt_tokens,
                 });
                 let _ = writeln!(out, "{resp}");
             }
