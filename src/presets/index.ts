@@ -1,4 +1,6 @@
 import type { DeckPreset } from "@/types/preset";
+import type { TranslationKey } from "@/services/i18n";
+import type { GenerationOptions, GenerationScenario } from "@/types/generation";
 import type { Slide } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { EXAMPLES } from "@/examples/index";
@@ -36,6 +38,14 @@ const TEMPLATE_PACKS: Array<{
   suggestedVisualStyle: string;
   slides: Array<{ layout: string; title: string }>;
   qualityRules: string[];
+  /** 适用场景：展示 + 生成参数默认值 */
+  scenario: GenerationScenario;
+  /** 目标受众：展示 + 生成参数默认 audience */
+  audience: string;
+  /** 模板推荐的生成参数默认值 */
+  defaultOptions: Partial<GenerationOptions>;
+  /** 模板专属提示词：约束该场景的内容取向 */
+  promptHints: string[];
 }> = [
   {
     id: "quarterly-review",
@@ -57,6 +67,10 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "感谢" },
     ],
     qualityRules: ["require_charts", "require_data"],
+    scenario: "business_review",
+    audience: "管理层",
+    defaultOptions: { tone: "formal", density: "medium", includeCharts: true },
+    promptHints: ["每页给出可核对的业务数据；不足与挑战页要诚实呈现，不做美化"],
   },
   {
     id: "product-launch",
@@ -75,6 +89,14 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "未来展望" },
     ],
     qualityRules: ["require_cover", "require_closing"],
+    scenario: "pitch",
+    audience: "市场与用户",
+    defaultOptions: {
+      tone: "storytelling",
+      density: "low",
+      includeCharts: false,
+    },
+    promptHints: ["突出产品价值而非功能清单；核心功能页用前后对比呈现"],
   },
   {
     id: "market-analysis",
@@ -97,6 +119,14 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "总结与建议" },
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
+    scenario: "market_analysis",
+    audience: "决策层",
+    defaultOptions: {
+      tone: "consulting",
+      density: "high",
+      includeCharts: true,
+    },
+    promptHints: ["结论先行：先给判断再给论证；数据页标明统计口径与时间范围"],
   },
   {
     id: "training-material",
@@ -122,6 +152,14 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "感谢参与" },
     ],
     qualityRules: ["require_cover", "require_closing"],
+    scenario: "training",
+    audience: "学员",
+    defaultOptions: {
+      tone: "concise",
+      density: "medium",
+      includeCharts: false,
+    },
+    promptHints: ["循序渐进：先讲学习目标再讲概念；每个核心概念配一个具体例子"],
   },
   {
     id: "business-plan",
@@ -142,6 +180,14 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "联系我们" },
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
+    scenario: "pitch",
+    audience: "投资人",
+    defaultOptions: {
+      tone: "consulting",
+      density: "medium",
+      includeCharts: true,
+    },
+    promptHints: ["突出商业模式与壁垒；财务预测标明关键假设"],
   },
   {
     id: "competitor-analysis",
@@ -163,6 +209,14 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "总结" },
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
+    scenario: "market_analysis",
+    audience: "产品与战略团队",
+    defaultOptions: {
+      tone: "consulting",
+      density: "high",
+      includeCharts: false,
+    },
+    promptHints: ["对比维度保持统一；差异化机会要落到具体可执行动作"],
   },
   {
     id: "project-proposal",
@@ -182,6 +236,10 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "申请立项" },
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
+    scenario: "proposal",
+    audience: "评审委员会",
+    defaultOptions: { tone: "formal", density: "medium", includeCharts: true },
+    promptHints: ["明确目标、范围、里程碑与资源投入；风险页给出对应的缓解措施"],
   },
   {
     id: "annual-plan",
@@ -202,6 +260,10 @@ const TEMPLATE_PACKS: Array<{
       { layout: "closing", title: "承诺与展望" },
     ],
     qualityRules: ["require_charts", "require_data", "require_closing"],
+    scenario: "business_review",
+    audience: "管理层与全员",
+    defaultOptions: { tone: "formal", density: "medium", includeCharts: true },
+    promptHints: ["目标要可衡量；按季度拆解到可执行动作，不停留在方向性表述"],
   },
 ];
 
@@ -218,6 +280,10 @@ export function getPresets(): DeckPreset[] {
     },
     slides: p.slides.map(skeletonToSlide),
     qualityRules: p.qualityRules,
+    scenario: p.scenario,
+    audience: p.audience,
+    defaultOptions: p.defaultOptions,
+    promptHints: p.promptHints,
   }));
   const fromGallery: DeckPreset[] = EXAMPLES.map((e) => ({
     id: e.id,
@@ -231,3 +297,13 @@ export function getPresets(): DeckPreset[] {
 export function getPresetById(id: string): DeckPreset | undefined {
   return getPresets().find((p) => p.id === id);
 }
+
+/** 场景 → 界面 locale key（模板选择页展示适用场景） */
+export const SCENARIO_LABEL_KEY: Record<GenerationScenario, TranslationKey> = {
+  business_review: "scenario.businessReview",
+  pitch: "scenario.pitch",
+  training: "scenario.training",
+  market_analysis: "scenario.marketAnalysis",
+  proposal: "scenario.proposal",
+  custom: "scenario.custom",
+};

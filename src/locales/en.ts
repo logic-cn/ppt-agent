@@ -124,6 +124,9 @@ export const en = {
   "preset.topicPlaceholder": "Enter a topic, e.g. Q3 business review",
   "preset.generateOutline": "Generate Outline",
   "preset.generateError": "Generation failed, please try again",
+  "preset.pageCount": "{count} pages",
+  "preset.audience": "For {audience}",
+  "preset.audienceHint": "Target audience: {audience}",
 
   "editor.projectNotFound": "Project not found",
   "editor.projectNotFoundMessage":
@@ -256,6 +259,7 @@ export const en = {
   "scenario.training": "Training",
   "scenario.marketAnalysis": "Market analysis",
   "scenario.proposal": "Proposal",
+  "scenario.custom": "General",
   "tone.formal": "Formal",
   "tone.consulting": "Consulting",
   "tone.concise": "Concise",

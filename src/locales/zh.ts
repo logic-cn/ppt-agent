@@ -120,6 +120,9 @@ export const zh: Record<TranslationKey, string> = {
   "preset.topicPlaceholder": "输入主题，如：Q3 业务复盘",
   "preset.generateOutline": "生成大纲",
   "preset.generateError": "生成失败，请重试",
+  "preset.pageCount": "{count} 页",
+  "preset.audience": "面向 {audience}",
+  "preset.audienceHint": "适用对象：{audience}",
 
   "editor.projectNotFound": "项目不存在",
   "editor.projectNotFoundMessage": "尝试加载的项目不存在，将新建一个项目。",
@@ -242,6 +245,7 @@ export const zh: Record<TranslationKey, string> = {
   "scenario.training": "培训课件",
   "scenario.marketAnalysis": "市场分析",
   "scenario.proposal": "方案提案",
+  "scenario.custom": "通用场景",
   "tone.formal": "正式",
   "tone.consulting": "咨询风",
   "tone.concise": "精简",

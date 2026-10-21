@@ -99,9 +99,16 @@ export function buildTemplateGenerationContext(
 
   return {
     templateId: preset.id,
-    defaultOptions: { pageCount: preset.slides.length },
+    // 模板声明的生成参数默认值（场景/受众/语气/密度/图表倾向）+ 骨架页数
+    defaultOptions: {
+      pageCount: preset.slides.length,
+      ...preset.defaultOptions,
+      ...(preset.scenario ? { scenario: preset.scenario } : {}),
+      ...(preset.audience ? { audience: preset.audience } : {}),
+    },
     slidePlan,
-    promptHints: TEMPLATE_HINTS,
+    // 通用模板提示 + 模板专属提示（专属排在前，内容取向优先）
+    promptHints: [...(preset.promptHints ?? []), ...TEMPLATE_HINTS],
   };
 }
 
