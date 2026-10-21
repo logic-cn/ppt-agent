@@ -14,7 +14,7 @@ use llama_cpp_2::sampling::LlamaSampler;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
-fn backend() -> &'static LlamaBackend {
+pub fn backend() -> &'static LlamaBackend {
     static B: OnceLock<LlamaBackend> = OnceLock::new();
     B.get_or_init(|| {
         LlamaBackend::init().expect("llama.cpp backend initialization failed")
@@ -187,7 +187,9 @@ pub fn local_llm_status(state: State<'_, LocalLlmState>) -> LoadStatus {
     }
 }
 
-fn generate(
+/// 推理主流程。桌面端走 Tauri 命令，无头 harness 直接调用同一函数，
+/// 保证两条路径的采样/grammar 行为完全一致。
+pub fn generate(
     app: Option<&AppHandle>,
     model: Arc<LlamaModel>,
     n_ctx: u32,

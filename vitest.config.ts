@@ -13,6 +13,15 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // scripts/local-e2e 是手动实跑工具（真实加载端侧模型，分钟级），不进 CI
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/cypress/**",
+      "**/.{idea,git,cache,output,temp}/**",
+      "**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*",
+      "scripts/**",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "text-summary"],

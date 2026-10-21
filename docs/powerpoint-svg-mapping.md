@@ -66,6 +66,10 @@ SVG viewBox 是页面几何唯一真值，PPTX 版面英寸 = 像素 / 96：
 - 跨页（early gate，前 5 页 cohort）：配色/字体越锁、字号锚点偏离
 - 导入场景：图表数值与来源原文比对（`chart_data_unverified` soft 项）
 - 导出前：deck 质量检查（cover/closing/重复标题/空图表/页数偏差…）
+- 诊断文案结构化：每条诊断带 `code` + `params`。中文规范文案（`message`）用于
+  LLM 重画回喂与无法本地化时的兜底；界面按当前语言渲染 locale 文案
+  （映射表见 `src/services/quality/message-i18n.ts`）。端侧小模型吃中文反馈，
+  因此回喂链路**不随界面语言切换**。
 
 ## 更新本指南的约定
 
