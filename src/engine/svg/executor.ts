@@ -18,6 +18,7 @@ import {
   checkChartGeometry,
   checkVisualRhythm,
   autoPatchSvg,
+  type SvgIssue,
 } from "./quality/checker";
 import { compactSvgOutput } from "./quality/compact";
 import { finalizeSvgPresets } from "./presets";
@@ -246,13 +247,7 @@ export async function generateSlideSvg(
       // 软性节奏问题（字距/对齐/栅格）不单独触发重画；但本轮既然已在重画，
       // 顺手下发让模型一并改进——零额外成本地抬高视觉分。
       const rhythm = checkVisualRhythm(svg, opts.specLock);
-      const feedback =
-        "你的 SVG 有以下问题，请修正后重新输出完整 SVG：\n" +
-        issues.map((i) => "- " + i.message).join("\n") +
-        (rhythm.length
-          ? "\n另有可顺手改进的排版节奏项（不强求）：\n" +
-            rhythm.map((i) => "- " + i.message).join("\n")
-          : "");
+      const feedback = buildRepaintFeedback(issues, rhythm);
       svg = patch(
         (await rawGenerate(prompt + baseBlock + "\n\n" + feedback)).trim(),
       );
@@ -288,6 +283,45 @@ export interface GenerateDeckSvgsOptions {
 
 /** early gate：cohort 页数阈值——先生成前 N 页并跑跨页一致性门（参照 PPT Master P01-P05 early gate） */
 export const EARLY_GATE_PAGES = 5;
+
+/**
+ * 重画反馈的体积上限。
+ *
+ * 模型崩坏时（例如一页塞了几十个文本块），几何检查会一次性报出上百条
+ * 重叠/越界问题。反馈全量下发时提示词能膨胀到 2 万 token 以上，直接顶穿
+ * 端侧上下文——实测端侧实跑因「提示词过长（22788 token）」整页报废。
+ * 因此：条目数、单条长度、总长度都设上限，并在尾部注明还有更多问题。
+ */
+export const FEEDBACK_MAX_ISSUES = 12;
+export const FEEDBACK_MAX_ITEM_CHARS = 200;
+export const FEEDBACK_MAX_CHARS = 3000;
+
+/** 拼装重画反馈（错误优先，节奏项随后），整体受体积上限约束 */
+export function buildRepaintFeedback(
+  issues: SvgIssue[],
+  rhythm: SvgIssue[] = [],
+): string {
+  const lines: string[] = [];
+  for (const i of issues) {
+    if (lines.length >= FEEDBACK_MAX_ISSUES) break;
+    lines.push("- " + i.message.slice(0, FEEDBACK_MAX_ITEM_CHARS));
+  }
+  const errorCount = lines.length;
+  const dropped = Math.max(0, issues.length - errorCount);
+  for (const i of rhythm) {
+    if (lines.length >= FEEDBACK_MAX_ISSUES) break;
+    lines.push("- " + i.message.slice(0, FEEDBACK_MAX_ITEM_CHARS));
+  }
+
+  let body = lines.join("\n");
+  if (body.length > FEEDBACK_MAX_CHARS) {
+    body = body.slice(0, FEEDBACK_MAX_CHARS);
+  }
+  const tail = dropped
+    ? `\n- （另有 ${dropped} 条同类问题未列出，请一并检查整体版式）`
+    : "";
+  return "你的 SVG 有以下问题，请修正后重新输出完整 SVG：\n" + body + tail;
+}
 
 /**
  * 逐页串行生成整份 deck 的 SVG（禁止 Promise.all 并行）。

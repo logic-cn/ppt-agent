@@ -141,6 +141,16 @@ describe("端侧模型无头实跑", () => {
   let child: LlmChild;
   let outDir: string;
 
+  /** 进度落盘：端侧推理是分钟级，跑超时也能留下过程证据 */
+  const log = (line: string) => {
+    if (!outDir) return;
+    appendFileSync(
+      join(outDir, "progress.log"),
+      `${new Date().toISOString()} ${line}\n`,
+      "utf8",
+    );
+  };
+
   beforeAll(
     async () => {
       if (!existsSync(MODEL_PATH)) {
@@ -162,8 +172,13 @@ describe("端侧模型无头实跑", () => {
       invokeMock.mockImplementation(async (cmd: string, args: unknown) => {
         if (cmd === "local_llm_chat") {
           const req = (args as { req: Record<string, unknown> }).req;
+          const userChars = JSON.stringify(req.messages).length;
           const res = await child.chat(req);
           if (res.ok === false) throw new Error(String(res.error));
+          // 提示词体积双侧对照：TS 侧字符数 vs Rust 侧 token 数
+          log(
+            `请求：tsChars=${userChars} rustPromptTokens=${res.prompt_tokens} gen=${res.tokens_generated} ms=${res.elapsed_ms}`,
+          );
           return res;
         }
         throw new Error(`无头 harness 不支持的命令: ${cmd}`);
@@ -217,14 +232,6 @@ describe("端侧模型无头实跑", () => {
       let plan: PagePlanItem[] = [];
       const pageErrors: { page: number; error: string }[] = [];
       const runErrors: string[] = [];
-      // 进度落盘：端侧推理是分钟级，跑超时也能留下过程证据
-      const log = (line: string) => {
-        appendFileSync(
-          join(outDir, "progress.log"),
-          `${new Date().toISOString()} ${line}\n`,
-          "utf8",
-        );
-      };
       // 走 App 实际路径（isolatePageFailures 默认 false：含 cohort 早期门与
       // 跨页版式轮换）；若整份生成中断，降级为逐页隔离再取一次产物用于诊断。
       let deck: Deck;

@@ -91,6 +91,8 @@ pub struct ChatResponseDto {
     pub cancelled: bool,
     pub truncated: bool,
     pub elapsed_ms: u64,
+    /// 实际提示词 token 数（无头 harness 诊断「提示词异常膨胀」用）
+    pub prompt_tokens: u32,
 }
 
 /// 流式增量事件负载：前端边生成边展示
@@ -225,6 +227,8 @@ pub fn generate(
 
     let prompt_tokens = vocab.tokenize(prompt.as_bytes(), false, true);
     let n_prompt = prompt_tokens.len();
+    // 无头 harness 用：把实际提示词 token 数回传，便于定位「提示词异常膨胀」
+    let prompt_token_count = n_prompt;
     if n_prompt + 8 >= n_ctx as usize {
         return Err(format!(
             "提示词过长（{} token），超出本地上下文 {n_ctx}",
@@ -368,6 +372,7 @@ pub fn generate(
         cancelled,
         truncated,
         elapsed_ms: started.elapsed().as_millis() as u64,
+        prompt_tokens: prompt_token_count as u32,
     })
 }
 
@@ -391,6 +396,7 @@ fn cancelled_response(started: Instant) -> ChatResponseDto {
         cancelled: true,
         truncated: false,
         elapsed_ms: started.elapsed().as_millis() as u64,
+        prompt_tokens: 0,
     }
 }
 
