@@ -23,7 +23,7 @@ import {
   spawnSync,
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import JSZip from "jszip";
 import { join, resolve } from "node:path";
@@ -217,6 +217,14 @@ describe("端侧模型无头实跑", () => {
       let plan: PagePlanItem[] = [];
       const pageErrors: { page: number; error: string }[] = [];
       const runErrors: string[] = [];
+      // 进度落盘：端侧推理是分钟级，跑超时也能留下过程证据
+      const log = (line: string) => {
+        appendFileSync(
+          join(outDir, "progress.log"),
+          `${new Date().toISOString()} ${line}\n`,
+          "utf8",
+        );
+      };
       // 走 App 实际路径（isolatePageFailures 默认 false：含 cohort 早期门与
       // 跨页版式轮换）；若整份生成中断，降级为逐页隔离再取一次产物用于诊断。
       let deck: Deck;
@@ -228,14 +236,18 @@ describe("端侧模型无头实跑", () => {
             pageCount: PAGE_COUNT,
             onPlanReady: (pages) => {
               plan = pages;
+              log(`plan 就绪：${pages.length} 页`);
             },
+            onProgress: (done, total) => log(`进度 ${done}/${total}`),
             onPageError: (pageIndex, error) => {
               pageErrors.push({ page: pageIndex + 1, error: error.message });
+              log(`第 ${pageIndex + 1} 页失败：${error.message}`);
             },
           })
         ).deck;
       } catch (e) {
         runErrors.push(String((e as Error).message ?? e));
+        log(`app-default 失败：${runErrors[0]}`);
         pathUsed = "app-default 失败 → 降级 isolate=true 取诊断产物";
         const fallback = await buildDeckSvgsDetailed(baseDeck, DEFAULT_DESIGN, {
           topic: TOPIC,
