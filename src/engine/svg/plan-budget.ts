@@ -40,9 +40,16 @@ export function sanitizePlanForPrompt(plan: PagePlanItem): PagePlanItem {
     title: clipText(plan.title, PLAN_FIELD_BUDGET.title),
     intent: clipText(plan.intent, PLAN_FIELD_BUDGET.intent),
     ...(plan.bullets ? { bullets } : {}),
-    ...(plan.quote ? { quote: clipText(plan.quote, PLAN_FIELD_BUDGET.quote) } : {}),
+    ...(plan.quote
+      ? { quote: clipText(plan.quote, PLAN_FIELD_BUDGET.quote) }
+      : {}),
     ...(plan.attribution
-      ? { attribution: clipText(plan.attribution, PLAN_FIELD_BUDGET.attribution) }
+      ? {
+          attribution: clipText(
+            plan.attribution,
+            PLAN_FIELD_BUDGET.attribution,
+          ),
+        }
       : {}),
   };
 }

@@ -39,7 +39,10 @@ describe("sanitizePlanForPrompt", () => {
       ...plan,
       title: "标".repeat(500),
       intent: "意".repeat(900),
-      bullets: Array.from({ length: 30 }, (_, i) => `要点${i}${"长".repeat(200)}`),
+      bullets: Array.from(
+        { length: 30 },
+        (_, i) => `要点${i}${"长".repeat(200)}`,
+      ),
       quote: "引".repeat(1000),
       attribution: "署".repeat(500),
     };
