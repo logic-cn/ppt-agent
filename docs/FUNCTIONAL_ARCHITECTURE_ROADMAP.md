@@ -4,6 +4,27 @@
 
 > 说明：本文档不包含“LLM Provider 增加能力声明”的规划。
 
+## 0. 现状对照（2026-10 更新）
+
+本文档写于 X1 架构落地之前，个别条目已被后续决策取代。**先看这张对照表再往下读**，
+避免照着已被取代的条目重复开发。
+
+| 章节 | 模块 | 现状 | 落点 |
+|---|---|---|---|
+| §4 | Deck Patch AI 编辑协议 | ✅ 已落地 | `services/deck-patch/{types,schema,apply,summarize,ai,prompts}.ts`；ChatPanel 走 patch 确认流 |
+| §5 | 统一长任务系统 | ✅ 已落地 | `store/job.ts` + `services/jobs/`；生成/导入/导出/视觉自检均接入 jobStore |
+| §6 | 预览/导出共享渲染 IR | ⚠️ **已被 X1 取代** | X1 定「SVG 为设计真相 + 原生 PPTX 翻译」，`engine/render-ir` 降级为**无 SVG 历史页的回退渲染**（且仅支持 16:9）。**不要再推进「Preview/Exporter 全面迁移到 RenderIR」** |
+| §7 | 生成质量控制 | ✅ 已远超初版 | `services/quality/`（deck-quality / auto-fix / visual-review）+ `engine/svg/quality/checker.ts`；55 条结构化诊断、导出锁、修复环、原子修复、跨页一致性门 |
+| §8 | 文档导入增强 | ✅ 已落地 | `services/importer/`（pipeline / docx / markdown / pdf / url）；DocumentSource + sections + chunks + keyFacts + sourceRefs |
+| §9 | 页面属性检查器 | ✅ 已落地 | `components/inspector/`，5 个 tab：AI / 页面 / 图表 / 图片 / 备注 |
+| §10 | Deck schema 迁移与校验 | ✅ 已落地 | `services/storage/{deck-schema,deck-migrations,deck-repair,deck-parse}.ts` |
+| §11 | 安全密钥存储 | ✅ 已落地 | `services/secret-store.ts`（Tauri keychain，Web 降级并显式提示） |
+| §12 | 模板系统产品化 | 🟡 **部分** | 8 个内置模板包 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则）已可用；缺 TemplatePack 级的完整绑定（`promptHints` / 推荐图表策略 / 默认 `GenerationOptions`） |
+| §13 | 测试与质量门禁 | ✅ 已落地 | 671 个测试 + vitest coverage 阈值 + `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI） |
+
+**因此，当前后续可做的主线只有一条：§12 模板系统产品化的剩余部分**，
+其余均为「按需再做」的增强项（见文末「后续方向」）。
+
 ## 1. 产品目标
 
 PPT Agent 的下一阶段目标不是继续堆入口，而是从“能生成 PPT 的 MVP”升级为“可靠、可控、可编辑的本地优先 AI PPT 工作台”。
@@ -1274,3 +1295,18 @@ storage.migration.test.ts
 任务 9：实现 InspectorPanel。
 任务 10：实现 Deck schema migration。
 ```
+
+> 任务 5–7 已被 X1 取代（SVG 为设计真相，RenderIR 降级为回退渲染），**不要执行**；
+> 任务 1–4、8–10 均已完成。
+
+## 16. 后续方向（2026-10 补充）
+
+按「收益 / 成本 / 风险」排序，供后续排期参考：
+
+| 方向 | 内容 | 备注 |
+|---|---|---|
+| 模板产品化收尾 | TemplatePack 级绑定：默认 `GenerationOptions`、`promptHints`、推荐图表策略；模板选择页展示场景/页数/适用对象 | 路线图 §12 的剩余部分，是当前唯一的主线 |
+| 端侧质量继续打磨 | 实跑已暴露：端侧模型倾向给每个正文页配 `chartType`，导致「无图表连续正文页」稀少 → 跨页版式轮换难以触发 | 见 `scripts/local-e2e/` 报告；可选解法是提示词侧约束图表使用，或给图表页也下发非图表部分骨架 |
+| 母版与版式原生化 | 导出具 `p:sldMaster` / `p:sldLayout`（当前仅 `PPT_AGENT_MASTER` 部分字段） | 对标 PPT Master v4 |
+| 富媒体扩展 | 旁白音频 / 视频导出、LaTeX 公式渲染、超链接创作 | 对标 PPT Master；工程量大，按需 |
+| 跨渲染器保真 | 图表默认 SVG vs PowerPoint 原生图表的路线取舍 | 当前选「可编辑优先」（原生图表默认开启），与 PPT Master 相反，是明确的产品决策 |
