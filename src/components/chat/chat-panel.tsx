@@ -40,6 +40,7 @@ import {
 } from "@/services/quality";
 import { applyUserIntent } from "@/services/intent-parser";
 import { reviewSlideVisual } from "@/services/quality/visual-review";
+import { localizeFinding } from "@/services/quality/message-i18n";
 import { generateSlideSvg } from "@/engine/svg/executor";
 import { buildSpecLock } from "@/design/spec-lock";
 import type { DeckPreset } from "@/types/preset";
@@ -403,9 +404,7 @@ export function ChatPanel() {
                     // 之后每页 SVG 就绪时静默填充，编辑器预览随生成逐步呈现
                     onPlanReady: (pages) => {
                       if (job.signal.aborted) return;
-                      useGenerationFollowStore
-                        .getState()
-                        .setGeneratingIndex(0);
+                      useGenerationFollowStore.getState().setGeneratingIndex(0);
                       replaceSlides(
                         pages.map((p, i) => ({
                           id: `s${i + 1}`,
@@ -417,9 +416,7 @@ export function ChatPanel() {
                     },
                     onPageReady: (i, svg) => {
                       if (job.signal.aborted) return;
-                      useGenerationFollowStore
-                        .getState()
-                        .setPartialText("");
+                      useGenerationFollowStore.getState().setPartialText("");
                       useGenerationFollowStore.getState().setGeneratingIndex(i);
                       useDeckStore.getState().updateSlideSvgLive(i, svg);
                     },
@@ -447,7 +444,9 @@ export function ChatPanel() {
             );
             const hardMsgs = gate
               .filter((f) => f.severity === "hard")
-              .map((f) => f.message);
+              .map((f) =>
+                localizeFinding(f, useSettingsStore.getState().settings.lang),
+              );
             setFirstPageGateMsg(
               hardMsgs.length > 0
                 ? t("chat.firstPageGateFailed", {
@@ -477,7 +476,9 @@ export function ChatPanel() {
             );
             const hardMsgs = gate
               .filter((f) => f.severity === "hard")
-              .map((f) => f.message);
+              .map((f) =>
+                localizeFinding(f, useSettingsStore.getState().settings.lang),
+              );
             setFirstPageGateMsg(
               hardMsgs.length > 0
                 ? t("chat.firstPageGateFailed", {
