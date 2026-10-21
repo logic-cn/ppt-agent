@@ -74,7 +74,7 @@ export function buildPagePlanSystemPrompt(opts: {
 混用多种角色，避免连续同角色。涉及数据/趋势优先 metrics/comparison/timeline 并给 chartType。
 ${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.options?.language ? "输出使用 English。" : "语言与用户输入一致。"}
 
-只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"...","notes":"80-120字演讲讲稿"}]}（bullets/chartType/quote/attribution 可省略，notes 每页尽量给出）`;
+只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"...","notes":"讲稿正文"}]}（bullets/chartType/quote/attribution 可省略；notes 写 80-120 字口语化讲稿，串联本页要点、点明 so-what 并自然过渡到下一页）`;
     if (opts.fewShot) slim += `\n\n${opts.fewShot}`;
     if (opts.templateCtx) {
       const { slidePlan } = opts.templateCtx;
