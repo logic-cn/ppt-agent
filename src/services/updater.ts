@@ -7,8 +7,7 @@ export type UpdateCheckOutcome =
   | { status: "available"; version: string; notes: string; update: Update };
 
 export type InstallOutcome =
-  | { status: "success" }
-  | { status: "error"; message: string };
+  { status: "success" } | { status: "error"; message: string };
 
 export function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
@@ -27,7 +26,10 @@ export async function checkForUpdate(): Promise<UpdateCheckOutcome> {
       update,
     };
   } catch (e) {
-    return { status: "error", message: e instanceof Error ? e.message : String(e) };
+    return {
+      status: "error",
+      message: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
@@ -51,7 +53,10 @@ export async function installUpdate(
     });
     return { status: "success" };
   } catch (e) {
-    return { status: "error", message: e instanceof Error ? e.message : String(e) };
+    return {
+      status: "error",
+      message: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 

@@ -44,9 +44,7 @@ describe("isTauriRuntime", () => {
 
 describe("MODEL_REGISTRY", () => {
   it("standard 档对应已核实的 MiniCPM5-2B Q4_K_M 制品", () => {
-    expect(MODEL_REGISTRY.standard.fileName).toBe(
-      "MiniCPM5-2B-Q4_K_M.gguf",
-    );
+    expect(MODEL_REGISTRY.standard.fileName).toBe("MiniCPM5-2B-Q4_K_M.gguf");
     expect(MODEL_REGISTRY.standard.sizeBytes).toBe(1_561_318_368);
     expect(MODEL_REGISTRY.standard.sha256).toHaveLength(64);
     expect(MODEL_REGISTRY.standard.urls.length).toBeGreaterThanOrEqual(2);
@@ -124,9 +122,7 @@ describe("downloadModel", () => {
     const unlisten = vi.fn();
     listen.mockResolvedValue(unlisten);
     invoke.mockRejectedValue(new Error("网络中断"));
-    await expect(
-      downloadModel(def, vi.fn()),
-    ).rejects.toThrow("网络中断");
+    await expect(downloadModel(def, vi.fn())).rejects.toThrow("网络中断");
     expect(unlisten).toHaveBeenCalledOnce();
   });
 });

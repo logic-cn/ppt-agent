@@ -163,7 +163,8 @@ describe("buildSvgGenPrompt 分层结构", () => {
     // 截断后总长应显著缩短
     expect(slim.length).toBeLessThan(full.length - 500);
     const vocabLineCount = (text: string) =>
-      text.split("\n").filter((l) => l.startsWith("- ") && l.includes("：")).length;
+      text.split("\n").filter((l) => l.startsWith("- ") && l.includes("："))
+        .length;
     expect(vocabLineCount(slim)).toBeLessThan(vocabLineCount(full));
   });
 });

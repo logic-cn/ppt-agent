@@ -192,9 +192,7 @@ describe("SVG 层校验纳入质量检查（导出锁）", () => {
       slides: [{ id: "s1", layout: "cover", title: "封面", svg: BAD_SVG }],
     });
     const findings = checkDeckQuality(deck, { skipSvgChecks: true });
-    expect(
-      findings.filter((f) => f.rule.startsWith("svg_")),
-    ).toHaveLength(0);
+    expect(findings.filter((f) => f.rule.startsWith("svg_"))).toHaveLength(0);
   });
 
   it("无 svg 的纯大纲 deck 不产生 svg_* finding", () => {
@@ -223,7 +221,9 @@ describe("SVG 层校验纳入质量检查（导出锁）", () => {
     );
     expect(soft.some((f) => /阴影浓度/.test(f.message))).toBe(true);
     expect(
-      findings.filter((f) => f.rule.startsWith("svg_") && f.severity === "hard"),
+      findings.filter(
+        (f) => f.rule.startsWith("svg_") && f.severity === "hard",
+      ),
     ).toHaveLength(0);
   });
 });

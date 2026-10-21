@@ -23,8 +23,7 @@ export function ModelStatusText({ t }: { t: ReturnType<typeof useT> }) {
   const error = useModelStore((s) => s.error);
 
   if (state === "downloading" || state === "loading") {
-    if (progress?.phase === "verifying")
-      return <>{t("model.verifying")}</>;
+    if (progress?.phase === "verifying") return <>{t("model.verifying")}</>;
     if (state === "loading") return <>{t("model.loading")}</>;
     const percent =
       progress && progress.total
@@ -32,7 +31,8 @@ export function ModelStatusText({ t }: { t: ReturnType<typeof useT> }) {
         : 0;
     return <>{t("model.downloading", { percent })}</>;
   }
-  if (state === "error") return <>{t("model.error", { message: error ?? "" })}</>;
+  if (state === "error")
+    return <>{t("model.error", { message: error ?? "" })}</>;
   const key = STATUS_KEY[state];
   return <>{key ? t(key) : ""}</>;
 }
@@ -142,8 +142,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
             <button
               type="button"
               onClick={() => {
-                if (window.confirm(t("model.deleteConfirm")))
-                  void remove();
+                if (window.confirm(t("model.deleteConfirm"))) void remove();
               }}
               className={`flex items-center gap-1 ${btnCls}`}
             >
@@ -188,4 +187,3 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
     </div>
   );
 }
-

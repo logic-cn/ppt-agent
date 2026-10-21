@@ -157,7 +157,8 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
   {
     id: "nature-calm",
     name: "自然沉静",
-    character: "灰绿自然色系、柔和分节、留白充分；低对比不刺眼，适合长文阅读型汇报。",
+    character:
+      "灰绿自然色系、柔和分节、留白充分；低对比不刺眼，适合长文阅读型汇报。",
     fonts: {
       title: "'Noto Serif SC', serif",
       body: "'Source Han Sans CN', sans-serif",

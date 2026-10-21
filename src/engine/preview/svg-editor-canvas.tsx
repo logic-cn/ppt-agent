@@ -114,13 +114,16 @@ function elementContext(el: Element): ElementContext {
     tag: el.nodeName.toLowerCase(),
     text: (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
     bbox,
-    markup: stripPeIds(
-      new XMLSerializer().serializeToString(el),
-    ).slice(0, 800),
+    markup: stripPeIds(new XMLSerializer().serializeToString(el)).slice(0, 800),
   };
 }
 
-export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props) {
+export function SvgEditorCanvas({
+  svg,
+  onUpdate,
+  onAnnotate,
+  className,
+}: Props) {
   const t = useT();
   const hostRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<SVGSVGElement | null>(null);
@@ -176,7 +179,7 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
   }, [selectedId, tick]);
 
   const selectedEl = selectedId
-    ? rootRef.current?.querySelector(`[${PE_ATTR}="${selectedId}"]`) ?? null
+    ? (rootRef.current?.querySelector(`[${PE_ATTR}="${selectedId}"]`) ?? null)
     : null;
 
   /** serialize 当前 DOM 并确定性写回（进 undo 历史） */
@@ -232,19 +235,22 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
     [selectedId],
   );
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const st = dragState.current;
-    const root = rootRef.current;
-    if (!st || !root) return;
-    const { dx, dy } = screenToViewBox(
-      root,
-      e.clientX - st.startX,
-      e.clientY - st.startY,
-    );
-    if (Math.abs(dx) + Math.abs(dy) < 0.5 && !st.moved) return;
-    st.moved = true;
-    applyTranslate(st.el, dx, dy, st.origTransform);
-  }, [applyTranslate]);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const st = dragState.current;
+      const root = rootRef.current;
+      if (!st || !root) return;
+      const { dx, dy } = screenToViewBox(
+        root,
+        e.clientX - st.startX,
+        e.clientY - st.startY,
+      );
+      if (Math.abs(dx) + Math.abs(dy) < 0.5 && !st.moved) return;
+      st.moved = true;
+      applyTranslate(st.el, dx, dy, st.origTransform);
+    },
+    [applyTranslate],
+  );
 
   const onPointerUp = useCallback(() => {
     const st = dragState.current;
@@ -252,22 +258,19 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
     if (st?.moved) commit();
   }, [commit]);
 
-  const onContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      const root = rootRef.current;
-      if (!root) return;
-      e.preventDefault();
-      const stack = hitTest(e, root).map((el) => {
-          const ctx = elementContext(el);
-          return {
-            id: ctx.peId,
-            label: `${ctx.tag} · ${ctx.text || (ctx.bbox ? `${Math.round(ctx.bbox.w)}×${Math.round(ctx.bbox.h)}` : "")}`,
-          };
-        });
-      if (stack.length > 0) setOverlapMenu(stack);
-    },
-    [],
-  );
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    const root = rootRef.current;
+    if (!root) return;
+    e.preventDefault();
+    const stack = hitTest(e, root).map((el) => {
+      const ctx = elementContext(el);
+      return {
+        id: ctx.peId,
+        label: `${ctx.tag} · ${ctx.text || (ctx.bbox ? `${Math.round(ctx.bbox.w)}×${Math.round(ctx.bbox.h)}` : "")}`,
+      };
+    });
+    if (stack.length > 0) setOverlapMenu(stack);
+  }, []);
 
   // ---- 键盘：方向键微调（选中时），Esc 取消选中 ----
   const nudge = useCallback(
@@ -279,7 +282,7 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
       const m = orig?.match(/^translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)?/);
       const nx = (Number(m?.[1]) || 0) + dx;
       const ny = (Number(m?.[2]) || 0) + dy;
-      const rest = m ? orig!.slice(m[0].length).trim() : orig ?? "";
+      const rest = m ? orig!.slice(m[0].length).trim() : (orig ?? "");
       el.setAttribute(
         "transform",
         `translate(${Math.round(nx * 100) / 100} ${Math.round(ny * 100) / 100})${rest ? ` ${rest}` : ""}`,
@@ -393,7 +396,11 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
           data-pe-inspector=""
         >
           <div className="truncate text-[11px] font-medium text-text-muted">
-            {ctx.tag} · {ctx.text || (ctx.bbox ? `${Math.round(ctx.bbox.w)}×${Math.round(ctx.bbox.h)}` : "")}
+            {ctx.tag} ·{" "}
+            {ctx.text ||
+              (ctx.bbox
+                ? `${Math.round(ctx.bbox.w)}×${Math.round(ctx.bbox.h)}`
+                : "")}
           </div>
           {textValue !== "" && (
             <label className="block">
@@ -418,9 +425,7 @@ export function SvgEditorCanvas({ svg, onUpdate, onAnnotate, className }: Props)
               <input
                 type="number"
                 defaultValue={Number(fontSize) || ""}
-                onBlur={(e) =>
-                  setAttr("font-size", e.target.value || null)
-                }
+                onBlur={(e) => setAttr("font-size", e.target.value || null)}
                 className="w-full rounded border border-border bg-bg-surface px-1.5 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
             </label>

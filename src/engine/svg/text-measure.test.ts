@@ -39,7 +39,9 @@ describe("wrapTextToWidth", () => {
     expect(lines.length).toBeGreaterThan(1);
     for (const l of lines) {
       // 每行纯字形宽不超上限
-      expect(estimateTextWidthPx(l, 24)).toBeLessThanOrEqual(130 + 24 * 0.4 + 0.001);
+      expect(estimateTextWidthPx(l, 24)).toBeLessThanOrEqual(
+        130 + 24 * 0.4 + 0.001,
+      );
     }
   });
   it("拉丁按词断，不切单词", () => {
@@ -63,7 +65,11 @@ describe("renderFittedText", () => {
     expect(out.match(/<tspan/g)).toBeNull();
   });
   it("多行用 tspan，首行 dy=0、行距 1.2em", () => {
-    const out = renderFittedText(box, 24, "这是一段超过盒子宽度需要换行的较长中文文本");
+    const out = renderFittedText(
+      box,
+      24,
+      "这是一段超过盒子宽度需要换行的较长中文文本",
+    );
     const tspans = out.match(/<tspan/g) ?? [];
     expect(tspans.length).toBeGreaterThanOrEqual(2);
     expect(out).toContain('dy="29"');
@@ -76,6 +82,6 @@ describe("renderFittedText", () => {
   it("文本内容做 XML 转义", () => {
     const out = renderFittedText(box, 24, "A&B <tag>");
     expect(out).toContain("A&amp;B &lt;tag&gt;");
-    expect(escapeXmlText('"\'' )).toContain("&quot;");
+    expect(escapeXmlText("\"'")).toContain("&quot;");
   });
 });

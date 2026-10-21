@@ -160,7 +160,9 @@ export function isPresetShape(id: string): boolean {
 
 /** 预设形状词汇表提示词模块（svg-gen 条件注入）；max 限制条目数（本地小模型精简档） */
 export function buildPresetVocabPrompt(max?: number): string {
-  const lines = Object.values(PRESET_SHAPES).map((s) => `- ${s.id}：${s.usage}`);
+  const lines = Object.values(PRESET_SHAPES).map(
+    (s) => `- ${s.id}：${s.usage}`,
+  );
   return `## 预设形状词汇表（关系图/流程图的矢量形状）
 用 <rect data-prst="名称" x=".." y=".." width=".." height=".." fill=".."/> 表达预设形状，
 导出为 PowerPoint 原生可编辑形状；不要手绘近似路径代替这些形状：

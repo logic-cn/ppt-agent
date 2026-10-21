@@ -9,7 +9,9 @@ import {
 } from "./prompts";
 
 // 本地模型走 grammar 约束解码（op 枚举由语法保证）；远程忽略该字段
-const deckPatchesJsonSchema: unknown = z.toJSONSchema(deckPatchesResponseSchema);
+const deckPatchesJsonSchema: unknown = z.toJSONSchema(
+  deckPatchesResponseSchema,
+);
 
 const OPS =
   "set_deck_title | insert_slide | delete_slide | move_slide | update_slide | replace_slide | split_slide | merge_slides";

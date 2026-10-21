@@ -8,10 +8,7 @@ import {
 } from "./gradient";
 import { translateChart } from "./chart";
 import { isPresetShape } from "../svg/presets";
-import {
-  glyphWidthPx,
-  estimateTextWidthPx,
-} from "../svg/text-measure";
+import { glyphWidthPx, estimateTextWidthPx } from "../svg/text-measure";
 import type { SpecLock } from "@/design/spec-lock";
 
 // 画布作用域（B5）：SVG viewBox 像素 ↔ PPTX 英寸。默认 16:9，

@@ -388,9 +388,7 @@ describe("checkTextGeometry（安全区 + 重叠）", () => {
   });
 
   it("底部越出下安全区报 error", () => {
-    const svg = wrap(
-      `<text x="100" y="712" font-size="40">贴底文字</text>`,
-    );
+    const svg = wrap(`<text x="100" y="712" font-size="40">贴底文字</text>`);
     expect(checkTextGeometry(svg, specLock).length).toBeGreaterThan(0);
   });
 
@@ -472,7 +470,9 @@ describe("checkAesthetics（量化美学）", () => {
       checkAesthetics(big, specLock).some((i) => /对比度不足/.test(i.message)),
     ).toBe(false);
     expect(
-      checkAesthetics(small, specLock).some((i) => /对比度不足/.test(i.message)),
+      checkAesthetics(small, specLock).some((i) =>
+        /对比度不足/.test(i.message),
+      ),
     ).toBe(true);
   });
 
@@ -521,9 +521,7 @@ describe("checkAesthetics（量化美学）", () => {
       `<rect x="0" y="0" width="1280" height="720" fill="${bg}"/><filter id="s"><feFlood flood-opacity="0.08"/></filter>`,
     );
     expect(
-      checkAesthetics(heavy, specLock).some((i) =>
-        /阴影浓度/.test(i.message),
-      ),
+      checkAesthetics(heavy, specLock).some((i) => /阴影浓度/.test(i.message)),
     ).toBe(true);
     expect(
       checkAesthetics(ok, specLock).some((i) => /阴影浓度/.test(i.message)),
@@ -579,9 +577,7 @@ describe("checkChartGeometry（柱图几何回算）", () => {
       [100, 50],
     );
     expect(
-      checkChartGeometry(svg).some((i) =>
-        /柱图几何不符/.test(i.message),
-      ),
+      checkChartGeometry(svg).some((i) => /柱图几何不符/.test(i.message)),
     ).toBe(true);
   });
 
@@ -627,9 +623,7 @@ describe("checkLayoutBalance（版面失衡/对齐统计）", () => {
           .join(""),
     );
     expect(
-      checkLayoutBalance(svg, specLock).some((i) =>
-        /版面失衡/.test(i.message),
-      ),
+      checkLayoutBalance(svg, specLock).some((i) => /版面失衡/.test(i.message)),
     ).toBe(true);
   });
 
@@ -842,10 +836,7 @@ describe("review 修复回归（Code Review (c) 条目逐条验证）", () => {
     const line = "市场规模持续增长近三年复合年增长率保持两位数高位运行态势良好";
     expect([...line].length).toBe(30);
     const tspans = [0, 1, 2]
-      .map(
-        (i) =>
-          `<tspan x="80" dy="${i === 0 ? 0 : 29}">${line}</tspan>`,
-      )
+      .map((i) => `<tspan x="80" dy="${i === 0 ? 0 : 29}">${line}</tspan>`)
       .join("");
     const svg = wrap(
       `<text x="80" y="120" font-size="24" fill="#F1F5F9">${tspans}</text>`,
@@ -873,7 +864,9 @@ describe("review 修复回归（Code Review (c) 条目逐条验证）", () => {
         /CJK 字距过大/.test(i.message),
       ),
     ).toBe(true);
-    expect(autoPatchSvg(styleSvg, specLock).svg).not.toContain("letter-spacing");
+    expect(autoPatchSvg(styleSvg, specLock).svg).not.toContain(
+      "letter-spacing",
+    );
     expect(autoPatchSvg(bareSvg, specLock).svg).not.toContain("letter-spacing");
   });
 

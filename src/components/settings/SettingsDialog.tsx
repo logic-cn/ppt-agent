@@ -100,10 +100,7 @@ export function SettingsDialog({ open, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2
-            id="settings-dialog-title"
-            className="text-base font-semibold"
-          >
+          <h2 id="settings-dialog-title" className="text-base font-semibold">
             {t("common.settings")}
           </h2>
           <button
@@ -133,9 +130,7 @@ export function SettingsDialog({ open, onClose }: Props) {
                       : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
                   ].join(" ")}
                 >
-                  <Icon
-                    className={`h-4 w-4 ${active ? "text-accent" : ""}`}
-                  />
+                  <Icon className={`h-4 w-4 ${active ? "text-accent" : ""}`} />
                   {label}
                 </button>
               );
@@ -269,9 +264,10 @@ type UpdateUiState =
 function AboutUpdateSection({ t }: { t: ReturnType<typeof useT> }) {
   const [version, setVersion] = useState<string | null>(null);
   const [state, setState] = useState<UpdateUiState>({ kind: "idle" });
-  const [pending, setPending] = useState<
-    Extract<UpdateCheckOutcome, { status: "available" }> | null
-  >(null);
+  const [pending, setPending] = useState<Extract<
+    UpdateCheckOutcome,
+    { status: "available" }
+  > | null>(null);
 
   useEffect(() => {
     void getAppVersion().then((v) => setVersion(v));
@@ -477,23 +473,23 @@ function ModelPanel({
                   ) as CustomProviderId[]),
                 ] as LLMProviderId[]
               ).map((id) => {
-                  const cfg = settings.providers[id];
-                  if (!cfg) return null;
-                  const isCustom = id.startsWith("custom-");
-                  return (
-                    <ProviderCard
-                      key={id}
-                      id={id}
-                      cfg={cfg}
-                      isCustom={isCustom}
-                      isActive={settings.activeProvider === id}
-                      t={t}
-                      setActiveProvider={setActiveProvider}
-                      updateProvider={updateProvider}
-                      removeCustomProvider={removeCustomProvider}
-                    />
-                  );
-                })}
+                const cfg = settings.providers[id];
+                if (!cfg) return null;
+                const isCustom = id.startsWith("custom-");
+                return (
+                  <ProviderCard
+                    key={id}
+                    id={id}
+                    cfg={cfg}
+                    isCustom={isCustom}
+                    isActive={settings.activeProvider === id}
+                    t={t}
+                    setActiveProvider={setActiveProvider}
+                    updateProvider={updateProvider}
+                    removeCustomProvider={removeCustomProvider}
+                  />
+                );
+              })}
 
               {/* 添加自定义模型 */}
               <button
@@ -520,9 +516,7 @@ function ModelPanel({
                 <input
                   type="checkbox"
                   checked={settings.researchEnabled ?? false}
-                  onChange={(e) =>
-                    setResearch({ enabled: e.target.checked })
-                  }
+                  onChange={(e) => setResearch({ enabled: e.target.checked })}
                   className="h-4 w-4 rounded border-border accent-accent"
                 />
               </label>
@@ -539,9 +533,7 @@ function ModelPanel({
                   <input
                     type="password"
                     value={settings.tavilyApiKey ?? ""}
-                    onChange={(e) =>
-                      setResearch({ apiKey: e.target.value })
-                    }
+                    onChange={(e) => setResearch({ apiKey: e.target.value })}
                     className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
                   />
                 </div>
@@ -623,8 +615,7 @@ function ProviderCard({
           >
             <span className="font-medium text-text-primary">
               {cfg.label}
-              {!isLocal &&
-              (cfg.apiKey == null || cfg.apiKey.trim() === "") ? (
+              {!isLocal && (cfg.apiKey == null || cfg.apiKey.trim() === "") ? (
                 <span className="ml-1 text-xs text-red-500">
                   {t("settings.missingApiKey")}
                 </span>
@@ -676,7 +667,9 @@ function ProviderCard({
               <input
                 type="text"
                 value={cfg.baseUrl}
-                onChange={(e) => updateProvider(id, { baseUrl: e.target.value })}
+                onChange={(e) =>
+                  updateProvider(id, { baseUrl: e.target.value })
+                }
                 placeholder={
                   isCustom ? t("settings.customBaseUrlPlaceholder") : undefined
                 }
@@ -699,7 +692,9 @@ function ProviderCard({
             </div>
           </div>
           <div className="mt-3">
-            <label className="mb-1 block text-xs text-text-muted">API Key</label>
+            <label className="mb-1 block text-xs text-text-muted">
+              API Key
+            </label>
             <input
               type="password"
               value={cfg.apiKey}

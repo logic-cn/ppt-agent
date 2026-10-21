@@ -83,8 +83,7 @@ export const useModelStore = create<ModelStore>((set, get) => {
   const doLoad = async (): Promise<void> => {
     const d = def();
     const path =
-      get().modelPath ??
-      (await checkInstalled(d).then((i) => i?.path ?? null));
+      get().modelPath ?? (await checkInstalled(d).then((i) => i?.path ?? null));
     if (!path) throw new Error("模型文件不存在，请先下载");
     set({ state: "loading", error: null });
     const st = await loadModel(path, d.ctxSize);
@@ -133,7 +132,13 @@ export const useModelStore = create<ModelStore>((set, get) => {
       const s = get();
       // 切换档位：卸载旧模型并重置为未下载态
       if (s.state === "loaded") await unloadModel().catch(() => {});
-      set({ tier, state: "absent", modelPath: null, progress: null, error: null });
+      set({
+        tier,
+        state: "absent",
+        modelPath: null,
+        progress: null,
+        error: null,
+      });
       useSettingsStore.setState((st) => ({
         settings: { ...st.settings, localModelTier: tier },
       }));
@@ -190,7 +195,10 @@ export const useModelStore = create<ModelStore>((set, get) => {
       try {
         await doLoad();
       } catch (e) {
-        set({ state: "error", error: e instanceof Error ? e.message : String(e) });
+        set({
+          state: "error",
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     },
 

@@ -13,9 +13,7 @@ describe("stripPeIds", () => {
   it("剥离临时 data-pe-id 标记", () => {
     const tagged =
       '<svg><rect data-pe-id="pe-1" x="0"/><text data-pe-id="pe-2">t</text></svg>';
-    expect(stripPeIds(tagged)).toBe(
-      '<svg><rect x="0"/><text>t</text></svg>',
-    );
+    expect(stripPeIds(tagged)).toBe('<svg><rect x="0"/><text>t</text></svg>');
   });
 });
 
@@ -34,13 +32,11 @@ describe("SvgEditorCanvas", () => {
     // 事件冒泡到画布 host，hitTest 从 e.target 沿祖先找
     fireEvent.pointerDown(text, { button: 0, clientX: 120, clientY: 110 });
     await waitFor(() => {
-      expect(
-        container.querySelector("[data-pe-inspector]"),
-      ).toBeTruthy();
+      expect(container.querySelector("[data-pe-inspector]")).toBeTruthy();
     });
     // 文字/字号字段出现且带默认值
     expect(
-      (container.querySelector('[data-pe-inspector] input') as HTMLInputElement)
+      (container.querySelector("[data-pe-inspector] input") as HTMLInputElement)
         .value,
     ).toBe("标题文字");
   });
@@ -60,7 +56,7 @@ describe("SvgEditorCanvas", () => {
       expect(container.querySelector("[data-pe-inspector]")).toBeTruthy();
     });
     const input = container.querySelector(
-      '[data-pe-inspector] input',
+      "[data-pe-inspector] input",
     ) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "新标题" } });
     fireEvent.blur(input);

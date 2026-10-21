@@ -33,7 +33,7 @@ describe("compactSvgOutput（对标 compact_svg_coordinates/styles）", () => {
       `<svg viewBox="0 0 1280 720"><!-- 装饰 -->\n  <rect x="0" y="0" width="10" height="10" fill="#FFF"/>\n</svg>`,
     );
     expect(out).not.toContain("装饰");
-    expect(out).toContain('><rect');
+    expect(out).toContain("><rect");
     expect(out).not.toMatch(/>\s+<rect/);
     expect(out).toContain('viewBox="0 0 1280 720"');
   });

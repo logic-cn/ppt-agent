@@ -142,7 +142,9 @@ export async function loadSettings(): Promise<AppSettings | null> {
     // （旧版 custom 由下方迁移逻辑单独处理，不在此删除）
     const staleIds = Object.keys(saved.providers).filter(
       (id) =>
-        !(id in PROVIDER_PRESETS) && !id.startsWith("custom-") && id !== "custom",
+        !(id in PROVIDER_PRESETS) &&
+        !id.startsWith("custom-") &&
+        id !== "custom",
     );
     if (staleIds.length > 0) {
       const store = getSecretStore();

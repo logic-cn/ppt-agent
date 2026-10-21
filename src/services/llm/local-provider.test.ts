@@ -4,14 +4,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const invoke = vi.fn();
 type TokenCb = (e: { payload: { text: string } }) => void;
 let tokenCb: TokenCb | null = null;
-const listen = vi.fn(
-  async (_event: string, cb: TokenCb) => {
-    tokenCb = cb;
-    return () => {
-      tokenCb = null;
-    };
-  },
-);
+const listen = vi.fn(async (_event: string, cb: TokenCb) => {
+  tokenCb = cb;
+  return () => {
+    tokenCb = null;
+  };
+});
 const emitToken = (text: string) => tokenCb?.({ payload: { text } });
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -63,8 +61,7 @@ afterEach(() => {
 
 describe("LocalLlmProvider.chat", () => {
   it("非 Tauri 环境（浏览器预览）明确报错", async () => {
-    delete (window as unknown as Record<string, unknown>)
-      .__TAURI_INTERNALS__;
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
     await expect(provider.chat(req())).rejects.toThrow("仅在桌面端可用");
   });
 
@@ -125,7 +122,9 @@ describe("LocalLlmProvider.chat", () => {
   it("signal 已中止 / Rust 侧 cancelled 均映射为 AbortError", async () => {
     const ac = new AbortController();
     ac.abort();
-    await expect(provider.chat(req({ signal: ac.signal }))).rejects.toMatchObject({
+    await expect(
+      provider.chat(req({ signal: ac.signal })),
+    ).rejects.toMatchObject({
       name: "AbortError",
     });
 
@@ -139,11 +138,12 @@ describe("LocalLlmProvider.chat", () => {
   it("推理中途 abort 触发 local_llm_cancel 并以 AbortError 结束", async () => {
     const ac = new AbortController();
     invoke.mockImplementation(
-      () => new Promise((_r, rej) => {
-        ac.signal.addEventListener("abort", () => {
-          rej(new DOMException("Aborted", "AbortError"));
-        });
-      }),
+      () =>
+        new Promise((_r, rej) => {
+          ac.signal.addEventListener("abort", () => {
+            rej(new DOMException("Aborted", "AbortError"));
+          });
+        }),
     );
     const p = provider.chat(req({ signal: ac.signal }));
     ac.abort();
@@ -207,9 +207,7 @@ describe("LocalLlmProvider 流式输出", () => {
       return DTO({ content: "aabb" });
     });
     const seen: string[] = [];
-    const res = await provider.chat(
-      req({ onPartial: (t) => seen.push(t) }),
-    );
+    const res = await provider.chat(req({ onPartial: (t) => seen.push(t) }));
     expect(seen).toEqual(["aa", "aabb"]);
     expect(res.content).toBe("aabb");
     expect(tokenCb).toBeNull();

@@ -1,13 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type {
-  ChatProvider,
-} from "./adapter";
-import type {
-  ChatRequest,
-  ChatResponse,
-  LLMProviderConfig,
-} from "@/types/llm";
+import type { ChatProvider } from "./adapter";
+import type { ChatRequest, ChatResponse, LLMProviderConfig } from "@/types/llm";
 
 /** 通用 JSON grammar：约束输出为合法 JSON 对象（远程 json mode 的本地等价物） */
 const GENERIC_JSON_SCHEMA = { type: "object" } as const;
@@ -98,10 +92,7 @@ export class LocalLlmProvider implements ChatProvider {
         res = await invokeChat(exactGrammar);
       } catch (e) {
         // 精确 schema 转换失败（模型/转换器不支持该结构）时退回通用 JSON 约束
-        if (
-          exactGrammar &&
-          String(e).includes("JSON Schema 转语法失败")
-        ) {
+        if (exactGrammar && String(e).includes("JSON Schema 转语法失败")) {
           res = await invokeChat(
             req.responseFormat === "json" || req.jsonSchema
               ? JSON.stringify(GENERIC_JSON_SCHEMA)

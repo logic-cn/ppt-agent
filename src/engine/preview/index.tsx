@@ -113,7 +113,9 @@ export const SlidePreview = memo(function SlidePreview({
                   ? "bg-accent text-white"
                   : "bg-black/40 text-white/90 hover:bg-black/60"
               }`}
-              title={editMode ? t("preview.exitEditMode") : t("preview.editMode")}
+              title={
+                editMode ? t("preview.exitEditMode") : t("preview.editMode")
+              }
             >
               <Pencil className="h-3 w-3" />
               {editMode ? t("preview.exitEditMode") : t("preview.editMode")}

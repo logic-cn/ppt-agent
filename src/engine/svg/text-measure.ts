@@ -26,11 +26,11 @@ export function glyphWidthPx(text: string, fontSizePx: number): number {
 }
 
 /** 估算文本框宽度（viewBox 像素）：字形宽 + 0.4em 尾距（防贴边裁切），最小一字符 */
-export function estimateTextWidthPx(
-  text: string,
-  fontSizePx: number,
-): number {
-  return Math.max(glyphWidthPx(text, fontSizePx) + fontSizePx * 0.4, fontSizePx);
+export function estimateTextWidthPx(text: string, fontSizePx: number): number {
+  return Math.max(
+    glyphWidthPx(text, fontSizePx) + fontSizePx * 0.4,
+    fontSizePx,
+  );
 }
 
 /** 文本节点内容转义（SVG/XML 实体五字符） */
@@ -102,8 +102,7 @@ export function wrapTextToWidth(
     for (const t of tokens) {
       const tw = tokenWidth(t);
       const lastChar = cur ? cur.charCodeAt(cur.length - 1) : 0;
-      const needsSpace =
-        cur && !isCjkChar(t[0] ?? "") && lastChar <= 0x2e80;
+      const needsSpace = cur && !isCjkChar(t[0] ?? "") && lastChar <= 0x2e80;
       const gap = needsSpace ? fontSizePx * 0.3 : 0;
       if (cur && curW + gap + tw > maxWidthPx) {
         lines.push(cur);

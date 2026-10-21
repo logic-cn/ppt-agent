@@ -130,9 +130,13 @@ ${roleGuidance}
 4. 所有颜色必须从上面的配色表中取值，禁止出现十六进制外的任意其他颜色字符串。
 5. 文本必须可被选中和编辑，使用 <text>/<tspan> 而非转曲路径；不要栅格化图片。
 6. 设计精良、留白充足、层级清晰，元素坐标与尺寸必须落在 0..${cw} / 0..${ch} 范围内。${chartRule}
-${slim && skeleton ? "" : `${DEVICE_MENU}
+${
+  slim && skeleton
+    ? ""
+    : `${DEVICE_MENU}
 
-`}${slim ? buildPresetVocabPrompt(6) : buildPresetVocabPrompt()}
+`
+}${slim ? buildPresetVocabPrompt(6) : buildPresetVocabPrompt()}
 
 ${slim ? buildIconVocabPrompt(6) : buildIconVocabPrompt()}
 

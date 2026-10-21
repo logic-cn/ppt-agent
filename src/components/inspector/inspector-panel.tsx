@@ -22,10 +22,7 @@ interface Props {
   onSelectIndex?: (index: number) => void;
 }
 
-export function InspectorPanel({
-  deck,
-  selectedIndex,
-}: Props) {
+export function InspectorPanel({ deck, selectedIndex }: Props) {
   const t = useT();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [generating, setGenerating] = useState(false);
