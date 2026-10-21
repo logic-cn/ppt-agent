@@ -19,11 +19,10 @@
 | §9 | 页面属性检查器 | ✅ 已落地 | `components/inspector/`，5 个 tab：AI / 页面 / 图表 / 图片 / 备注 |
 | §10 | Deck schema 迁移与校验 | ✅ 已落地 | `services/storage/{deck-schema,deck-migrations,deck-repair,deck-parse}.ts` |
 | §11 | 安全密钥存储 | ✅ 已落地 | `services/secret-store.ts`（Tauri keychain，Web 降级并显式提示） |
-| §12 | 模板系统产品化 | 🟡 **部分** | 8 个内置模板包 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则）已可用；缺 TemplatePack 级的完整绑定（`promptHints` / 推荐图表策略 / 默认 `GenerationOptions`） |
+| §12 | 模板系统产品化 | ✅ 已落地 | 8 个内置模板 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则 + 模板专属提示）；模板级 `scenario`/`audience`/`defaultOptions`（语气/密度/图表倾向）已进入 pagePlan 提示词；模板选择页展示场景/页数/适用对象 |
 | §13 | 测试与质量门禁 | ✅ 已落地 | 671 个测试 + vitest coverage 阈值 + `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI） |
 
-**因此，当前后续可做的主线只有一条：§12 模板系统产品化的剩余部分**，
-其余均为「按需再做」的增强项（见文末「后续方向」）。
+**因此，当前后续可做的主线见文末「后续方向」**（§4–§13 均已落地或被取代）。
 
 ## 1. 产品目标
 
@@ -1305,8 +1304,7 @@ storage.migration.test.ts
 
 | 方向 | 内容 | 备注 |
 |---|---|---|
-| 模板产品化收尾 | TemplatePack 级绑定：默认 `GenerationOptions`、`promptHints`、推荐图表策略；模板选择页展示场景/页数/适用对象 | 路线图 §12 的剩余部分，是当前唯一的主线 |
-| 端侧质量继续打磨 | 实跑已暴露：端侧模型倾向给每个正文页配 `chartType`，导致「无图表连续正文页」稀少 → 跨页版式轮换难以触发 | 见 `scripts/local-e2e/` 报告；可选解法是提示词侧约束图表使用，或给图表页也下发非图表部分骨架 |
+| 端侧质量继续打磨 | 实跑已暴露：端侧模型倾向给每个正文页配 `chartType`，导致「无图表连续正文页」稀少 → 跨页版式轮换难以触发 | 见 `scripts/local-e2e/` 报告；可选解法是提示词侧约束图表使用，或给图表页也下发非图表部分骨架。**注意这是产品取舍**：少给图表＝更少虚构数据，但也更少视觉化 |
 | 母版与版式原生化 | 导出具 `p:sldMaster` / `p:sldLayout`（当前仅 `PPT_AGENT_MASTER` 部分字段） | 对标 PPT Master v4 |
 | 富媒体扩展 | 旁白音频 / 视频导出、LaTeX 公式渲染、超链接创作 | 对标 PPT Master；工程量大，按需 |
 | 跨渲染器保真 | 图表默认 SVG vs PowerPoint 原生图表的路线取舍 | 当前选「可编辑优先」（原生图表默认开启），与 PPT Master 相反，是明确的产品决策 |
