@@ -13,7 +13,10 @@ export const PALETTES: Palette[] = [
     id: "business-blue",
     name: "商务深蓝",
     colors: {
-      primary: "#60A5FA",
+      // primary 深到可与 text 组成 ≥4.5 对比度：端侧模型爱用「文字压 primary
+      // 色横幅」，浅 primary（如 #60A5FA，2.32）会触发 deck 级 brand 硬锁，
+      // 逐页重画修不动；深 primary 让该常见构图天然合规（#2563EB → 4.72）
+      primary: "#2563EB",
       secondary: "#3B82F6",
       accent: "#FBBF24",
       background: "#0C1929",

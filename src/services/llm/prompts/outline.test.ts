@@ -21,7 +21,7 @@ describe("buildOutlineSystemPrompt", () => {
     expect(prompt).toContain("严格网格、锐利几何");
     // 7 个配色 HEX
     for (const hex of [
-      "#60A5FA",
+      "#2563EB",
       "#3B82F6",
       "#FBBF24",
       "#0C1929",

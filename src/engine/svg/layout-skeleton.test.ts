@@ -112,8 +112,13 @@ describe("buildLayoutSkeleton 不变式", () => {
     expect(ys.length - above).toBeGreaterThan(0);
   });
 
-  it("图表页与封面/结尾页返回 null（不适用坐标下发）", () => {
-    expect(buildLayoutSkeleton(plan({ chartType: "bar" }), SPEC)).toBeNull();
+  it("非 content 角色的图表页与封面/结尾页返回 null（不适用坐标下发）", () => {
+    expect(
+      buildLayoutSkeleton(plan({ role: "metrics", chartType: "bar" }), SPEC),
+    ).toBeNull();
+    expect(
+      buildLayoutSkeleton(plan({ role: "quote", chartType: "pie" }), SPEC),
+    ).toBeNull();
     expect(buildLayoutSkeleton(plan({ role: "cover" }), SPEC)).toBeNull();
     expect(buildLayoutSkeleton(plan({ role: "closing" }), SPEC)).toBeNull();
   });
@@ -202,5 +207,77 @@ describe("跨页版式轮换（content variant）", () => {
     const d = buildLayoutSkeleton(manyBullets, SPEC);
     const v0 = buildLayoutSkeleton(manyBullets, SPEC, { variant: 0 });
     expect(d!.promptBlock).toBe(v0!.promptBlock);
+  });
+});
+
+describe("图表页骨架（要点栏 + 图表占位区）", () => {
+  const chartPage = plan({
+    bullets: ["营收同比增长 18%", "复购率提升至 64%"],
+    chartType: "bar",
+  });
+
+  it("content+chartType 有确定性骨架：标题带 + 图表区 + 要点栏", () => {
+    const sk = buildLayoutSkeleton(chartPage, SPEC)!;
+    expect(sk).not.toBeNull();
+    const kinds = sk.boxes.map((b) => b.kind);
+    expect(kinds[0]).toBe("title");
+    expect(kinds).toContain("chart");
+    expect(kinds).toContain("bullet");
+    expect(sk.promptBlock).toContain("图表占位区");
+    expect(sk.promptBlock).toContain('data-chart-type="bar"');
+  });
+
+  it("variant=0 图表居右、要点居左；variant=1 图表居左、要点居右", () => {
+    const v0 = buildLayoutSkeleton(chartPage, SPEC, { variant: 0 })!;
+    const v1 = buildLayoutSkeleton(chartPage, SPEC, { variant: 1 })!;
+    const chart0 = v0.boxes.find((b) => b.kind === "chart")!;
+    const chart1 = v1.boxes.find((b) => b.kind === "chart")!;
+    expect(chart0.x).toBeGreaterThan(SPEC.canvas.w / 2);
+    expect(chart1.x).toBeLessThan(SPEC.canvas.w / 2);
+    const bullets0 = v0.boxes.filter((b) => b.kind === "bullet");
+    const bullets1 = v1.boxes.filter((b) => b.kind === "bullet");
+    for (const b of bullets0) expect(b.x).toBeLessThan(SPEC.canvas.w / 2);
+    for (const b of bullets1) expect(b.x).toBeGreaterThan(SPEC.canvas.w / 2);
+    // 图表区与要点栏横向不重叠
+    expect(chart0.x).toBeGreaterThanOrEqual(
+      Math.max(...bullets0.map((b) => b.x + b.w)),
+    );
+    expect(chart1.x + chart1.w).toBeLessThanOrEqual(
+      Math.min(...bullets1.map((b) => b.x)),
+    );
+  });
+
+  it("图表区坐标落在安全区内，要点区块纵向不互叠", () => {
+    for (const variant of [0, 1] as const) {
+      const sk = buildLayoutSkeleton(chartPage, SPEC, { variant })!;
+      for (const b of sk.boxes) {
+        expect(b.x).toBeGreaterThanOrEqual(0);
+        expect(b.y).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.w).toBeLessThanOrEqual(SPEC.canvas.w);
+        expect(b.y + b.h).toBeLessThanOrEqual(SPEC.canvas.h);
+      }
+      const bullets = sk.boxes.filter((b) => b.kind === "bullet");
+      for (let i = 1; i < bullets.length; i++) {
+        expect(bullets[i]!.y).toBeGreaterThan(bullets[i - 1]!.y);
+      }
+    }
+  });
+
+  it("确定性：同输入两次调用逐字节一致", () => {
+    const a = buildLayoutSkeleton(chartPage, SPEC, { variant: 1 });
+    const b = buildLayoutSkeleton(chartPage, SPEC, { variant: 1 });
+    expect(a!.promptBlock).toBe(b!.promptBlock);
+  });
+
+  it("要点超过 7 条的图表页回退 null", () => {
+    expect(
+      buildLayoutSkeleton(
+        plan({
+          chartType: "line",
+          bullets: Array.from({ length: 8 }, (_, i) => `${i}`),
+        }),
+        SPEC,
+      ),
+    ).toBeNull();
   });
 });

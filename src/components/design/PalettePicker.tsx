@@ -22,7 +22,7 @@ const COLOR_FIELDS: { key: keyof ThemeColors; label: TranslationKey }[] = [
 ];
 
 const DEFAULT_COLORS: ThemeColors = {
-  primary: "#60A5FA",
+  primary: "#2563EB",
   secondary: "#3B82F6",
   accent: "#FBBF24",
   background: "#0C1929",

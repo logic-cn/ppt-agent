@@ -206,7 +206,22 @@ export async function generatePagePlan(params: {
     );
   }
 
-  return valid;
+  return sanitizePlanChartTypes(valid);
+}
+
+/**
+ * 角色-图表语义清洗：图表只在正文页承载——content 是唯一有「要点栏 + 图表
+ * 占位区」确定性骨架的角色，其余角色的版式骨架（KPI 卡/时间线节点/双栏等）
+ * 都不含图表区，模型给它们配 chartType 会使其失去确定性骨架、退回自由排版
+ * （端侧实跑中该组合失败率最高：metrics+chart 整页报废、cover/section/
+ * closing 被强加无意义图表）。此处确定性剥除，保 deck 结构稳定。
+ */
+export function sanitizePlanChartTypes(plan: PagePlanItem[]): PagePlanItem[] {
+  return plan.map((item) => {
+    if (!item.chartType || item.role === "content") return item;
+    const { chartType: _dropped, ...rest } = item;
+    return rest as PagePlanItem;
+  });
 }
 
 /**

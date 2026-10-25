@@ -41,16 +41,47 @@ interface PagePlanJsonSchemaShape {
  * 页数），于是请求 7 页只拿到 1–2 页，整份 deck 直接少页。有了
  * minItems/maxItems，grammar 会强制模型补齐到 N 页——确定性且不额外花 token。
  * 不传页数时保持原 schema（页数由模型自定时仍允许自由发挥）。
+ *
+ * N ≥ 2 时进一步用元组式 items（JSON Schema 数组形式，llama.cpp 转换器支持）
+ * 把首项 role 锁为 cover、末项 role 锁为 closing：提示词里的「最后一页必须是
+ * closing」对 2B 端侧模型基本无效——页数锁死后模型会把结尾页挤成正文页，
+ * require_closing 硬伤在每次端侧实跑都出现。约束解码是唯一确定性的收尾保证。
  */
 export function buildPagePlanJsonSchema(pageCount?: number): unknown {
   if (!pageCount || pageCount < 1) return pagePlanJsonSchema;
   const base = z.toJSONSchema(pagePlanRootSchema) as PagePlanJsonSchemaShape;
   const pages = base.properties?.pages ?? {};
+  const itemSchema = (pages as { items?: Record<string, unknown> }).items;
+  // 单页 deck 无法同时以 cover 开头并以 closing 收尾（首页 gate 优先 cover）；
+  // 结构异常时退回 minItems/maxItems 锁页数，不冒险下发未知形态
+  if (pageCount < 2 || typeof itemSchema !== "object" || itemSchema === null) {
+    return {
+      ...base,
+      properties: {
+        ...base.properties,
+        pages: { ...pages, minItems: pageCount, maxItems: pageCount },
+      },
+    };
+  }
+  const withRoleConst = (role: "cover" | "closing") => ({
+    ...itemSchema,
+    properties: {
+      ...(itemSchema.properties ?? {}),
+      role: { type: "string", const: role },
+    },
+  });
   return {
     ...base,
     properties: {
       ...base.properties,
-      pages: { ...pages, minItems: pageCount, maxItems: pageCount },
+      pages: {
+        ...pages,
+        items: [
+          withRoleConst("cover"),
+          ...Array.from({ length: pageCount - 2 }, () => itemSchema),
+          withRoleConst("closing"),
+        ],
+      },
     },
   };
 }

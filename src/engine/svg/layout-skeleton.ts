@@ -11,7 +11,15 @@ import { blockCapacity, maxCharsPerLine } from "./text-measure";
  */
 
 export interface SkeletonBox {
-  kind: "title" | "subtitle" | "bullet" | "column" | "kpi" | "node" | "quote";
+  kind:
+    | "title"
+    | "subtitle"
+    | "bullet"
+    | "column"
+    | "kpi"
+    | "node"
+    | "quote"
+    | "chart";
   x: number;
   y: number;
   w: number;
@@ -68,7 +76,12 @@ function renderBox(spec: SpecLock, b: SkeletonBox): string {
               ? "KPI 卡"
               : b.kind === "node"
                 ? "节点标签"
-                : "金句区";
+                : b.kind === "chart"
+                  ? "图表占位区"
+                  : "金句区";
+  if (b.kind === "chart") {
+    return `- ${label}: x=${b.x} y=${b.y} w=${b.w} h=${b.h}；<g data-chart-type> 的 x/y/width/height 四个属性必须逐字使用这些值，图表内部不得再叠加要点文字`;
+  }
   const text = b.text ? `（内容：「${b.text.slice(0, 24)}」）` : "";
   return `- ${label}${text}: x=${b.x} y=${b.y} w=${b.w} h=${b.h}；${budgetLine(spec, b)}`;
 }
@@ -344,27 +357,73 @@ function skeletonFor(
 }
 
 /**
- * 构造该页版式骨架。cover/section/closing 与图表页返回 null
- * （封面重氛围、图表页有 data-chart 约定，均不适合坐标下发）。
- * variant：正文页版式变体（0 整宽列表 / 1 双栏分块），由 deck 生成环按相邻同角色
- * 页轮换，打破「连续 content 页版式雷同」——几何仍由程序算定，不牺牲防溢出保证。
+ * 图表页骨架：「要点栏 + 图表占位区」双区版式。此前 chartType 页完全不做
+ * 坐标下发（buildLayoutSkeleton 直接 null），模型自由排版导致文字互叠/越界
+ * 成为端侧实跑最高频的硬伤；且模型倾向给每个正文页配 chartType，「无图表
+ * 连续正文页」被挤掉后跨页轮换常年不触发。现在把标题带、要点栏与图表区
+ * 一并算死：图表 <g> 的 x/y/width/height 逐字采用占位区坐标（导出端
+ * translateChart 读同一组属性，保真闭环），variant 决定图表居右（0）或
+ * 居左（1），与无图表正文页一起参与跨页版式轮换。
+ */
+function chartSkeletonFor(
+  plan: PagePlanItem,
+  spec: SpecLock,
+  variant: number,
+): { boxes: SkeletonBox[]; note?: string } | null {
+  if (plan.role !== "content") return null;
+  const { w, h } = spec.canvas;
+  const margin = Math.round(w / 32);
+  const bottom = h - margin;
+  const bullets = plan.bullets ?? [];
+  if (bullets.length > 7) return null;
+  const title = titleBox(spec, plan.title, margin, w);
+  const gutter = Math.round(w / 32);
+  const top = title.y + title.h;
+  const area = bottom - top;
+  const chartW = Math.round(w * 0.46);
+  const textW = w - 2 * margin - gutter - chartW;
+  if (area <= 0 || textW < Math.round(w / 6)) return null; // 画布过窄不适用双区
+  const chartX = variant === 1 ? margin : margin + textW + gutter;
+  const textX = variant === 1 ? margin + chartW + gutter : margin;
+  return {
+    boxes: [
+      title,
+      { kind: "chart", x: chartX, y: top, w: chartW, h: area },
+      ...stackBullets(spec, bullets, top, bottom, textX, textW).map((b) => ({
+        ...b,
+        x: textX + 8,
+        w: textW - 40,
+      })),
+    ],
+    note: `本页为「要点 + 图表」页：要点栏宽 ${textW}px 居${variant === 1 ? "右" : "左"}，每条要点前画 6-8px 圆点；图表占位区 ${chartW}×${area}px 居${variant === 1 ? "左" : "右"}，图表必须用 <g data-chart-type="${plan.chartType}" data-chart-data='[...]'> 实现且其 x/y/width/height 逐字等于占位区坐标`,
+  };
+}
+
+/**
+ * 构造该页版式骨架。cover/section/closing 与非 content 角色的图表页返回 null
+ * （封面重氛围、图表页有 data-chart 约定，均不适合坐标下发；content 角色的
+ * 图表页由 chartSkeletonFor 给出「要点栏 + 图表占位区」骨架）。
+ * variant：正文页版式变体，由 deck 生成环按相邻同角色页轮换，打破「连续
+ * content 页版式雷同」——几何仍由程序算定，不牺牲防溢出保证。
  */
 export function buildLayoutSkeleton(
   plan: PagePlanItem,
   spec: SpecLock,
   opts?: { variant?: number },
 ): LayoutSkeleton | null {
-  if (plan.chartType) return null;
   const variant = opts?.variant ?? 0;
-  const built = skeletonFor(plan, spec, variant);
+  const built = plan.chartType
+    ? chartSkeletonFor(plan, spec, variant)
+    : skeletonFor(plan, spec, variant);
   if (!built || built.boxes.length === 0) return null;
   const lines = built.boxes.map((b) => renderBox(spec, b));
   const rotate =
-    plan.role === "content" &&
-    variant === 1 &&
-    !plan.chartType &&
-    (plan.bullets?.length ?? 0) >= 4
-      ? "\n多样性提示：本页与上一页同为正文页，已切换为双栏分块版式以避免雷同，请保持双栏结构。"
+    plan.role === "content" && variant === 1
+      ? plan.chartType
+        ? "\n多样性提示：本页与上一页同为正文页，图表已切换为居左版式以避免雷同，请保持图表居左、要点居右。"
+        : (plan.bullets?.length ?? 0) >= 4
+          ? "\n多样性提示：本页与上一页同为正文页，已切换为双栏分块版式以避免雷同，请保持双栏结构。"
+          : ""
       : "";
   const block = `## 本页版式骨架（坐标由程序算定，必须严格遵循）
 ${lines.join("\n")}

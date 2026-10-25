@@ -80,8 +80,9 @@ export function buildSvgGenPrompt(opts: {
     : "";
   const roleGuidance = ROLE_GUIDANCE[plan.role] ?? ROLE_GUIDANCE.content;
   // 确定性版式骨架：几何由程序算定，模型只在框内落字与配色。
-  // 命中骨架的页面（content/comparison/timeline/process/metrics/quote）
-  // 不再注入通用版式几何对照；本地档同时省去设备菜单以降低 prefill。
+  // 命中骨架的页面（content——含图表页的「要点栏+图表区」双区骨架——
+  // comparison/timeline/process/metrics/quote）不再注入通用版式几何对照；
+  // 本地档同时省去设备菜单以降低 prefill。
   const skeleton = buildLayoutSkeleton(plan, specLock, {
     variant: opts.layoutVariant,
   });

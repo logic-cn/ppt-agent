@@ -198,4 +198,39 @@ describe("buildSvgGenPrompt 跨页版式轮换", () => {
     });
     expect(prompt).not.toContain("避免雷同");
   });
+
+  it("图表页注入「要点栏 + 图表占位区」骨架，坐标可被导出端逐字采用", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: {
+        role: "content",
+        title: "营收结构",
+        intent: "说明结构",
+        bullets: ["订阅占比 62%", "授权占比 28%"],
+        chartType: "doughnut",
+      },
+      pageIndex: 2,
+      totalPages: 6,
+    });
+    expect(prompt).toContain("图表占位区");
+    expect(prompt).toContain("x/y/width/height 四个属性必须逐字使用这些值");
+    expect(prompt).not.toContain("版式几何对照");
+  });
+
+  it("图表页 variant=1 提示图表居左", () => {
+    const prompt = buildSvgGenPrompt({
+      specLock: SPEC,
+      plan: {
+        role: "content",
+        title: "营收结构",
+        intent: "说明结构",
+        bullets: ["订阅占比 62%", "授权占比 28%"],
+        chartType: "doughnut",
+      },
+      pageIndex: 3,
+      totalPages: 6,
+      layoutVariant: 1,
+    });
+    expect(prompt).toContain("图表已切换为居左版式");
+  });
 });

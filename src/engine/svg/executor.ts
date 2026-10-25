@@ -363,19 +363,20 @@ export async function generateDeckSvgs(
     return svg;
   };
 
-  // 跨页版式轮换：连续的同角色正文页交替使用整宽/双栏两种骨架（对标 deck 级
+  // 跨页版式轮换：连续的同角色正文页交替使用两种骨架变体（对标 deck 级
   // 多样性）。顺序生成、按页缓存，Phase 2 的整改重画复用同一变体不漂移。
-  // 参与轮换的角色＝有确定性骨架且骨架支持双栏变体者（content / section）：
-  // 端侧模型最常连续产出的是章节页（第一章/第二章…），不纳入等于轮换常年不触发。
+  // 参与轮换的角色＝有确定性骨架且骨架支持变体者（content / section）：
+  // 端侧模型最常连续产出的是章节页（第一章/第二章…），不纳入等于轮换常年不触发；
+  // 图表正文页不再排除——其骨架变体为图表居右（0）/居左（1），否则端侧模型
+  // 给每个正文页都配 chartType 时「无图表连续正文页」稀少，轮换依然永远不触发。
   const variantCache = new Map<number, number | undefined>();
   const ROTATABLE_ROLES = new Set(["content", "section"]);
-  const isPlainContent = (i: number) =>
-    ROTATABLE_ROLES.has(plan[i].role) && !plan[i].chartType;
+  const isRotatable = (i: number) => ROTATABLE_ROLES.has(plan[i].role);
   const variantFor = (i: number): number | undefined => {
     if (variantCache.has(i)) return variantCache.get(i);
     let v: number | undefined;
-    if (isPlainContent(i)) {
-      const prevSame = i > 0 && isPlainContent(i - 1);
+    if (isRotatable(i)) {
+      const prevSame = i > 0 && isRotatable(i - 1);
       v = prevSame ? 1 - (variantCache.get(i - 1) ?? 0) : 0;
     }
     variantCache.set(i, v);

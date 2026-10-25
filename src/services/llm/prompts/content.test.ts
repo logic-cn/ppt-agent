@@ -15,7 +15,7 @@ describe("buildContentSystemPrompt", () => {
     expect(prompt).toContain("圆角卡片");
     // 7 个配色 HEX
     for (const hex of [
-      "#60A5FA",
+      "#2563EB",
       "#3B82F6",
       "#FBBF24",
       "#0C1929",

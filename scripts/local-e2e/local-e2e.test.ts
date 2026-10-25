@@ -261,7 +261,9 @@ describe("端侧模型无头实跑", () => {
           pageCount: PAGE_COUNT,
           isolatePageFailures: true,
           onPlanReady: (pages) => {
-            if (plan.length === 0) plan = pages;
+            // 诊断产物来自这次隔离重跑，plan 也以其为准（首次 plan 的页面
+            // 未全部产出，role/chartType 列若混用两份 plan 会对不上号）
+            plan = pages;
           },
           onPageError: (pageIndex, error) => {
             pageErrors.push({ page: pageIndex + 1, error: error.message });
@@ -319,13 +321,18 @@ describe("端侧模型无头实跑", () => {
       }));
 
       // 跨页版式轮换的触发前提：相邻两页都是「参与轮换的正文页」
-      // （与 executor 的 ROTATABLE_ROLES 对齐：content / section，且无图表）
-      const isPlainContent = (i: number) =>
-        ["content", "section"].includes(plan[i]?.role ?? "") &&
-        !plan[i]?.chartType;
+      // （与 executor 的 ROTATABLE_ROLES 对齐：content / section，图表页不再排除）
+      const rotatable = (i: number) =>
+        ["content", "section"].includes(plan[i]?.role ?? "");
+      // 复刻 executor 的变体分配（顺序生成，逐页可重算）
+      const variantOf = (i: number): number => {
+        if (!rotatable(i)) return -1;
+        const prevSame = i > 0 && rotatable(i - 1);
+        return prevSame ? 1 - variantOf(i - 1) : 0;
+      };
       const rotationPairs: number[] = [];
       for (let i = 1; i < plan.length; i++) {
-        if (isPlainContent(i) && isPlainContent(i - 1)) rotationPairs.push(i);
+        if (rotatable(i) && rotatable(i - 1)) rotationPairs.push(i);
       }
 
       // ---- 导出锁：质量检查（hard 级阻断导出） ----
@@ -405,15 +412,47 @@ describe("端侧模型无头实跑", () => {
       const withNotes = pages.filter((p) => p.notesLength > 0);
       expect(withNotes.length, "没有任何页面产出演讲者备注").toBeGreaterThan(0);
 
-      // 跨页版式轮换：仅当 deck 里有相邻的正文页对时才有轮换机会
+      // 跨页版式轮换：相邻轮换页对的版式必须不同（变体由 executor 按同一规则分配，
+      // 这里验证模型真的服从了骨架：普通页 v1 出双栏、图表页 v1 图表换边）
+      const chartSide = (svg: string): "left" | "right" | null => {
+        const g = svg.match(/<g\b[^>]*data-chart-type[^>]*>/i)?.[0];
+        if (!g) return null;
+        const mid = Number(svg.match(/viewBox="0 0 (\d+(?:\.\d+)?)/)?.[1] ?? 1280) / 2;
+        const x =
+          g.match(/\bx="([\d.]+)"/)?.[1] ??
+          g.match(/transform="translate\(([\d.]+)/)?.[1];
+        if (x === undefined) return null;
+        return Number(x) >= mid ? "right" : "left";
+      };
       for (const i of rotationPairs) {
         const prev = pages[i - 2];
         const cur = pages[i - 1];
         if (!prev?.hasSvg || !cur?.hasSvg) continue;
-        expect(
-          prev.columns,
-          `第 ${prev.index}/${cur.index} 页列数相同，跨页版式轮换未生效`,
-        ).not.toBe(cur.columns);
+        const prevPlan = plan[i - 1]!;
+        const curPlan = plan[i]!;
+        if (prevPlan.chartType && curPlan.chartType) {
+          // 图表页对：图表必须一左一右（解析不到坐标时跳过，报告里可见）
+          const a = chartSide(deck.slides[i - 1]?.svg ?? "");
+          const b = chartSide(deck.slides[i]?.svg ?? "");
+          if (a && b) {
+            expect(
+              a,
+              `第 ${prev.index}/${cur.index} 页图表都在${a === "left" ? "左" : "右"}侧，跨页版式轮换未生效`,
+            ).not.toBe(b);
+          }
+          continue;
+        }
+        if (prevPlan.chartType || curPlan.chartType) continue; // 图表页与普通页版式天然不同
+        // 普通正文页对：仅当变体确实不同且 v1 页要点 ≥4（双栏骨架生效）时断言列数
+        const v0 = variantOf(i - 1);
+        const v1 = variantOf(i);
+        const v1Plan = v1 === 1 ? curPlan : v0 === 1 ? prevPlan : null;
+        if (v1Plan && (v1Plan.bullets?.length ?? 0) >= 4) {
+          expect(
+            prev.columns,
+            `第 ${prev.index}/${cur.index} 页列数相同，跨页版式轮换未生效`,
+          ).not.toBe(cur.columns);
+        }
       }
 
       // 导出锁：hard 级检查项存在时必须锁住导出

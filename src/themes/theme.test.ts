@@ -5,7 +5,7 @@ import type { Theme } from "@/types/theme";
 describe("resolveTheme 派生", () => {
   it("colors 来自 palette, fonts/spacing 来自 visualStyle", () => {
     const t: Theme = resolveTheme("business-blue", "swiss-minimal");
-    expect(t.colors.primary).toBe("#60A5FA");
+    expect(t.colors.primary).toBe("#2563EB");
     expect(t.fonts.title).toContain("Source Han Sans");
     expect(t.spacing).toBe("airy");
   });

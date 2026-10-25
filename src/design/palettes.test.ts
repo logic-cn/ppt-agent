@@ -26,11 +26,26 @@ describe("内置配色可访问性不变量（WCAG AA）", () => {
   it("内置配色不少于 12 套", () => {
     expect(PALETTES.length).toBeGreaterThanOrEqual(12);
   });
+  it("默认配色（business-blue）：文字压 primary/secondary 横幅的常见构图不触发 deck 级 brand 硬锁", () => {
+    // 端侧模型爱用「text 压 primary/secondary 色块」的横幅构图；该配对
+    // 若 <4.5 会以 brand 级 error 触发导出硬锁（checkAesthetics，
+    // 逐页重画修不动）。7 次端侧实跑中 4 次因此锁导出，故默认色板的
+    // primary 深度被锁定在此审计上——调整默认配色必须过这条线。
+    const p = getPalette("business-blue")!.colors;
+    expect(
+      contrastRatio(hex(p.text), hex(p.primary)),
+      "text 压 primary 需 ≥4.5（横幅内正文）",
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(hex(p.text), hex(p.secondary)),
+      "text 压 secondary 需 ≥3.0（大字号横幅）",
+    ).toBeGreaterThanOrEqual(3.0);
+  });
 });
 
 describe("getPalette 自定义配色", () => {
   it("内置 id 可解析", () => {
-    expect(getPalette("business-blue")?.colors.primary).toBe("#60A5FA");
+    expect(getPalette("business-blue")?.colors.primary).toBe("#2563EB");
   });
   it("自定义 id 在 setCustomPalettes 后可解析", () => {
     const custom: Palette = {

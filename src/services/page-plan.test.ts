@@ -7,7 +7,7 @@ vi.mock("@/services/llm", () => ({
 }));
 
 import { chat } from "@/services/llm";
-import { generatePagePlan } from "@/services/outline";
+import { generatePagePlan, sanitizePlanChartTypes } from "@/services/outline";
 import { DEFAULT_DESIGN } from "@/types/design";
 
 const VALID_PLAN = JSON.stringify({
@@ -23,12 +23,12 @@ const VALID_PLAN = JSON.stringify({
       title: "市场规模与增速",
       intent: "用要点说明市场规模与增长动力",
       bullets: ["市场规模 970 亿美元", "近三年 CAGR 18%", "政策与需求双驱动"],
+      chartType: "bar",
     },
     {
       role: "metrics",
       title: "核心指标",
       intent: "突出关键增长数字",
-      chartType: "bar",
     },
     {
       role: "quote",
@@ -58,7 +58,9 @@ describe("generatePagePlan", () => {
     expect(plan[0].role).toBe("cover");
     expect(plan[5].role).toBe("closing");
     expect(plan[2].bullets).toBeDefined();
-    expect(plan[3].chartType).toBe("bar");
+    // content 是唯一保留 chartType 的角色（sanitizePlanChartTypes）
+    expect(plan[2].chartType).toBe("bar");
+    expect(plan[3].chartType).toBeUndefined();
   });
 
   it("角色分布合理：至少含 cover 与 closing 且首尾正确", async () => {
@@ -125,5 +127,81 @@ describe("generatePagePlan", () => {
     expect(userContent).toContain("表达语气：");
     // options 未提供 pageCount 时回落顶层 8
     expect(userContent).toContain("建议页数：8 页");
+  });
+});
+
+describe("sanitizePlanChartTypes · 角色-图表语义清洗", () => {
+  it("剥除非 content 角色上的 chartType（无图表骨架支撑，端侧实跑失败率最高）", () => {
+    const plan = [
+      {
+        role: "cover" as const,
+        title: "封面",
+        intent: "点题",
+        chartType: "bar" as const,
+      },
+      {
+        role: "section" as const,
+        title: "章节",
+        intent: "过渡",
+        chartType: "line" as const,
+      },
+      {
+        role: "metrics" as const,
+        title: "指标",
+        intent: "强调",
+        chartType: "bar" as const,
+      },
+      {
+        role: "timeline" as const,
+        title: "节奏",
+        intent: "演进",
+        chartType: "doughnut" as const,
+      },
+      {
+        role: "comparison" as const,
+        title: "对比",
+        intent: "并列",
+        chartType: "pie" as const,
+      },
+      {
+        role: "process" as const,
+        title: "流程",
+        intent: "步骤",
+        chartType: "bar" as const,
+      },
+      {
+        role: "closing" as const,
+        title: "结尾",
+        intent: "收束",
+        chartType: "pie" as const,
+      },
+      {
+        role: "quote" as const,
+        title: "金句",
+        intent: "论点",
+        quote: "q",
+        chartType: "doughnut" as const,
+      },
+    ];
+    const cleaned = sanitizePlanChartTypes(plan);
+    for (const item of cleaned) {
+      expect(item.chartType).toBeUndefined();
+      expect("chartType" in item).toBe(false);
+    }
+  });
+
+  it("content 是唯一保留图表语义的角色", () => {
+    const plan = [
+      {
+        role: "content" as const,
+        title: "正文",
+        intent: "展开",
+        chartType: "bar" as const,
+      },
+      { role: "content" as const, title: "论述", intent: "说理" },
+    ];
+    const cleaned = sanitizePlanChartTypes(plan);
+    expect(cleaned[0]!.chartType).toBe("bar");
+    expect("chartType" in cleaned[1]!).toBe(false);
   });
 });

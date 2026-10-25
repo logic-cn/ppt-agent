@@ -20,7 +20,7 @@
 | §10 | Deck schema 迁移与校验 | ✅ 已落地 | `services/storage/{deck-schema,deck-migrations,deck-repair,deck-parse}.ts` |
 | §11 | 安全密钥存储 | ✅ 已落地 | `services/secret-store.ts`（Tauri keychain，Web 降级并显式提示） |
 | §12 | 模板系统产品化 | ✅ 已落地 | 8 个内置模板 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则 + 模板专属提示）；模板级 `scenario`/`audience`/`defaultOptions`（语气/密度/图表倾向）已进入 pagePlan 提示词；模板选择页展示场景/页数/适用对象 |
-| §13 | 测试与质量门禁 | ✅ 已落地 | 671 个测试 + vitest coverage 阈值 + `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI） |
+| §13 | 测试与质量门禁 | ✅ 已落地 | 688 个测试 + vitest coverage 阈值 + `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI） |
 
 **因此，当前后续可做的主线见文末「后续方向」**（§4–§13 均已落地或被取代）。
 
@@ -1304,7 +1304,7 @@ storage.migration.test.ts
 
 | 方向 | 内容 | 备注 |
 |---|---|---|
-| 端侧质量继续打磨 | 实跑已暴露：端侧模型倾向给每个正文页配 `chartType`，导致「无图表连续正文页」稀少 → 跨页版式轮换难以触发 | 见 `scripts/local-e2e/` 报告；可选解法是提示词侧约束图表使用，或给图表页也下发非图表部分骨架。**注意这是产品取舍**：少给图表＝更少虚构数据，但也更少视觉化 |
-| 母版与版式原生化 | 导出具 `p:sldMaster` / `p:sldLayout`（当前仅 `PPT_AGENT_MASTER` 部分字段） | 对标 PPT Master v4 |
+| ~~端侧质量继续打磨~~ ✅ 已落地（2026-10-25） | 实跑暴露的问题已系统性修复：① deck 不以 closing 收尾 → pagePlan grammar 层用元组式 items 锁定 `pages[0]=cover`、`pages[N-1]=closing`（约束解码，确定性）；② 端侧模型给每个正文页配 `chartType` → 轮换不触发 → 图表正文页获得「要点栏 + 图表占位区」确定性骨架（图表 `<g>` 坐标与导出端 `translateChart` 同源），并参与跨页轮换（变体＝图表居右/居左）；③ cover/section/closing/quote 被误配 chartType → `sanitizePlanChartTypes` 确定性剥除（section 骨架与轮换恢复）；④ 默认色板 primary `#60A5FA` 与文字对比 2.32，模型「文字压 primary 横幅」构图 7 跑 4 次触发 deck 级 brand 硬锁 → primary 加深 `#2563EB`（4.72），并以配对审计测试锁住。提示词同步明确「纯论述/纯列表页不配 chartType」→ 收敛为「图表只在正文页」（content 是唯一有图表区骨架的角色）。**产品取舍保留**：未减少图表供给（少图表＝少虚构数据但也少视觉化），如需收紧只改 pagePlan 提示词一处。实跑验证（第 4 轮）：app-default 全链路走通，cover→closing、图表仅在正文页、rotationPairs=[2,3,4] 全触发、brand 硬锁清零 | `services/llm/page-plan-grammar.ts`、`services/outline.ts`、`engine/svg/layout-skeleton.ts`、`engine/svg/executor.ts`、`design/palettes.ts` |
+| 母版与版式原生化 | 导出具 `p:sldMaster` / `p:sldLayout`（当前仅 `PPT_AGENT_MASTER` 部分字段：背景 + 品牌条 + 页码） | 对标 PPT Master v4；完整逐版式 sldLayout 需后处理 OOXML 包件，工程量大，排期参考 |
 | 富媒体扩展 | 旁白音频 / 视频导出、LaTeX 公式渲染、超链接创作 | 对标 PPT Master；工程量大，按需 |
 | 跨渲染器保真 | 图表默认 SVG vs PowerPoint 原生图表的路线取舍 | 当前选「可编辑优先」（原生图表默认开启），与 PPT Master 相反，是明确的产品决策 |

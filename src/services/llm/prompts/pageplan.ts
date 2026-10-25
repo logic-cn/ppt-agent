@@ -71,7 +71,7 @@ export function buildPagePlanSystemPrompt(opts: {
     let slim = `你是 PPT 结构策划。叙事模式「${mode.name}」，视觉风格「${style.name}」。只规划页面结构，不写 SVG。
 
 每页选一个语义角色：cover(封面，第一页) / section(章节页) / content(正文) / metrics(核心数字) / quote(金句) / timeline(时间线) / comparison(对比) / process(流程) / closing(结尾，最后一页)。
-混用多种角色，避免连续同角色。涉及数据/趋势优先 metrics/comparison/timeline 并给 chartType。
+混用多种角色，避免连续同角色。涉及数据/趋势的内容优先放正文页并给 chartType；metrics/comparison/timeline 等结构角色与纯论述页不配 chartType。
 ${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.options?.language ? "输出使用 English。" : "语言与用户输入一致。"}
 
 只输出合法 JSON 对象：{"pages":[{"role":"...","title":"...","intent":"一句话意图","bullets":["..."],"chartType":"bar|pie|line|doughnut","quote":"...","attribution":"...","notes":"讲稿正文"}]}（bullets/chartType/quote/attribution 可省略；notes 写 80-120 字口语化讲稿，串联本页要点、点明 so-what 并自然过渡到下一页）`;
@@ -118,7 +118,7 @@ ${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.opti
 - "cover"：封面（必须是第一页）
 - "section"：章节过渡页
 - "content"：普通正文（含列表/论述）
-- "metrics"：核心数字海报（突出一个关键指标，配 chartType 或数值）
+- "metrics"：核心数字海报（突出一个关键指标，用大数字与 KPI 卡承载）
 - "quote"：金句 / 核心论点（quote 字段，可选 attribution）
 - "timeline"：时间线 / 阶段走势（按时间或阶段演进）
 - "comparison"：对比 / 并列两组内容
@@ -128,7 +128,7 @@ ${opts.options?.language === "zh-CN" ? "全部输出使用中文。" : opts.opti
 ## 强约束
 1. 第一页必须为 "cover"，最后一页必须为 "closing"。
 2. 根据内容逻辑关系**混用多种角色**，避免连续多页同一角色。
-3. 涉及数据/对比/趋势时，优先用 metrics / comparison / timeline 并给出 chartType。
+3. 图表只出现在正文页：涉及数据/对比/趋势的内容优先安排到 content 角色并给出 chartType；metrics / comparison / timeline 等结构角色不配 chartType。
 ${langRule}
 ${obligationBlock}
 
@@ -219,7 +219,7 @@ export function buildPagePlanUserPrompt(params: {
   if (options.includeCharts === false) {
     parts.push("图表倾向：尽量避免图表页，不要输出 chartType");
   } else if (options.includeCharts === true) {
-    parts.push("图表倾向：涉及数据/对比/趋势的页面优先给出 chartType");
+    parts.push("图表倾向：涉及数据/对比/趋势的正文页优先给出 chartType");
   }
 
   parts.push(

@@ -505,6 +505,18 @@ mod tests {
         assert!(gbnf.contains("merge_slides"));
     }
 
+    /// pagePlan「恰好 N 页 + 首尾角色锁定」的元组式 items（数组形式 items）必须可转
+    /// grammar——这是端侧 deck 以 closing 收尾（require_closing）的确定性保证。
+    /// fixture 为 buildPagePlanJsonSchema(4) 的真实产物快照。
+    #[test]
+    fn page_plan_tuple_schema_converts_to_grammar() {
+        let schema = include_str!("../../tests/page_plan_tuple_schema.json");
+        let gbnf = json_schema_to_grammar(schema).expect("元组式 pagePlan schema 应能转为 GBNF");
+        assert!(gbnf.contains("root"));
+        assert!(gbnf.contains("cover"));
+        assert!(gbnf.contains("closing"));
+    }
+
     #[test]
     fn json_top_closer_detects_object_completion() {
         let mut c = JsonTopCloser::new();
