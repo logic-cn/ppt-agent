@@ -52,6 +52,17 @@ function num(value: string | null | undefined, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * CSS 字体栈 → OOXML 单一字体名：`'Source Han Sans CN', sans-serif` →
+ * `Source Han Sans CN`。OOXML 的 typeface 属性不接受字体栈（引号与逗号
+ * 会让 PowerPoint 视为未知字体而回退默认），SVG 侧合法的写法在此边界归一。
+ */
+export function ooxmlFontFace(fontFamily: string | null | undefined): string {
+  const first = (fontFamily ?? "").split(",")[0]?.trim() ?? "";
+  const unquoted = first.replace(/^['"]+|['"]+$/g, "").trim();
+  return unquoted || "Arial";
+}
+
 // ---- transform（P1-1）----
 
 interface Transform {
@@ -735,7 +746,7 @@ function translateTextLike(
     fontSize: toPt(fontSizePx),
     color: fill.color,
     transparency: transparencyFromChain(el),
-    fontFace: attr("font-family") ?? "Arial",
+    fontFace: ooxmlFontFace(attr("font-family")),
     bold: isBold(attr("font-weight")),
     align: anchor,
     valign: "top",

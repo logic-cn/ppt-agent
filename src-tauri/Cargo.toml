@@ -5,6 +5,9 @@ description = "轻量级 AI PPT 工作站"
 authors = ["PPT Agent"]
 edition = "2021"
 rust-version = "1.77"
+# src/bin/llm_headless.rs（端侧实跑 harness 的无头推理侧）使 crate 有两个
+# bin，tauri build 需要显式指定主二进制
+default-run = "ppt-agent"
 
 [lib]
 name = "ppt_agent_lib"

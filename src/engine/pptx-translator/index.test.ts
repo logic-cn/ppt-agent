@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type PptxGenJS from "pptxgenjs";
 import { translateSvgToSlide } from "./elements";
 import { classifyPath, parseTransformAttr } from "./elements";
-import { svgToPptx, defineDeckMaster } from "./index";
+import { svgToPptx, defineDeckMasters, roleMasterForLayout } from "./index";
 import { collectDefs, resolveFill } from "./gradient";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { buildSpecLock } from "@/design/spec-lock";
@@ -920,8 +920,8 @@ describe("svgToPptx", () => {
   });
 });
 
-describe("defineDeckMaster（B3 原生母版）", () => {
-  it("用设计锁定义母版：背景/品牌条/页码字段，并返回母版名", () => {
+describe("defineDeckMasters（B3 原生母版 · 逐角色版式）", () => {
+  it("按语义角色定义 4 个母版：首尾仅背景、章节带品牌条、正文带品牌条与页码", () => {
     const calls: { title: string; props: unknown }[] = [];
     const pptx = {
       defineSlideMaster: vi.fn((props: { title: string }) => {
@@ -929,23 +929,55 @@ describe("defineDeckMaster（B3 原生母版）", () => {
       }),
     } as unknown as PptxGenJS;
     const specLock = buildSpecLock(DEFAULT_DESIGN);
-    const name = defineDeckMaster(pptx, specLock, { w: 13.3333, h: 7.5 });
+    defineDeckMasters(pptx, specLock, { w: 13.3333, h: 7.5 });
 
-    expect(name).toBe("PPT_AGENT_MASTER");
-    expect(calls[0].title).toBe("PPT_AGENT_MASTER");
-    const props = calls[0].props as {
-      background: { color: string };
-      objects: { rect: { fill: { color: string } } }[];
-      slideNumber: { color: string };
-    };
-    expect(props.background.color).toBe(
-      specLock.colors.background.replace("#", ""),
+    expect(calls.map((c) => c.title)).toEqual([
+      "PPT_AGENT_COVER",
+      "PPT_AGENT_SECTION",
+      "PPT_AGENT_CONTENT",
+      "PPT_AGENT_CLOSING",
+    ]);
+    const byTitle = Object.fromEntries(
+      calls.map((c) => [
+        c.title,
+        c.props as {
+          background: { color: string };
+          objects?: { rect: { fill: { color: string } } }[];
+          slideNumber?: { color: string };
+        },
+      ]),
     );
-    expect(props.objects[0].rect.fill.color).toBe(
+    for (const props of Object.values(byTitle)) {
+      expect(props.background.color).toBe(
+        specLock.colors.background.replace("#", ""),
+      );
+    }
+    // cover/closing：重氛围，无品牌条与页码
+    expect(byTitle.PPT_AGENT_COVER.objects).toBeUndefined();
+    expect(byTitle.PPT_AGENT_COVER.slideNumber).toBeUndefined();
+    expect(byTitle.PPT_AGENT_CLOSING.objects).toBeUndefined();
+    expect(byTitle.PPT_AGENT_CLOSING.slideNumber).toBeUndefined();
+    // section：品牌条、无页码
+    expect(byTitle.PPT_AGENT_SECTION.objects?.[0]?.rect.fill.color).toBe(
       specLock.colors.accent.replace("#", ""),
     );
-    expect(props.slideNumber.color).toBe(
+    expect(byTitle.PPT_AGENT_SECTION.slideNumber).toBeUndefined();
+    // content：品牌条 + 页码
+    expect(byTitle.PPT_AGENT_CONTENT.objects?.[0]?.rect.fill.color).toBe(
+      specLock.colors.accent.replace("#", ""),
+    );
+    expect(byTitle.PPT_AGENT_CONTENT.slideNumber?.color).toBe(
       specLock.colors.textMuted.replace("#", ""),
     );
+  });
+
+  it("roleMasterForLayout：首尾/章节版式映射角色母版，其余一律正文母版", () => {
+    expect(roleMasterForLayout("cover")).toBe("PPT_AGENT_COVER");
+    expect(roleMasterForLayout("section")).toBe("PPT_AGENT_SECTION");
+    expect(roleMasterForLayout("closing")).toBe("PPT_AGENT_CLOSING");
+    expect(roleMasterForLayout("content")).toBe("PPT_AGENT_CONTENT");
+    expect(roleMasterForLayout("two-column")).toBe("PPT_AGENT_CONTENT");
+    expect(roleMasterForLayout("chart")).toBe("PPT_AGENT_CONTENT");
+    expect(roleMasterForLayout(undefined)).toBe("PPT_AGENT_CONTENT");
   });
 });
