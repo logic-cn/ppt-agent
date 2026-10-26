@@ -42,13 +42,13 @@ pnpm tauri:build
 应用已接入 Tauri updater（设置 → 通用 → 关于与更新，可检查并安装更新）。发布由 tag 驱动：
 
 1. **同步版本号**：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处保持一致。
-2. **配置仓库 Secrets**（Settings → Secrets and variables → Actions）：
+2. **配置 `release` 环境 Secrets**（Settings → Environments → release → Environment secrets）：
    - `TAURI_SIGNING_PRIVATE_KEY`：签名私钥文件内容（`src-tauri/updater.key`，已 gitignore）
    - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：私钥密码
 3. **推送 tag**：`git tag v0.1.0 && git push origin v0.1.0`。
-4. **检查 draft release**：`.github/workflows/release.yml` 会构建 macOS（arm64 / x86_64）、Linux、Windows 产物，签名 updater 包，上传 `.sig` 与 `latest.json`，并创建 draft release。确认产物无误后手动发布。
+4. **检查 draft release**：`.github/workflows/release.yml` 会构建 macOS（arm64 / x86_64）、Linux、Windows 产物，签名 updater 包，上传 `.sig` 与 `latest.json`，并创建 draft release。该 job 使用受保护的 `release` 环境（仅 `v*` tag 可访问签名密钥）。确认产物无误后手动发布。
 
-> **签名密钥从哪来**：`src-tauri/updater.key` 的完整内容就是 `TAURI_SIGNING_PRIVATE_KEY`。建议用 `gh secret set TAURI_SIGNING_PRIVATE_KEY < src-tauri/updater.key` 直接写入，避免密钥出现在终端；也可用 `pbcopy < src-tauri/updater.key` 复制后粘贴到 GitHub Secrets。密码是执行 `pnpm tauri signer generate` 时设置的，不会存进密钥文件，需从密码保管处获取；用 `gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 交互式录入。若密码遗失，可在首次正式发布前轮换密钥对：备份旧文件后执行 `pnpm tauri signer generate -w src-tauri/updater.key -f`，把新公钥写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`，再更新两个 Secrets。已发布后轮换密钥会导致旧版本无法验证新更新。
+> **签名密钥从哪来**：`src-tauri/updater.key` 的完整内容就是 `TAURI_SIGNING_PRIVATE_KEY`。建议用 `gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < src-tauri/updater.key` 直接写入，避免密钥出现在终端；也可用 `pbcopy < src-tauri/updater.key` 复制后粘贴到 `release` 环境 Secrets。密码是执行 `pnpm tauri signer generate` 时设置的，不会存进密钥文件，需从密码保管处获取；用 `gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release` 交互式录入。若密码遗失，可在首次正式发布前轮换密钥对：备份旧文件后执行 `pnpm tauri signer generate -w src-tauri/updater.key -f`，把新公钥写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`，再更新两个环境 Secrets。已发布后轮换密钥会导致旧版本无法验证新更新。
 
 发布后，更新端点为 `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`；其中 `version` 高于当前安装版本时，用户端即可检测到更新。
 
