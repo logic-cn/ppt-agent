@@ -116,6 +116,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # llama.cpp 的 std::filesystem 要求 macOS 10.15+，与 bundle.macOS.minimumSystemVersion 对齐
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
+          CMAKE_OSX_DEPLOYMENT_TARGET: "10.15"
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "PPT Agent ${{ github.ref_name }}"
