@@ -1310,3 +1310,5 @@ storage.migration.test.ts
 | 跨渲染器保真 | 图表默认 SVG vs PowerPoint 原生图表的路线取舍 | 当前选「可编辑优先」（原生图表默认开启），与 PPT Master 相反，是明确的产品决策 |
 
 > **上线打包状态（2026-10-25）**：Tauri 双侧依赖已对齐（tauri 2.12 / dialog 2.8 / fs 2.7 / updater 2.14，crate 与 npm 同 minor）；`llm_headless` 双 bin 场景已在 Cargo.toml 声明 `default-run`。`.app` 产物可正常产出（ad-hoc 签名、Info.plist 校验通过）。两个环境相关事项：① DMG 的 create-dmg 依赖 Finder AppleScript，无 GUI 会话下会超时，可用 `hdiutil create -volname "PPT Agent" -srcfolder <app> -format UDZO <dmg>` 直接产出（已验证 CRC）；② updater 工件（.app.tar.gz）签名需要维护者提供 `TAURI_SIGNING_PRIVATE_KEY`，属发布机密，不入库。
+>
+> **发布自动化（2026-10-26）**：已新增 `.github/workflows/ci.yml`（format / typecheck / test / build）与 `.github/workflows/release.yml`（`v*` tag 触发，跨平台构建、updater 签名、`latest.json` 生成、draft release）。签名私钥与密码需配置为仓库 Secrets；首个正式 tag 尚未推送，macOS 以外的产物仍待首次发布实跑验证。

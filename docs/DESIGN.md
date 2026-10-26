@@ -1,5 +1,10 @@
 # PPT Agent 设计方案
 
+> **文档状态（2026-10-26）**：本文是 M1–M11 阶段的原始设计稿，保留作历史参考。
+> 当前实现已演进为 X1「SVG 设计真相 + 原生 PPTX 翻译」：预览直接内联渲染 SVG，导出逐元素翻译为原生 PPTX 对象；
+> 本文中的 HTML 预览 / chart.js 截图导出、RenderIR 全量迁移计划均已不再适用。
+> 现行架构请以 README 的「X1 架构」与 `docs/FUNCTIONAL_ARCHITECTURE_ROADMAP.md` 为准。
+
 ## 一、产品定位
 
 **一句话**：本地运行的轻量级 AI PPT 工作站，左侧大纲编辑、中间实时预览、右侧 AI 对话，一键导出可编辑的 `.pptx`。
