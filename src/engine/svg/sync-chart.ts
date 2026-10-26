@@ -480,6 +480,20 @@ function renderChart(chart: ChartSpec, box: Box, specLock: SpecLock): string {
   return parts.join("");
 }
 
+/**
+ * data-chart-data 必须保持「单引号 + 原始 JSON」的仓库契约：
+ * checker 的 attrQuoted 与 deck-quality 的 extractChartValues 都用正则直接取
+ * 属性值做 JSON.parse，不做 XML 实体解码——双引号转义写法会让质量闸门
+ * 误报「图表数据非法 JSON」并静默关闭 B4 事实校准。
+ */
+function chartDataAttr(data: Array<{ label: string; value: number }>): string {
+  const json = JSON.stringify(data)
+    .replace(/'/g, "\\u0027")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;");
+  return `'${json}'`;
+}
+
 function buildAttrs(original: string, chart: ChartSpec, box: Box): string {
   const attrs = parseAttrs(original);
   delete attrs.x;
@@ -502,14 +516,14 @@ function buildAttrs(original: string, chart: ChartSpec, box: Box): string {
     width: String(box.w),
     height: String(box.h),
     "data-chart-type": chart.type,
-    "data-chart-data": JSON.stringify(data),
   };
   if (chart.title?.trim()) {
     merged["data-chart-title"] = chart.title.trim();
   }
-  return Object.entries(merged)
+  const base = Object.entries(merged)
     .map(([key, value]) => ` ${key}="${escapeXml(value)}"`)
     .join("");
+  return `${base} data-chart-data=${chartDataAttr(data)}`;
 }
 
 /**

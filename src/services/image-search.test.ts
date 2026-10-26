@@ -172,6 +172,36 @@ describe("embedImageIntoSvg", () => {
     expect(twice).not.toContain("base64,AAA");
   });
 
+  it("底图插在全幅背景矩形之上、页面内容之下", () => {
+    const page = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><linearGradient id="g"/></defs><rect width="1280" height="720" fill="#0F172A"/><rect x="40" y="40" width="1200" height="640" fill="#111827"/><text x="80" y="120" fill="#FFF">标题</text></svg>`;
+    const out = embedImageIntoSvg(page, "data:image/png;base64,AAA");
+    const bgIdx = out.indexOf('fill="#0F172A"');
+    const imageIdx = out.indexOf("<image");
+    const cardIdx = out.indexOf('fill="#111827"');
+    const textIdx = out.indexOf("<text");
+    expect(bgIdx).toBeLessThan(imageIdx);
+    expect(imageIdx).toBeLessThan(cardIdx);
+    expect(cardIdx).toBeLessThan(textIdx);
+  });
+
+  it("首个元素不是背景矩形时底图仍在最前", () => {
+    const page = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect x="100" y="100" width="200" height="200" fill="#111"/><text x="80" y="120">标题</text></svg>`;
+    const out = embedImageIntoSvg(page, "data:image/png;base64,AAA");
+    expect(out.indexOf("<image")).toBeLessThan(out.indexOf('x="100"'));
+  });
+
+  it("背景页重复嵌入仍替换且保持在背景之上", () => {
+    const page = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="1280" height="720" fill="#0F172A"/></svg>`;
+    const twice = embedImageIntoSvg(
+      embedImageIntoSvg(page, "data:image/png;base64,AAA"),
+      "data:image/png;base64,BBB",
+    );
+    expect((twice.match(/<image/g) ?? []).length).toBe(1);
+    expect(twice.indexOf("<image")).toBeGreaterThan(
+      twice.indexOf('fill="#0F172A"'),
+    );
+  });
+
   it("移除嵌入层后恢复原页面内容", () => {
     const embedded = embedImageIntoSvg(svg, "data:image/png;base64,AAA", {
       attribution: "Ann / flickr · BY 4.0",

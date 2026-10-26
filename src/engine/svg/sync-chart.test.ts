@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SpecLock } from "@/design/spec-lock";
 import type { ChartSpec } from "@/types/deck";
+import { checkChartData } from "@/engine/svg/quality/checker";
+import { extractChartValues } from "@/services/quality/deck-quality";
 import {
   removeChartFromSvg,
   svgHasChartGroup,
@@ -98,8 +100,21 @@ describe("syncChartInSvg", () => {
 
   it("空数据渲染占位符而不是非法图表", () => {
     const result = syncChartInSvg(baseSvg, chart({ data: [] }), spec);
-    expect(result.svg).toContain('data-chart-data="[]"');
+    expect(result.svg).toContain("data-chart-data='[]'");
     expect(result.svg).toContain("—");
+  });
+
+  it("产物可被质量闸门与 B4 事实校准直接解析（正则消费者不做实体解码）", () => {
+    const result = syncChartInSvg(baseSvg, chart(), spec);
+    expect(checkChartData(result.svg)).toHaveLength(0);
+    expect(extractChartValues(result.svg)).toEqual([12, 20, 8]);
+  });
+
+  it("data-chart-data 使用单引号包裹原始 JSON（仓库契约）", () => {
+    const result = syncChartInSvg(baseSvg, chart(), spec);
+    expect(result.svg).toContain(
+      `data-chart-data='[{"label":"一月","value":12},{"label":"二月","value":20},{"label":"三月","value":8}]'`,
+    );
   });
 });
 

@@ -434,6 +434,7 @@ export const zh: Record<TranslationKey, string> = {
   "inspector.imageAltFallback": "图片",
   "inspector.imageUploadType": "请选择图片文件",
   "inspector.imageTooLarge": "图片超过 8MB，请换一张",
+  "inspector.imageEmbedFailed": "页面 SVG 结构异常，无法嵌入图片",
   "inspector.notesHint": "演讲者备注会导出到 PPTX 的 Speaker Notes 中。",
   "inspector.notesPlaceholder": "输入演讲者备注…",
 

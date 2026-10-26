@@ -460,6 +460,8 @@ export const en = {
   "inspector.imageAltFallback": "Image",
   "inspector.imageUploadType": "Please choose an image file",
   "inspector.imageTooLarge": "Image exceeds 8 MB; choose another one",
+  "inspector.imageEmbedFailed":
+    "Page SVG is malformed; the image could not be embedded",
   "inspector.notesHint": "Speaker notes export to PPTX Speaker Notes.",
   "inspector.notesPlaceholder": "Type speaker notes…",
 

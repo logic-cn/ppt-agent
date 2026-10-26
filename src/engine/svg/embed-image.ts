@@ -42,12 +42,60 @@ export function removeEmbeddedImageFromSvg(svg: string): string {
   return stripEmbeddedLayers(svg);
 }
 
+function tagAttrs(tag: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const re = /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tag)) !== null) attrs[m[1]] = m[2] ?? m[3] ?? "";
+  return attrs;
+}
+
+/** 生成页常以一条铺满画布的不透明 rect 作页面底色——底图必须画在它之上 */
+function isFullBleedOpaqueRect(
+  tag: string,
+  canvas: { w: number; h: number },
+): boolean {
+  const a = tagAttrs(tag);
+  if (Number(a.x ?? 0) > 1 || Number(a.y ?? 0) > 1) return false;
+  if (Number(a.width ?? 0) < canvas.w - 1) return false;
+  if (Number(a.height ?? 0) < canvas.h - 1) return false;
+  const fill = (a.fill ?? "").trim().toLowerCase();
+  if (fill === "" || fill === "none") return false;
+  const opacity = Number(a["fill-opacity"] ?? a.opacity ?? 1);
+  return !(Number.isFinite(opacity) && opacity <= 0);
+}
+
+/** 跳过前导 defs/style/注释与全幅不透明背景矩形，返回底图插入偏移 */
+function findLayerOffset(
+  body: string,
+  canvas: { w: number; h: number },
+): number {
+  let offset = 0;
+  for (;;) {
+    const ws = body.slice(offset).match(/^\s+/);
+    if (ws) offset += ws[0].length;
+    const m = body
+      .slice(offset)
+      .match(
+        /^(<!--[\s\S]*?-->|<defs\b[\s\S]*?<\/defs>|<style\b[\s\S]*?<\/style>|<rect\b[^>]*>)/,
+      );
+    if (!m) return offset;
+    const tag = m[0];
+    if (tag.startsWith("<rect")) {
+      if (!isFullBleedOpaqueRect(tag, canvas)) return offset;
+      offset += tag.length;
+      continue;
+    }
+    offset += tag.length;
+  }
+}
+
 /**
  * 在页面 SVG 底层嵌入图片：
  * <image>（preserveAspectRatio slice 铺满画布）+ 底色 45% 遮罩，
- * 两层均带 data-embed="web" 标记——重复嵌入会先移除旧层（替换语义）。
- * 图片插在根元素第一个子节点之前——位于全部内容之下，文字与图形保持可读。
- * 嵌入后跑一遍 checkSvg 确认未引入越界等问题；契约不允许的 href 由调用方保证为 data:。
+ * 两层均带 data-embed 标记——重复嵌入会先移除旧层（替换语义）。
+ * 插入点在全幅背景矩形之后、页面内容之前：图片盖住底色但不遮挡文字与图形，
+ * 翻译器按文档序绘制，预览与导出一致。
  */
 export function embedImageIntoSvg(
   svg: string,
@@ -74,9 +122,9 @@ export function embedImageIntoSvg(
       `fill="#FFFFFF" fill-opacity="0.8" ${EMBED_MARK}>${escapeAttr(`© ${opts.attribution.trim()}`)}</text>`;
   }
   const root = rootMatch[1];
-  const body = svg.slice(root.length);
-  // 新层插在最前（位于全部内容之下），并移除旧的嵌入层（替换语义）
-  return root + layer + stripEmbeddedLayers(body);
+  const body = stripEmbeddedLayers(svg.slice(root.length));
+  const offset = findLayerOffset(body, { w, h });
+  return root + body.slice(0, offset) + layer + body.slice(offset);
 }
 
 /** 嵌入后校验：返回 error 级问题（供调用方决定是否回滚） */

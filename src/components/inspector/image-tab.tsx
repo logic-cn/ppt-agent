@@ -155,6 +155,10 @@ export function ImageTab({ slide, onUpdate }: Props) {
 
   const applyImage = (spec: ImageSpec, dataUrl: string) => {
     if (slide.svg) {
+      if (!/^\s*<svg\b/i.test(slide.svg)) {
+        setError(t("inspector.imageEmbedFailed"));
+        return;
+      }
       onUpdate({
         image: spec,
         svg: embedImageIntoSvg(slide.svg, dataUrl, {
