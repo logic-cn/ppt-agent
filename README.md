@@ -11,9 +11,10 @@ A lightweight AI PPT workstation — runs locally and generates editable `.pptx`
 - 📝 **Outline editor**: drag to reorder, nested bullets, live preview.
 - 🎨 **Design system**: 12 built-in palettes × 12 visual styles, plus custom palettes.
 - 📊 **Native charts**: bar / line / pie charts that remain editable in PowerPoint.
-- 🖼️ **Images** (optional): openly licensed image search via Openverse, applied to a slide from the inspector with one click.
+- 🖼️ **Images** (optional): openly licensed image search via Openverse, or a direct URL / local upload, applied to a slide from the inspector with one click.
 - 📄 **Document import**: Word / Markdown / PDF / URL → PPT.
 - 💾 **Local storage**: project data is stored locally for privacy.
+- 🗂️ **Project backup**: export / import a project as JSON for migration and recovery.
 - 🔌 **Multi-model support**: OpenAI / Claude / Qwen / Zhipu GLM.
 - 🌐 **Multilingual**: switch between Chinese and English instantly; the preference is persisted.
 - 🌙 **Dark mode**: light / dark / follow system.
@@ -51,6 +52,8 @@ The app integrates the Tauri updater (Settings → General → About & Updates; 
 > **Where the signing key comes from**: the full contents of `src-tauri/updater.key` are `TAURI_SIGNING_PRIVATE_KEY`. Prefer `gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < src-tauri/updater.key` to avoid exposing the key in the terminal; you can also `pbcopy < src-tauri/updater.key` and paste it into the `release` environment secrets. The password is set when you run `pnpm tauri signer generate`; it is not stored in the key file, so retrieve it from your password vault. Use `gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release` to enter it interactively. If the password is lost, rotate the keypair before the first official release: back up the old files, run `pnpm tauri signer generate -w src-tauri/updater.key -f`, write the new public key into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, and update both environment secrets. Rotating the key after a release prevents older versions from verifying new updates.
 
 After publishing, the update endpoint is `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`; when its `version` is higher than the installed version, clients detect an update.
+
+> **Release status (2026-10-26)**: v0.1.0 is published with macOS (arm64 / x86_64), Linux (deb / AppImage) and Windows (NSIS / MSI) artifacts, updater signatures, and `latest.json`. Windows installers are not code-signed, so SmartScreen may warn. Installer launch and auto-update on Windows/Linux still need manual verification before the next release.
 
 Local signed build:
 
@@ -113,7 +116,6 @@ Without any API key, the app uses the embedded llama.cpp (CPU inference) to driv
 - **PPT generation**: PptxGenJS
 - **LLM integration**: OpenAI SDK (compatible with multiple providers)
 - **Charts**: PptxGenJS native charts
-- (Recent improvements: svgStale sync, chart quality gate, single-slide redraw toast)
 
 ## Project structure
 
@@ -141,7 +143,7 @@ pnpm build            # frontend build
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs `format:check`, `typecheck`, `test` (with coverage thresholds), and the frontend build on pushes to `main` and on pull requests. See "Auto-update and releases" above for the release flow.
+`.github/workflows/ci.yml` runs `format:check`, `typecheck`, `test` (with coverage thresholds), and the frontend build on pushes to `main` and on pull requests, plus a `cargo fmt --check` + `cargo test` job for the Rust backend. See "Auto-update and releases" above for the release flow.
 
 ## X1 architecture: SVG design-truth pipeline
 

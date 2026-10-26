@@ -1,12 +1,17 @@
-import { useState, useRef } from "react";
-import { Trash2, Search } from "lucide-react";
-import type { Slide, ImageSource, ImageSpec } from "@/types/deck";
+import { useEffect, useRef, useState } from "react";
+import { Trash2, Search, Upload, Loader2 } from "lucide-react";
+import type { Slide, ImageSpec } from "@/types/deck";
 import {
   searchWebImages,
   fetchImageAsDataUrl,
+  blobToDataUrl,
+  MAX_IMAGE_BYTES,
   type WebImage,
 } from "@/services/image-search";
-import { embedImageIntoSvg } from "@/engine/svg/embed-image";
+import {
+  embedImageIntoSvg,
+  removeEmbeddedImageFromSvg,
+} from "@/engine/svg/embed-image";
 import { useSettingsStore } from "@/store/settings";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
@@ -82,6 +87,7 @@ function WebImageSearchPanel({
             if (e.key === "Enter") void handleSearch();
           }}
           placeholder={t("inspector.imageSearchPlaceholder")}
+          aria-label={t("inspector.imageSearchPlaceholder")}
           className="flex-1 rounded-lg border border-border bg-bg-elevated px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
         />
         <button
@@ -108,7 +114,7 @@ function WebImageSearchPanel({
             key={img.url}
             onClick={() => void handleApply(img)}
             disabled={applying !== null}
-            title={`${img.attribution}（点击使用）`}
+            title={img.attribution}
             className="group relative aspect-video overflow-hidden rounded-md border border-border hover:border-accent disabled:opacity-50"
           >
             <img
@@ -134,158 +140,286 @@ interface Props {
 
 export function ImageTab({ slide, onUpdate }: Props) {
   const t = useT();
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const urlTimer = useRef<ReturnType<typeof setTimeout>>();
-
   const image = slide.image;
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [urlDraft, setUrlDraft] = useState("");
+  const [busy, setBusy] = useState<"url" | "upload" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
-  const handleWebApply = (img: ImageSpec, dataUrl: string) => {
+  useEffect(() => {
+    setUrlDraft(image?.url && !image.url.startsWith("data:") ? image.url : "");
+    setError(null);
+    setConfirmDelete(false);
+  }, [slide.id, image?.url]);
+
+  const applyImage = (spec: ImageSpec, dataUrl: string) => {
     if (slide.svg) {
-      // X1 页面：确定性嵌入为底层画面 + 遮罩（不经 LLM，走 undo 历史）
       onUpdate({
-        image: img,
+        image: spec,
         svg: embedImageIntoSvg(slide.svg, dataUrl, {
-          attribution: img.attribution,
+          attribution: spec.attribution,
         }),
+        svgStale: slide.svgStale,
       });
     } else {
-      onUpdate({ image: img });
+      onUpdate({ image: spec });
     }
   };
 
-  if (!image) {
-    return (
-      <div className="space-y-3 p-3 text-sm text-text-muted">
-        <div className="text-center">{t("inspector.imageEmpty")}</div>
-        <WebImageSearchPanel onApply={handleWebApply} />
-      </div>
-    );
-  }
+  const handleWebApply = (spec: ImageSpec, dataUrl: string) => {
+    setError(null);
+    applyImage(spec, dataUrl);
+  };
+
+  const handleApplyUrl = async () => {
+    const url = urlDraft.trim();
+    if (!url || busy) return;
+    setBusy("url");
+    setError(null);
+    try {
+      const dataUrl = url.startsWith("data:")
+        ? url
+        : await fetchImageAsDataUrl(url);
+      applyImage(
+        {
+          type: "url",
+          url: dataUrl,
+          alt: image?.alt || t("inspector.imageAltFallback"),
+          position: image?.position ?? "background",
+        },
+        dataUrl,
+      );
+      setUrlDraft("");
+    } catch (e) {
+      setError(
+        t("inspector.imageApplyFailed", { error: (e as Error).message }),
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError(t("inspector.imageUploadType"));
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError(t("inspector.imageTooLarge"));
+      return;
+    }
+    setBusy("upload");
+    setError(null);
+    try {
+      const dataUrl = await blobToDataUrl(file);
+      applyImage(
+        {
+          type: "url",
+          url: dataUrl,
+          alt: image?.alt || file.name || t("inspector.imageAltFallback"),
+          position: image?.position ?? "background",
+        },
+        dataUrl,
+      );
+    } catch (e) {
+      setError(
+        t("inspector.imageApplyFailed", { error: (e as Error).message }),
+      );
+    } finally {
+      setBusy(null);
+      if (uploadRef.current) uploadRef.current.value = "";
+    }
+  };
+
+  const handleDelete = () => {
+    if (slide.svg) {
+      onUpdate({
+        image: undefined,
+        svg: removeEmbeddedImageFromSvg(slide.svg),
+        svgStale: slide.svgStale,
+      });
+    } else {
+      onUpdate({ image: undefined });
+    }
+    setConfirmDelete(false);
+  };
 
   return (
-    <div className="space-y-3 text-sm">
-      <div>
-        <label className="mb-1 block text-xs text-text-muted">
-          {t("inspector.imageSource")}
-        </label>
-        <select
-          value={image.type}
-          onChange={(e) =>
-            onUpdate({
-              image: { ...image, type: e.target.value as ImageSource },
-            })
-          }
-          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-        >
-          <option value="url">URL</option>
-          <option value="ai">{t("inspector.imageSourceAi")}</option>
-          <option value="icon">{t("inspector.imageSourceIcon")}</option>
-        </select>
-      </div>
+    <div className="space-y-3 p-3 text-sm">
+      {image ? (
+        <>
+          {image.url && (
+            <div className="overflow-hidden rounded-lg border border-border">
+              <img
+                src={image.url}
+                alt={image.alt}
+                className="h-32 w-full object-cover"
+              />
+            </div>
+          )}
 
-      <div>
-        <label className="mb-1 block text-xs text-text-muted">
-          {t("inspector.imageUrl")}
-        </label>
-        <input
-          value={image.url ?? ""}
-          onChange={(e) => {
-            const url = e.target.value;
-            if (urlTimer.current) clearTimeout(urlTimer.current);
-            urlTimer.current = setTimeout(() => {
-              onUpdate({ image: { ...image, url: url || undefined } });
-            }, 300);
-          }}
-          placeholder="https://example.com/image.png"
-          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-        />
-      </div>
+          {image.url?.startsWith("data:") && (
+            <p className="text-[10px] text-text-muted">
+              {t("inspector.imageEmbedded")}
+            </p>
+          )}
 
-      {image.url && (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <img
-            src={image.url}
-            alt={image.alt}
-            className="h-32 w-full object-cover"
-          />
+          <div>
+            <label className="mb-1 block text-xs text-text-muted">
+              {t("inspector.imageAlt")}
+            </label>
+            <input
+              value={image.alt}
+              onChange={(e) =>
+                onUpdate({ image: { ...image, alt: e.target.value } })
+              }
+              aria-label={t("inspector.imageAlt")}
+              className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+            />
+          </div>
+
+          {!slide.svg && (
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">
+                {t("inspector.imagePosition")}
+              </label>
+              <select
+                value={image.position ?? "full"}
+                onChange={(e) =>
+                  onUpdate({
+                    image: {
+                      ...image,
+                      position: e.target.value as
+                        "full" | "right" | "background",
+                    },
+                  })
+                }
+                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+              >
+                {POSITION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {t(opt.label)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {image.attribution && (
+            <p className="text-[10px] leading-relaxed text-text-muted">
+              © {image.attribution}
+            </p>
+          )}
+        </>
+      ) : (
+        <div className="text-center text-text-muted">
+          {t("inspector.imageEmpty")}
         </div>
       )}
 
-      <div>
-        <label className="mb-1 block text-xs text-text-muted">
-          {t("inspector.imageAlt")}
-        </label>
-        <input
-          value={image.alt}
-          onChange={(e) =>
-            onUpdate({ image: { ...image, alt: e.target.value } })
-          }
-          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs text-text-muted">
-          {t("inspector.imagePosition")}
-        </label>
-        <select
-          value={image.position ?? "full"}
-          onChange={(e) =>
-            onUpdate({
-              image: {
-                ...image,
-                position: e.target.value as "full" | "right" | "background",
-              },
-            })
-          }
-          className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-        >
-          {POSITION_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {t(opt.label)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {image.attribution && (
-        <p className="text-[10px] leading-relaxed text-text-muted">
-          © {image.attribution}
+      {slide.svg && (
+        <p className="rounded-md bg-bg-surface px-2.5 py-2 text-[10px] leading-relaxed text-text-muted">
+          {t("inspector.imageSvgHint")}
         </p>
       )}
 
-      <WebImageSearchPanel onApply={handleWebApply} />
-
-      {confirmDelete ? (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-danger">
-            {t("inspector.imageDeleteConfirm")}
-          </span>
-          <button
-            onClick={() => {
-              onUpdate({ image: undefined });
-              setConfirmDelete(false);
+      <div className="space-y-2 border-t border-border pt-3">
+        <label className="block text-xs text-text-muted">
+          {t("inspector.imageUrl")}
+        </label>
+        <div className="flex items-center gap-1.5">
+          <input
+            value={urlDraft}
+            onChange={(e) => setUrlDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleApplyUrl();
             }}
-            className="rounded-lg bg-danger px-3 py-1.5 text-xs text-white hover:bg-danger/90"
-          >
-            {t("common.confirm")}
-          </button>
+            placeholder="https://example.com/image.png"
+            aria-label={t("inspector.imageUrl")}
+            className="flex-1 rounded-lg border border-border bg-bg-elevated px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+          />
           <button
-            onClick={() => setConfirmDelete(false)}
-            className="text-xs text-text-muted hover:text-text-primary"
+            onClick={() => void handleApplyUrl()}
+            disabled={busy !== null || !urlDraft.trim()}
+            className="rounded-lg border border-border px-2 py-1.5 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
           >
-            {t("common.cancel")}
+            {busy === "url"
+              ? t("inspector.imageApplying")
+              : t("inspector.imageUrlApply")}
           </button>
         </div>
-      ) : (
+        <p className="text-[10px] text-text-muted">
+          {t("inspector.imageUrlHint")}
+        </p>
+
+        <input
+          ref={uploadRef}
+          type="file"
+          accept="image/*"
+          aria-label={t("inspector.imageUpload")}
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleUpload(file);
+          }}
+        />
         <button
-          onClick={() => setConfirmDelete(true)}
-          className="flex w-full items-center justify-center gap-1 rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
+          onClick={() => uploadRef.current?.click()}
+          disabled={busy !== null}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
         >
-          <Trash2 className="h-3 w-3" />
-          {t("inspector.imageDelete")}
+          {busy === "upload" ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("inspector.imageUploading")}
+            </>
+          ) : (
+            <>
+              <Upload className="h-3.5 w-3.5" />
+              {t("inspector.imageUpload")}
+            </>
+          )}
         </button>
-      )}
+      </div>
+
+      {error && <p className="text-xs text-danger">{error}</p>}
+
+      <div className="border-t border-border pt-3">
+        <p className="mb-2 text-xs text-text-muted">
+          {t("inspector.imageSearch")}
+        </p>
+        <WebImageSearchPanel onApply={handleWebApply} />
+      </div>
+
+      {image &&
+        (confirmDelete ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-danger">
+              {t("inspector.imageDeleteConfirm")}
+            </span>
+            <button
+              onClick={handleDelete}
+              className="rounded-lg bg-danger px-3 py-1.5 text-xs text-white hover:bg-danger/90"
+            >
+              {t("common.confirm")}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-xs text-text-muted hover:text-text-primary"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="flex w-full items-center justify-center gap-1 rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
+          >
+            <Trash2 className="h-3 w-3" />
+            {t("inspector.imageDelete")}
+          </button>
+        ))}
     </div>
   );
 }

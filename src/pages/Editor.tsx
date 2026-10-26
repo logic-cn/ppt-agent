@@ -12,6 +12,8 @@ import {
   X,
   Copy,
   Loader2,
+  RefreshCw,
+  FileJson,
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -31,6 +33,8 @@ import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
 import { deleteDeck } from "@/services/storage";
+import { serializeDeckJson } from "@/services/project-backup";
+import { saveTextFile } from "@/services/file-save";
 import { useCustomPalettes } from "@/store/custom-palettes";
 import { DesignPanel } from "@/components/design";
 import { useQualityStore } from "@/store/quality";
@@ -58,6 +62,7 @@ export default function Editor() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [syncingStale, setSyncingStale] = useState(false);
   const [annotating, setAnnotating] = useState(false);
   const generatingIndex = useGenerationFollowStore((s) => s.generatingIndex);
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
@@ -84,6 +89,11 @@ export default function Editor() {
     const reportHard = qualityReport ? hasHardError(qualityReport) : false;
     return liveHard || reportHard;
   }, [deck, pendingRules, qualityReport]);
+
+  const staleSlides = useMemo(
+    () => deck?.slides.filter((s) => s.svg && s.svgStale) ?? [],
+    [deck],
+  );
 
   const jobs = useJobStore((s) => s.jobs);
   const activeJobIds = useJobStore((s) => s.activeJobIds);
@@ -227,17 +237,102 @@ export default function Editor() {
     };
   };
 
+  const handleSyncStale = async () => {
+    if (syncingStale || exporting) return;
+    const current = useDeckStore.getState().deck;
+    if (!current) return;
+    const stale = current.slides.filter((s) => s.svg && s.svgStale);
+    if (stale.length === 0) return;
+
+    setSyncingStale(true);
+    try {
+      await runJob(
+        {
+          type: "content.generate_batch",
+          title: t("editor.syncStaleJob"),
+          canCancel: true,
+        },
+        async (job) => {
+          for (let i = 0; i < stale.length; i++) {
+            if (job.signal.aborted) {
+              throw new DOMException("已取消", "AbortError");
+            }
+            job.update({
+              progress: i / stale.length,
+              message: t("editor.syncStaleProgress", {
+                current: i + 1,
+                total: stale.length,
+              }),
+            });
+            await useDeckStore
+              .getState()
+              .regenerateSlide(stale[i].id, job.signal);
+          }
+          job.update({
+            progress: 1,
+            message: t("editor.syncStaleProgress", {
+              current: stale.length,
+              total: stale.length,
+            }),
+          });
+        },
+      );
+      addToast({
+        type: "success",
+        title: t("editor.syncStaleDone"),
+        message: t("editor.syncStaleDoneMessage", { n: stale.length }),
+      });
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        addToast({
+          type: "error",
+          title: t("editor.syncStaleFailed"),
+          message: (e as Error).message,
+        });
+      }
+    } finally {
+      setSyncingStale(false);
+    }
+  };
+
+  const handleExportProject = async () => {
+    const current = useDeckStore.getState().deck;
+    if (!current) return;
+    try {
+      const result = await saveTextFile({
+        content: serializeDeckJson(current),
+        defaultName: `${current.title}.json`,
+        extension: "json",
+        label: t("home.projectJsonLabel"),
+      });
+      if (result) {
+        addToast({
+          type: "success",
+          title: t("editor.exportSuccess"),
+          message: t("home.exportProjectSuccessMessage", {
+            title: current.title,
+          }),
+        });
+      }
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: t("editor.exportFailed"),
+        message: (e as Error).message,
+      });
+    }
+  };
+
   const handleExport = async () => {
     if (!deck || deck.slides.length === 0) return;
     setExporting(true);
 
     // 有 SVG 过期的页：导出将包含旧版视觉，先给提示（不阻断）
-    const staleCount = deck.slides.filter((s) => s.svg && s.svgStale).length;
-    if (staleCount > 0) {
+    if (staleSlides.length > 0) {
       addToast({
         type: "warning",
         title: t("editor.pagesStaleTitle"),
-        message: t("editor.pagesStaleMessage", { n: staleCount }),
+        message: t("editor.pagesStaleMessage", { n: staleSlides.length }),
       });
     }
 
@@ -447,6 +542,14 @@ export default function Editor() {
           </div>
 
           <button
+            onClick={() => void handleExportProject()}
+            disabled={!deck}
+            title={t("home.exportProject")}
+            className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+          >
+            <FileJson className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => setImportOpen(true)}
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
           >
@@ -462,6 +565,25 @@ export default function Editor() {
             <Monitor className="h-3.5 w-3.5" />
             {t("editor.present")}
           </button>
+          {staleSlides.length > 0 && (
+            <button
+              onClick={() => void handleSyncStale()}
+              disabled={syncingStale || exporting}
+              title={t("editor.pagesStaleMessage", {
+                n: staleSlides.length,
+              })}
+              className="flex items-center gap-1.5 rounded-md border border-accent/30 bg-accent/5 px-3 py-1.5 text-sm text-accent hover:bg-accent/10 disabled:opacity-50"
+            >
+              {syncingStale ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              {syncingStale
+                ? t("editor.syncingStale")
+                : t("editor.syncStale", { n: staleSlides.length })}
+            </button>
+          )}
           <button
             onClick={handleExport}
             disabled={exporting || !deck || deck.slides.length === 0 || hasHard}

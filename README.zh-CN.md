@@ -11,9 +11,10 @@
 - 📝 **大纲编辑器**：拖拽排序，嵌套 bullet，实时预览
 - 🎨 **设计系统**：12 套内置色板 × 12 种视觉风格，支持自定义色板
 - 📊 **原生图表**：支持柱状图/折线图/饼图，可在 PowerPoint 中编辑
-- 🖼️ **配图**（可选）：Openverse 开放授权图片搜索，属性检查器内一键应用到页面
+- 🖼️ **配图**（可选）：Openverse 开放授权搜图，或直接填写 URL / 上传本地图片，属性检查器内一键应用
 - 📄 **文档导入**：Word / Markdown / PDF / URL → PPT
 - 💾 **本地存储**：数据不出本地，隐私安全
+- 🗂️ **项目备份**：支持将项目导出 / 导入为 JSON，便于迁移与恢复
 - 🔌 **多模型支持**：OpenAI / Claude / 通义千问 / 智谱 GLM
 - 🌐 **多语言**：中英文界面即时切换，偏好持久化
 - 🌙 **深色模式**：浅色 / 深色 / 跟随系统
@@ -51,6 +52,8 @@ pnpm tauri:build
 > **签名密钥从哪来**：`src-tauri/updater.key` 的完整内容就是 `TAURI_SIGNING_PRIVATE_KEY`。建议用 `gh secret set TAURI_SIGNING_PRIVATE_KEY --env release < src-tauri/updater.key` 直接写入，避免密钥出现在终端；也可用 `pbcopy < src-tauri/updater.key` 复制后粘贴到 `release` 环境 Secrets。密码是执行 `pnpm tauri signer generate` 时设置的，不会存进密钥文件，需从密码保管处获取；用 `gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release` 交互式录入。若密码遗失，可在首次正式发布前轮换密钥对：备份旧文件后执行 `pnpm tauri signer generate -w src-tauri/updater.key -f`，把新公钥写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`，再更新两个环境 Secrets。已发布后轮换密钥会导致旧版本无法验证新更新。
 
 发布后，更新端点为 `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`；其中 `version` 高于当前安装版本时，用户端即可检测到更新。
+
+> **发布状态（2026-10-26）**：v0.1.0 已发布，包含 macOS（arm64 / x86_64）、Linux（deb / AppImage）、Windows（NSIS / MSI）产物、updater 签名与 `latest.json`。Windows 安装包未代码签名，SmartScreen 可能提示；Windows / Linux 的安装启动与自动更新链路仍建议在下个版本前人工验证。
 
 本地手动签名构建：
 
@@ -139,7 +142,7 @@ pnpm build            # 前端构建
 
 ## 持续集成
 
-`.github/workflows/ci.yml` 在推送到 `main` 和 Pull Request 时依次执行 `format:check`、`typecheck`、`test`（含覆盖率阈值）与前端构建；发布流程见上文「自动更新与发布」。
+`.github/workflows/ci.yml` 在推送到 `main` 和 Pull Request 时依次执行 `format:check`、`typecheck`、`test`（含覆盖率阈值）与前端构建，并新增 `cargo fmt --check` + `cargo test` 的 Rust 后端检查；发布流程见上文「自动更新与发布」。
 
 ## X1 架构：SVG 设计真相管线
 

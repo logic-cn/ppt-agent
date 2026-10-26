@@ -46,6 +46,7 @@ import { buildSpecLock } from "@/design/spec-lock";
 import type { DeckPreset } from "@/types/preset";
 import type { Slide } from "@/types/deck";
 import { PresetPickerDialog } from "@/components/preset/PresetPickerDialog";
+import { getPresetDisplay } from "@/presets/display";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { QualityReport } from "@/components/quality-report";
 import { useT } from "@/hooks/use-page-t";
@@ -617,11 +618,15 @@ export function ChatPanel() {
     topic: string,
     slides: Slide[],
   ) => {
+    const presetName = getPresetDisplay(
+      preset,
+      useSettingsStore.getState().settings.lang,
+    ).name;
     try {
       await runJob(
         {
           type: "outline.generate",
-          title: t("chat.generateFromTemplateJob", { name: preset.name }),
+          title: t("chat.generateFromTemplateJob", { name: presetName }),
           canCancel: false,
         },
         async () => {
@@ -636,7 +641,7 @@ export function ChatPanel() {
       addMessage(
         "assistant",
         t("chat.regeneratedFromTemplate", {
-          name: preset.name,
+          name: presetName,
           count: slides.length,
         }),
       );

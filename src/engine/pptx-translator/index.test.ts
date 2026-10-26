@@ -901,6 +901,24 @@ describe("svgToPptx", () => {
     expect(blob.size).toBeGreaterThan(0);
   });
 
+  it("非 16:9 画布的无 SVG 页也走回退渲染，不导出空白页", async () => {
+    const JSZip = (await import("jszip")).default;
+    const design = { ...DEFAULT_DESIGN, canvasFormat: "xhs-3-4" as const };
+    const slides: Slide[] = [
+      {
+        id: "s1",
+        layout: "content",
+        title: "历史页",
+        body: "这是回退正文",
+      },
+    ];
+    const blob = await svgToPptx(slides, design);
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const slideXml = await zip.file("ppt/slides/slide1.xml")?.async("string");
+    expect(slideXml).toContain("历史页");
+    expect(slideXml).toContain("这是回退正文");
+  });
+
   it("端到端：含 svg 的 deck 导出真实 pptx Blob（size>1000 且含 xml/ppt 标记）", async () => {
     const E2E_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
       <rect x="100" y="50" width="300" height="120" rx="8" fill="#1A56DB"/>

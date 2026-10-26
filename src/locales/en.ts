@@ -115,6 +115,19 @@ export const en = {
   "home.deleteProject": "Delete Project",
   "home.deleteProjectConfirm":
     "Are you sure you want to delete this project? This action cannot be undone.",
+  "home.importProject": "Import project JSON",
+  "home.importingProject": "Importing…",
+  "home.importProjectSuccess": "Project imported",
+  "home.importProjectSuccessMessage": 'Created "{title}"',
+  "home.importProjectFailed": "Failed to import project",
+  "home.importWarningsTitle": "Project repaired",
+  "home.importWarningsMessage": "Repaired {n} compatibility issue(s)",
+  "home.importedSuffix": " (imported)",
+  "home.exportProject": "Export project JSON",
+  "home.exportProjectSuccess": "Project exported",
+  "home.exportProjectSuccessMessage": '"{title}" saved as JSON',
+  "home.exportProjectFailed": "Failed to export project",
+  "home.projectJsonLabel": "PPT Agent project",
 
   "preset.library": "Sample Library",
   "preset.enterTopic": "Enter Topic",
@@ -127,13 +140,66 @@ export const en = {
   "preset.pageCount": "{count} pages",
   "preset.audience": "For {audience}",
   "preset.audienceHint": "Target audience: {audience}",
+  "preset.quarterly-review.name": "Quarterly Business Review",
+  "preset.quarterly-review.desc":
+    "A management-facing quarterly review covering performance, highlights and gaps, and next-quarter plans.",
+  "preset.quarterly-review.audience": "Management",
+  "preset.product-launch.name": "Product Launch",
+  "preset.product-launch.desc":
+    "A launch presentation for market and users, highlighting product value and competitiveness.",
+  "preset.product-launch.audience": "Market and users",
+  "preset.market-analysis.name": "Market Analysis Report",
+  "preset.market-analysis.desc":
+    "In-depth market research covering industry trends, competitive landscape, and growth opportunities.",
+  "preset.market-analysis.audience": "Decision makers",
+  "preset.training-material.name": "Training Deck",
+  "preset.training-material.desc":
+    "Training material for learners with a clear, progressive structure.",
+  "preset.training-material.audience": "Learners",
+  "preset.business-plan.name": "Fundraising Business Plan",
+  "preset.business-plan.desc":
+    "An investor-facing business plan showing the business model, market size, and growth potential.",
+  "preset.business-plan.audience": "Investors",
+  "preset.competitor-analysis.name": "Competitor Analysis",
+  "preset.competitor-analysis.desc":
+    "An in-depth comparison of key competitors to identify differentiation and competitive strategy.",
+  "preset.competitor-analysis.audience": "Product and strategy teams",
+  "preset.project-proposal.name": "Project Proposal",
+  "preset.project-proposal.desc":
+    "A management-facing proposal that clarifies goals, value, resources, and risks.",
+  "preset.project-proposal.audience": "Review committee",
+  "preset.annual-plan.name": "Annual Plan",
+  "preset.annual-plan.desc":
+    "Annual strategy breakdown aligning goals, initiatives, resources, and safeguards.",
+  "preset.annual-plan.audience": "Management and all staff",
+  "preset.quarterly-pyramid-swiss.name":
+    "Quarterly Review · Conclusion First · Swiss Minimal",
+  "preset.product-narrative-darktech.name":
+    "Product Story · Narrative Tension · Dark Tech",
+  "preset.training-instructional-soft.name":
+    "New-Hire Training · Instructional · Soft Rounded",
+  "preset.briefing-editorial-orange.name":
+    "Market Weekly · Neutral Briefing · Editorial",
+  "preset.architecture-pyramid-blueprint.name":
+    "Architecture Review · Conclusion First · Blueprint",
+  "preset.launch-showcase-glass.name":
+    "Product Launch · Showcase Minimal · Glassmorphism",
+  "preset.guide-instructional-swiss.name":
+    "How-To Guide · Instructional · Swiss Minimal",
 
   "editor.projectNotFound": "Project not found",
   "editor.projectNotFoundMessage":
     "The project you tried to load does not exist. A new project will be created instead.",
   "editor.pagesStaleTitle": "Some pages have changed",
   "editor.pagesStaleMessage":
-    '{n} page(s) were edited but not re-rendered. The export will contain outdated visuals; consider running "Redraw Sync" first.',
+    '{n} page(s) were edited but not re-rendered. The export will contain outdated visuals; consider clicking "Sync stale pages" first.',
+  "editor.syncStale": "Sync stale pages ({n})",
+  "editor.syncingStale": "Syncing…",
+  "editor.syncStaleJob": "Sync stale pages",
+  "editor.syncStaleProgress": "Syncing page {current}/{total}",
+  "editor.syncStaleDone": "Stale pages synced",
+  "editor.syncStaleDoneMessage": "Updated visuals for {n} page(s)",
+  "editor.syncStaleFailed": "Failed to sync stale pages",
   "editor.annotating": "AI editing element",
   "editor.annotateApplied": "Element updated",
   "editor.annotateFailed": "AI element edit failed",
@@ -367,13 +433,12 @@ export const en = {
   "inspector.chartAddRow": "+ Add Row",
   "inspector.chartLabel": "Label",
   "inspector.chartDelete": "Delete Chart",
+  "inspector.chartNeedsRedraw":
+    "This page has no chart area. Changes are saved; click “Sync page” below the preview to render the chart.",
   "inspector.imageFull": "Full",
   "inspector.imageRight": "Right",
   "inspector.imageBackground": "Background",
   "inspector.imageEmpty": "This page has no image.",
-  "inspector.imageSource": "Image Source",
-  "inspector.imageSourceAi": "AI Generated",
-  "inspector.imageSourceIcon": "Icon",
   "inspector.imageUrl": "Image URL",
   "inspector.imageAlt": "Alt Text",
   "inspector.imagePosition": "Position",
@@ -382,7 +447,19 @@ export const en = {
   "inspector.imageSearch": "Search web images",
   "inspector.imageSearchPlaceholder": "Search keywords, e.g. city skyline",
   "inspector.imageSearchEmpty": "No results found",
-  "inspector.imageApplyFailed": "Failed to load image: {error}",
+  "inspector.imageApplyFailed": "Failed to apply image: {error}",
+  "inspector.imageUrlApply": "Apply URL",
+  "inspector.imageUrlHint":
+    "Supports http(s) or data: image URLs; external images are embedded into the page.",
+  "inspector.imageUpload": "Upload local image",
+  "inspector.imageUploading": "Processing…",
+  "inspector.imageApplying": "Applying…",
+  "inspector.imageEmbedded": "Image embedded in page (data URL)",
+  "inspector.imageSvgHint":
+    "SVG pages embed the image as a full-page background; position only applies to legacy pages without SVG.",
+  "inspector.imageAltFallback": "Image",
+  "inspector.imageUploadType": "Please choose an image file",
+  "inspector.imageTooLarge": "Image exceeds 8 MB; choose another one",
   "inspector.notesHint": "Speaker notes export to PPTX Speaker Notes.",
   "inspector.notesPlaceholder": "Type speaker notes…",
 

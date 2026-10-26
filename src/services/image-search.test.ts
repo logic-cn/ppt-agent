@@ -7,6 +7,7 @@ import {
 } from "./image-search";
 import {
   embedImageIntoSvg,
+  removeEmbeddedImageFromSvg,
   validateEmbeddedSvg,
 } from "@/engine/svg/embed-image";
 import { buildSpecLock } from "@/design/spec-lock";
@@ -169,6 +170,25 @@ describe("embedImageIntoSvg", () => {
     expect((twice.match(/<image/g) ?? []).length).toBe(1);
     expect(twice).toContain("base64,BBB");
     expect(twice).not.toContain("base64,AAA");
+  });
+
+  it("移除嵌入层后恢复原页面内容", () => {
+    const embedded = embedImageIntoSvg(svg, "data:image/png;base64,AAA", {
+      attribution: "Ann / flickr · BY 4.0",
+    });
+    const cleaned = removeEmbeddedImageFromSvg(embedded);
+    expect(cleaned).not.toContain("<image");
+    expect(cleaned).not.toContain("© Ann");
+    expect(cleaned).not.toContain("data-embed=");
+    expect(cleaned).toContain("标题");
+  });
+
+  it("兼容移除旧版 data-embed=web 标记", () => {
+    const legacy = svg.replace(
+      "</svg>",
+      '<image href="data:image/png;base64,OLD" data-embed="web"/></svg>',
+    );
+    expect(removeEmbeddedImageFromSvg(legacy)).not.toContain("<image");
   });
 });
 

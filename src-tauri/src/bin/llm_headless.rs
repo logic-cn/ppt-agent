@@ -52,7 +52,8 @@ fn main() {
         let req: ChatRequestDto = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
-                let resp = serde_json::json!({ "ok": false, "error": format!("请求解析失败: {e}") });
+                let resp =
+                    serde_json::json!({ "ok": false, "error": format!("请求解析失败: {e}") });
                 let _ = writeln!(out, "{resp}");
                 let _ = out.flush();
                 continue;

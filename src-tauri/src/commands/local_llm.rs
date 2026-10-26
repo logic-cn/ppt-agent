@@ -16,9 +16,7 @@ use tauri::{AppHandle, Emitter, State};
 
 pub fn backend() -> &'static LlamaBackend {
     static B: OnceLock<LlamaBackend> = OnceLock::new();
-    B.get_or_init(|| {
-        LlamaBackend::init().expect("llama.cpp backend initialization failed")
-    })
+    B.get_or_init(|| LlamaBackend::init().expect("llama.cpp backend initialization failed"))
 }
 
 fn default_threads() -> i32 {
@@ -179,7 +177,11 @@ pub async fn local_llm_unload(state: State<'_, LocalLlmState>) -> Result<LoadSta
 #[tauri::command]
 pub fn local_llm_status(state: State<'_, LocalLlmState>) -> LoadStatus {
     LoadStatus {
-        loaded: state.model.lock().unwrap_or_else(|e| e.into_inner()).is_some(),
+        loaded: state
+            .model
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some(),
         model_path: state
             .model_path
             .lock()
@@ -271,7 +273,11 @@ pub fn generate(
     });
     let mut parts: Vec<LlamaSampler> = Vec::new();
     let mut has_grammar = false;
-    if let Some(schema) = req.grammar_schema.as_deref().filter(|s| !s.trim().is_empty()) {
+    if let Some(schema) = req
+        .grammar_schema
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+    {
         let gbnf =
             json_schema_to_grammar(schema).map_err(|e| format!("JSON Schema 转语法失败: {e}"))?;
         parts.push(
@@ -384,7 +390,9 @@ fn strip_think(text: &str) -> String {
         return text.to_string();
     }
     match t.find("</think>") {
-        Some(i) => t[i + "</think>".len()..].trim_start_matches(['\n', ' ']).to_string(),
+        Some(i) => t[i + "</think>".len()..]
+            .trim_start_matches(['\n', ' '])
+            .to_string(),
         None => String::new(),
     }
 }
@@ -425,7 +433,12 @@ struct JsonTopCloser {
 
 impl JsonTopCloser {
     fn new() -> Self {
-        Self { depth: 0, in_string: false, escape: false, started: false }
+        Self {
+            depth: 0,
+            in_string: false,
+            escape: false,
+            started: false,
+        }
     }
 
     fn feed(&mut self, text: &str) -> bool {
@@ -480,16 +493,14 @@ mod tests {
         assert!(gbnf.contains("root"));
         // 固定长度数组会在语法里展开为「恰好 7 项」的重复
         // 固定长度数组会在语法里展开为「首项 + 恰好 N-1 次额外重复」
-        assert!(
-            gbnf.contains("6,6"),
-            "grammar 未体现 7 项约束:\n{gbnf}"
-        );
+        assert!(gbnf.contains("6,6"), "grammar 未体现 7 项约束:\n{gbnf}");
     }
 
     /// zod v4 discriminatedUnion 的 JSON Schema 形态（anyOf + const）
     /// 必须能转 grammar，否则端侧 patch 生成的 op 枚举不受约束
     #[test]
-    fn discriminated_union_schema_converts_to_grammar() {        let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
+    fn discriminated_union_schema_converts_to_grammar() {
+        let schema = r#"{"type":"object","properties":{"patches":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"op":{"type":"string","const":"set_deck_title"},"title":{"type":"string"}},"required":["op","title"],"additionalProperties":false},{"type":"object","properties":{"op":{"type":"string","const":"delete_slide"},"slideId":{"type":"string"}},"required":["op","slideId"],"additionalProperties":false}]}}},"required":["patches"]}"#;
         let gbnf = json_schema_to_grammar(schema).expect("anyOf+const 应能转为 GBNF");
         assert!(gbnf.contains("root"));
     }
@@ -573,8 +584,8 @@ mod tests {
             seed: Some(42),
             thinking: None,
         };
-        let out = generate(None, model, 8192, req, Arc::new(AtomicBool::new(false)))
-            .expect("推理失败");
+        let out =
+            generate(None, model, 8192, req, Arc::new(AtomicBool::new(false))).expect("推理失败");
         println!(
             "tokens={} elapsed_ms={}\n{}",
             out.tokens_generated, out.elapsed_ms, out.content

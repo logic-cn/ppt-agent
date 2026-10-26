@@ -104,8 +104,8 @@ export async function svgToPptx(
   defineDeckMasters(pptx, specLock, inches);
 
   // 仅当存在无 svg 页时才构建 render-ir 回退数据；
-  // render-ir 主题布局按 1280×720 设计，非 16:9 画布不回退（无 svg 页留空，导出后可手补）
-  const needsFallback = canvas.id === "ppt-16-9" && slides.some((s) => !s.svg);
+  // 布局坐标为 0..1 相对值，按实际画布英寸缩放——非 16:9 也能导出而不是留空。
+  const needsFallback = slides.some((s) => !s.svg);
   const fallbackDeck: Deck = {
     id: "export",
     version: 2,
@@ -131,7 +131,7 @@ export async function svgToPptx(
     if (slide.svg) {
       translateSvgToSlide(slide.svg, pptxSlide, specLock, slide.notes);
     } else if (renderSlides) {
-      await renderRenderSlideAsync(pptxSlide, renderSlides[i]);
+      await renderRenderSlideAsync(pptxSlide, renderSlides[i], inches);
     }
   }
 

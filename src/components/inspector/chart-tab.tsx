@@ -1,4 +1,10 @@
-import type { Slide, ChartType, ChartDataPoint } from "@/types/deck";
+import type { Slide, ChartType, ChartDataPoint, ChartSpec } from "@/types/deck";
+import type { SpecLock } from "@/design/spec-lock";
+import {
+  removeChartFromSvg,
+  svgHasChartGroup,
+  syncChartInSvg,
+} from "@/engine/svg/sync-chart";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
 
@@ -11,28 +17,50 @@ const CHART_TYPES: { value: ChartType; label: TranslationKey }[] = [
 
 interface Props {
   slide: Slide;
+  specLock: SpecLock;
   onUpdate: (patch: Partial<Slide>) => void;
 }
 
-export function ChartTab({ slide, onUpdate }: Props) {
+export function ChartTab({ slide, specLock, onUpdate }: Props) {
   const t = useT();
   const chart = slide.chart;
 
-  const updateChart = (patch: Partial<NonNullable<typeof chart>>) => {
+  const applyChart = (next: ChartSpec | undefined) => {
+    if (!slide.svg) {
+      onUpdate({ chart: next });
+      return;
+    }
+    if (next) {
+      const result = syncChartInSvg(slide.svg, next, specLock);
+      onUpdate({
+        chart: next,
+        ...(result.synced
+          ? { svg: result.svg, svgStale: slide.svgStale }
+          : { svgStale: true }),
+      });
+      return;
+    }
+    const result = removeChartFromSvg(slide.svg);
     onUpdate({
-      chart: { ...chart!, ...patch },
+      chart: undefined,
+      svgStale: slide.svgStale,
+      ...(result.removed ? { svg: result.svg } : {}),
     });
+  };
+
+  const updateChart = (patch: Partial<ChartSpec>) => {
+    applyChart({ ...chart!, ...patch });
   };
 
   const addRow = () => {
     const data = [...(chart?.data ?? []), { label: "", value: 0 }];
-    onUpdate({ chart: { ...chart!, type: chart?.type ?? "bar", data } });
+    applyChart({ ...chart!, type: chart?.type ?? "bar", data });
   };
 
   const removeRow = (index: number) => {
     const data = chart?.data.filter((_, i) => i !== index) ?? [];
     if (data.length === 0) {
-      onUpdate({ chart: undefined });
+      applyChart(undefined);
     } else {
       updateChart({ data });
     }
@@ -51,8 +79,9 @@ export function ChartTab({ slide, onUpdate }: Props) {
         {t("inspector.chartEmpty")}
         <button
           onClick={() =>
-            onUpdate({
-              chart: { type: "bar", data: [{ label: "分类", value: 100 }] },
+            applyChart({
+              type: "bar",
+              data: [{ label: "分类", value: 100 }],
             })
           }
           className="mt-2 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-xs text-white hover:opacity-90"
@@ -63,8 +92,15 @@ export function ChartTab({ slide, onUpdate }: Props) {
     );
   }
 
+  const needsRedraw = !!slide.svg && !svgHasChartGroup(slide.svg);
+
   return (
     <div className="space-y-3 text-sm">
+      {needsRedraw && (
+        <p className="rounded-md bg-bg-surface px-2.5 py-2 text-xs text-text-muted">
+          {t("inspector.chartNeedsRedraw")}
+        </p>
+      )}
       <div>
         <label className="mb-1 block text-xs text-text-muted">
           {t("inspector.chartType")}
@@ -136,7 +172,7 @@ export function ChartTab({ slide, onUpdate }: Props) {
 
       {chart.data.length > 0 && (
         <button
-          onClick={() => onUpdate({ chart: undefined })}
+          onClick={() => applyChart(undefined)}
           className="w-full rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
         >
           {t("inspector.chartDelete")}

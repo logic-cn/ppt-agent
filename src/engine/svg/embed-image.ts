@@ -22,17 +22,24 @@ function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
-const EMBED_MARK = 'data-embed="web"';
+const EMBED_MARK = 'data-embed="image"';
+/** 兼容早期网络搜图嵌入层（data-embed="web"） */
+const EMBED_MARK_RE = 'data-embed="(?:web|image)"';
 
 /** 移除既有嵌入层（image/遮罩/署名，重复应用时替换而非叠加） */
 function stripEmbeddedLayers(svg: string): string {
   return svg
-    .replace(new RegExp(`<image\\b[^>]*\\b${EMBED_MARK}[^>]*/>`, "gi"), "")
-    .replace(new RegExp(`<rect\\b[^>]*\\b${EMBED_MARK}[^>]*/>`, "gi"), "")
+    .replace(new RegExp(`<image\\b[^>]*\\b${EMBED_MARK_RE}[^>]*/>`, "gi"), "")
+    .replace(new RegExp(`<rect\\b[^>]*\\b${EMBED_MARK_RE}[^>]*/>`, "gi"), "")
     .replace(
-      new RegExp(`<text\\b[^>]*\\b${EMBED_MARK}[^>]*>[^<]*</text>`, "gi"),
+      new RegExp(`<text\\b[^>]*\\b${EMBED_MARK_RE}[^>]*>[^<]*</text>`, "gi"),
       "",
     );
+}
+
+/** 从页面 SVG 移除已嵌入的图片层；无嵌入时原样返回 */
+export function removeEmbeddedImageFromSvg(svg: string): string {
+  return stripEmbeddedLayers(svg);
 }
 
 /**

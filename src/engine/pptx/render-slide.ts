@@ -1,8 +1,12 @@
 import PptxGenJS from "pptxgenjs";
 import type { RenderSlide, RenderNode } from "@/engine/render-ir/types";
 
-const SLIDE_W = 13.333;
-const SLIDE_H = 7.5;
+export interface SlideInches {
+  w: number;
+  h: number;
+}
+
+const DEFAULT_INCHES: SlideInches = { w: 13.333, h: 7.5 };
 
 /**
  * @deprecated 仅作无 svg 时的 fallback 使用。存在 slide.svg 的新链路请改用 svgToPptx。
@@ -10,11 +14,12 @@ const SLIDE_H = 7.5;
 export function renderRenderSlide(
   pptxSlide: PptxGenJS.Slide,
   renderSlide: RenderSlide,
+  inches: SlideInches = DEFAULT_INCHES,
 ): void {
   pptxSlide.background = { fill: renderSlide.background };
 
   for (const node of renderSlide.nodes) {
-    renderNode(pptxSlide, node);
+    renderNode(pptxSlide, node, inches);
   }
 
   if (renderSlide.notes) {
@@ -22,29 +27,36 @@ export function renderRenderSlide(
   }
 }
 
-function renderNode(pptxSlide: PptxGenJS.Slide, node: RenderNode): void {
+function renderNode(
+  pptxSlide: PptxGenJS.Slide,
+  node: RenderNode,
+  inches: SlideInches,
+): void {
   switch (node.type) {
     case "text":
-      renderTextNode(pptxSlide, node);
+      renderTextNode(pptxSlide, node, inches);
       break;
     case "shape":
-      renderShapeNode(pptxSlide, node);
+      renderShapeNode(pptxSlide, node, inches);
       break;
     case "image":
-      renderImageNode(pptxSlide, node);
+      renderImageNode(pptxSlide, node, inches);
       break;
     case "chart":
-      renderChartNode(pptxSlide, node);
+      renderChartNode(pptxSlide, node, inches);
       break;
   }
 }
 
-function rect(area: { x: number; y: number; w: number; h: number }) {
+function rect(
+  area: { x: number; y: number; w: number; h: number },
+  inches: SlideInches,
+) {
   return {
-    x: area.x * SLIDE_W,
-    y: area.y * SLIDE_H,
-    w: area.w * SLIDE_W,
-    h: area.h * SLIDE_H,
+    x: area.x * inches.w,
+    y: area.y * inches.h,
+    w: area.w * inches.w,
+    h: area.h * inches.h,
   };
 }
 
@@ -53,8 +65,9 @@ function rect(area: { x: number; y: number; w: number; h: number }) {
 function renderTextNode(
   pptxSlide: PptxGenJS.Slide,
   node: Extract<RenderNode, { type: "text" }>,
+  inches: SlideInches,
 ): void {
-  const r = rect(node.rect);
+  const r = rect(node.rect, inches);
   const text = node.text;
   const style = node.style;
 
@@ -114,8 +127,9 @@ function renderTextNode(
 function renderShapeNode(
   pptxSlide: PptxGenJS.Slide,
   node: Extract<RenderNode, { type: "shape" }>,
+  inches: SlideInches,
 ): void {
-  const r = rect(node.rect);
+  const r = rect(node.rect, inches);
 
   if (node.shape === "line") {
     pptxSlide.addShape("line", {
@@ -134,7 +148,7 @@ function renderShapeNode(
     w: r.w,
     h: r.h,
     fill: { color: node.fill ?? "#ccc" },
-    rectRadius: node.radius ? node.radius * SLIDE_W : undefined,
+    rectRadius: node.radius ? node.radius * inches.w : undefined,
     line: { width: 0 },
   });
 }
@@ -144,8 +158,9 @@ function renderShapeNode(
 async function renderImageNode(
   pptxSlide: PptxGenJS.Slide,
   node: Extract<RenderNode, { type: "image" }>,
+  inches: SlideInches,
 ): Promise<void> {
-  const r = rect(node.rect);
+  const r = rect(node.rect, inches);
 
   if (!node.src) {
     pptxSlide.addShape("rect", {
@@ -215,8 +230,9 @@ async function renderImageNode(
 function renderChartNode(
   pptxSlide: PptxGenJS.Slide,
   node: Extract<RenderNode, { type: "chart" }>,
+  inches: SlideInches,
 ): void {
-  const r = rect(node.rect);
+  const r = rect(node.rect, inches);
   const chart = node.chart;
   const chartColors = node.style.colors ?? ["#f59e0b", "#7c3aed", "#1a56db"];
 
@@ -253,14 +269,15 @@ function renderChartNode(
 export async function renderRenderSlideAsync(
   pptxSlide: PptxGenJS.Slide,
   renderSlide: RenderSlide,
+  inches: SlideInches = DEFAULT_INCHES,
 ): Promise<void> {
   pptxSlide.background = { fill: renderSlide.background };
 
   for (const node of renderSlide.nodes) {
     if (node.type === "image") {
-      await renderImageNode(pptxSlide, node);
+      await renderImageNode(pptxSlide, node, inches);
     } else {
-      renderNode(pptxSlide, node);
+      renderNode(pptxSlide, node, inches);
     }
   }
 

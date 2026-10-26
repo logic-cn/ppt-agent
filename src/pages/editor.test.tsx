@@ -197,6 +197,39 @@ describe("Editor 任务面板状态机", () => {
     });
   });
 
+  it("存在过期 SVG 时展示批量同步入口，同步后入口消失", async () => {
+    const deck = makeDeck();
+    deck.slides[1] = {
+      ...deck.slides[1],
+      svg: '<svg viewBox="0 0 1280 720"></svg>',
+      svgStale: true,
+    };
+    const regenerate = vi.fn(async (slideId: string) => {
+      const current = useDeckStore.getState().deck!;
+      useDeckStore.setState({
+        deck: {
+          ...current,
+          slides: current.slides.map((s) =>
+            s.id === slideId ? { ...s, svgStale: false } : s,
+          ),
+        },
+      });
+    });
+    useDeckStore.setState({ deck, regenerateSlide: regenerate });
+
+    renderEditor();
+    const syncBtn = await screen.findByRole("button", {
+      name: /同步过期页/,
+    });
+    fireEvent.click(syncBtn);
+    await waitFor(() =>
+      expect(regenerate).toHaveBeenCalledWith("s1", expect.anything()),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /同步过期页/ })).toBeNull(),
+    );
+  });
+
   it("有失败任务且无活跃任务时展示失败详情", async () => {
     useDeckStore.setState({ deck: makeDeck() });
     useJobStore.setState({

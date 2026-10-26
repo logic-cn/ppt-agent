@@ -48,8 +48,7 @@ pub fn list_directory(path: String) -> Result<Vec<String>, String> {
     if !PathBuf::from(&path).exists() {
         fs::create_dir_all(&path).map_err(|e| format!("创建目录失败: {}", e))?;
     }
-    let entries =
-        fs::read_dir(&path).map_err(|e| format!("读取目录失败: {}", e))?;
+    let entries = fs::read_dir(&path).map_err(|e| format!("读取目录失败: {}", e))?;
     let mut files = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;

@@ -117,7 +117,11 @@ async fn try_download_one(
     let existing = fs::metadata(part).await.map(|m| m.len()).unwrap_or(0);
 
     let mut request = reqwest::Client::builder()
-        .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!(
+            env!("CARGO_PKG_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION")
+        ))
         .build()
         .map_err(|e| format!("HTTP 客户端初始化失败: {e}"))?
         .get(url);
@@ -126,10 +130,7 @@ async fn try_download_one(
         request = request.header(reqwest::header::RANGE, format!("bytes={existing}-"));
     }
 
-    let resp = request
-        .send()
-        .await
-        .map_err(|e| format!("请求失败: {e}"))?;
+    let resp = request.send().await.map_err(|e| format!("请求失败: {e}"))?;
     let status = resp.status();
 
     // 续传被拒绝（返回 200 全量）时从头下载
@@ -274,7 +275,10 @@ pub async fn model_download(
 }
 
 #[tauri::command]
-pub async fn model_installed(app: AppHandle, file_name: String) -> Result<Option<InstalledInfo>, String> {
+pub async fn model_installed(
+    app: AppHandle,
+    file_name: String,
+) -> Result<Option<InstalledInfo>, String> {
     sanitize_file_name(&file_name)?;
     let dest = models_dir(&app)?.join(&file_name);
     match fs::metadata(&dest).await {
@@ -315,10 +319,8 @@ mod tests {
     use super::*;
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "ppt-agent-mm-test-{tag}-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ppt-agent-mm-test-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir

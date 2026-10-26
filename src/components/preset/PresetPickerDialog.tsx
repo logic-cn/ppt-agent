@@ -3,6 +3,7 @@ import { X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { PresetLibrary } from "./PresetLibrary";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { buildTemplateGenerationContext } from "@/presets/template-context";
+import { getPresetDisplay } from "@/presets/display";
 import { withAppLanguage } from "@/services/generation/generation-options";
 import { useSettingsStore } from "@/store/settings";
 import type { DeckPreset } from "@/types/preset";
@@ -35,6 +36,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
   }, []);
 
   if (!open) return null;
+  const presetDisplay = preset ? getPresetDisplay(preset, lang) : null;
 
   const handlePick = (p: DeckPreset) => {
     setPreset(p);
@@ -113,7 +115,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-text-primary">
-                  {preset.name}
+                  {presetDisplay?.name}
                 </span>
                 <button
                   onClick={() => {

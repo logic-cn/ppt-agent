@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Presentation,
   Plus,
@@ -7,11 +7,17 @@ import {
   Settings,
   Clock,
   Trash2,
+  Download,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
 import { useProjectStore } from "@/store/project";
-import { deleteDeck } from "@/services/storage";
+import { deleteDeck, loadDeck } from "@/services/storage";
+import { importDeckJson, serializeDeckJson } from "@/services/project-backup";
+import { saveTextFile } from "@/services/file-save";
+import { useToastStore } from "@/store/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresetLibraryDialog } from "@/components/preset/PresetLibraryDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
@@ -27,6 +33,9 @@ export default function Home() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+  const addToast = useToastStore((s) => s.add);
 
   useEffect(() => {
     void loadRecent();
@@ -57,6 +66,70 @@ export default function Home() {
       useDeckStore.getState().setTitle(topic);
     }
     navigate(`/editor/${deck.id}?new=1`);
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const raw = await file.text();
+      const result = await importDeckJson(raw, t("home.importedSuffix"));
+      await loadRecent();
+      addToast({
+        type: "success",
+        title: t("home.importProjectSuccess"),
+        message: t("home.importProjectSuccessMessage", {
+          title: result.deck.title,
+        }),
+      });
+      if (result.warnings.length > 0) {
+        addToast({
+          type: "warning",
+          title: t("home.importWarningsTitle"),
+          message: t("home.importWarningsMessage", {
+            n: result.warnings.length,
+          }),
+        });
+      }
+      navigate(`/editor/${result.deck.id}`);
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: t("home.importProjectFailed"),
+        message: (e as Error).message,
+      });
+    } finally {
+      setImporting(false);
+      if (importRef.current) importRef.current.value = "";
+    }
+  };
+
+  const handleExportProject = async (id: string) => {
+    try {
+      const deck = await loadDeck(id);
+      if (!deck) throw new Error(t("editor.projectNotFound"));
+      const result = await saveTextFile({
+        content: serializeDeckJson(deck),
+        defaultName: `${deck.title}.json`,
+        extension: "json",
+        label: t("home.projectJsonLabel"),
+      });
+      if (result) {
+        addToast({
+          type: "success",
+          title: t("home.exportProjectSuccess"),
+          message: t("home.exportProjectSuccessMessage", {
+            title: deck.title,
+          }),
+        });
+      }
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: t("home.exportProjectFailed"),
+        message: (e as Error).message,
+      });
+    }
   };
 
   const getSlideSummary = (slidesCount: number) =>
@@ -136,9 +209,34 @@ export default function Home() {
           </div>
 
           {/* 最近项目 */}
-          <h2 className="mb-4 text-lg font-semibold">
-            {t("home.recentProjects")}
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              {t("home.recentProjects")}
+            </h2>
+            <button
+              onClick={() => importRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              {importing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {importing ? t("home.importingProject") : t("home.importProject")}
+            </button>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              aria-label={t("home.importProject")}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImportFile(file);
+              }}
+            />
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-16 text-text-muted">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
@@ -209,16 +307,28 @@ export default function Home() {
                       {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
                     </p>
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(p.id);
-                    }}
-                    className="absolute right-2 top-2 rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
-                    title={t("home.deleteProject")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="absolute right-2 top-2 flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleExportProject(p.id);
+                      }}
+                      className="rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                      title={t("home.exportProject")}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(p.id);
+                      }}
+                      className="rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                      title={t("home.deleteProject")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

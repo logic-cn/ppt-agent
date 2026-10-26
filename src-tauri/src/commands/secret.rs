@@ -1,7 +1,6 @@
 /// API Key 安全存储：经系统 keychain（macOS Keychain / Linux Secret Service / Windows Credential Manager）。
 fn entry(key: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new("ppt-agent", key)
-        .map_err(|e| format!("初始化密钥链失败: {e}"))
+    keyring::Entry::new("ppt-agent", key).map_err(|e| format!("初始化密钥链失败: {e}"))
 }
 
 /// 读取密钥；不存在返回 None

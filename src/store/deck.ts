@@ -378,6 +378,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       title: slide.title || `${deck.title}（第 ${slideIndex + 1} 页）`,
       intent: slide.title || slide.subtitle || "重画该页内容",
       bullets,
+      ...(slide.chart?.data.length ? { chartType: slide.chart.type } : {}),
     };
 
     // 内容素材：重画时保证结构化编辑后的内容不丢失
@@ -392,6 +393,15 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       );
     }
     if (slide.quote) briefParts.push(`引言：${slide.quote}`);
+    if (slide.chart?.data.length) {
+      const chartTitle = slide.chart.title
+        ? `，标题：${slide.chart.title}`
+        : "";
+      briefParts.push(
+        `图表（${slide.chart.type}${chartTitle}，必须使用以下数据）：\n` +
+          slide.chart.data.map((d) => `- ${d.label}: ${d.value}`).join("\n"),
+      );
+    }
     if (bullets.length) {
       briefParts.push(`要点列表：\n${bullets.map((b) => `- ${b}`).join("\n")}`);
     }

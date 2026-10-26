@@ -85,6 +85,8 @@ export async function searchOpenverse(
     }));
 }
 
+export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
 /** 下载图片并转为 data URL（SVG 契约仅接受 data: 内嵌；需目标站允许 CORS） */
 export async function fetchImageAsDataUrl(
   url: string,
@@ -95,14 +97,14 @@ export async function fetchImageAsDataUrl(
     throw new Error(`图片下载失败（${res.status}）`);
   }
   const blob = await res.blob();
-  if (blob.size > 8 * 1024 * 1024) {
+  if (blob.size > MAX_IMAGE_BYTES) {
     throw new Error("图片超过 8MB，请换一张");
   }
   return blobToDataUrl(blob);
 }
 
 /** 用 arrayBuffer 而非 FileReader，避免不同运行时的 Blob 实现不互认 */
-async function blobToDataUrl(blob: Blob): Promise<string> {
+export async function blobToDataUrl(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) {

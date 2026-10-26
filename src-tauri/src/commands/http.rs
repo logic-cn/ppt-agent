@@ -51,7 +51,10 @@ Gecko/20100101 Firefox/124.0"
 image/webp,*/*;q=0.8"
                 .to_string(),
         ),
-        ("Accept-Language".to_string(), "zh-CN,zh;q=0.9,en;q=0.8".to_string()),
+        (
+            "Accept-Language".to_string(),
+            "zh-CN,zh;q=0.9,en;q=0.8".to_string(),
+        ),
     ]);
     if let Some(headers) = &req.headers {
         for (key, value) in headers {

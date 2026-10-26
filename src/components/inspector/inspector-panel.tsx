@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { buildSpecLock } from "@/design/spec-lock";
 import { useDeckStore } from "@/store/deck";
 import { runJob } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
@@ -29,6 +30,7 @@ export function InspectorPanel({ deck, selectedIndex }: Props) {
   const [generatingAll, setGeneratingAll] = useState(false);
   const updateSlide = useDeckStore((s) => s.updateSlide);
   const slide: Slide | undefined = deck.slides[selectedIndex];
+  const specLock = useMemo(() => buildSpecLock(deck.design), [deck.design]);
 
   const handleUpdate = (patch: Partial<Slide>) => {
     if (!slide) return;
@@ -196,7 +198,7 @@ export function InspectorPanel({ deck, selectedIndex }: Props) {
         ) : null}
 
         {activeTab === "chart" && slide ? (
-          <ChartTab slide={slide} onUpdate={handleUpdate} />
+          <ChartTab slide={slide} specLock={specLock} onUpdate={handleUpdate} />
         ) : activeTab === "chart" ? (
           <EmptyState message={t("inspector.selectPage")} />
         ) : null}

@@ -12,15 +12,15 @@
 | 章节 | 模块 | 现状 | 落点 |
 |---|---|---|---|
 | §4 | Deck Patch AI 编辑协议 | ✅ 已落地 | `services/deck-patch/{types,schema,apply,summarize,ai,prompts}.ts`；ChatPanel 走 patch 确认流 |
-| §5 | 统一长任务系统 | ✅ 已落地 | `store/job.ts` + `services/jobs/`；生成/导入/导出/视觉自检均接入 jobStore |
-| §6 | 预览/导出共享渲染 IR | ⚠️ **已被 X1 取代** | X1 定「SVG 为设计真相 + 原生 PPTX 翻译」，`engine/render-ir` 降级为**无 SVG 历史页的回退渲染**（且仅支持 16:9）。**不要再推进「Preview/Exporter 全面迁移到 RenderIR」** |
+| §5 | 统一长任务系统 | ✅ 已落地 | `store/job.ts` + `services/jobs/`；生成/导入/导出/视觉自检均接入 jobStore；顶栏新增「同步过期页」批量重画 |
+| §6 | 预览/导出共享渲染 IR | ⚠️ **已被 X1 取代** | X1 定「SVG 为设计真相 + 原生 PPTX 翻译」，`engine/render-ir` 降级为**无 SVG 历史页的回退渲染**（相对坐标按实际画布英寸缩放，16:9 / 3:4 / 1:1 均可导出，不再留空页）。**不要再推进「Preview/Exporter 全面迁移到 RenderIR」** |
 | §7 | 生成质量控制 | ✅ 已远超初版 | `services/quality/`（deck-quality / auto-fix / visual-review）+ `engine/svg/quality/checker.ts`；55 条结构化诊断、导出锁、修复环、原子修复、跨页一致性门 |
 | §8 | 文档导入增强 | ✅ 已落地 | `services/importer/`（pipeline / docx / markdown / pdf / url）；DocumentSource + sections + chunks + keyFacts + sourceRefs |
-| §9 | 页面属性检查器 | ✅ 已落地 | `components/inspector/`，5 个 tab：AI / 页面 / 图表 / 图片 / 备注 |
-| §10 | Deck schema 迁移与校验 | ✅ 已落地 | `services/storage/{deck-schema,deck-migrations,deck-repair,deck-parse}.ts` |
+| §9 | 页面属性检查器 | ✅ 已落地 | `components/inspector/`，5 个 tab：AI / 页面 / 图表 / 图片 / 备注；图表编辑经 `engine/svg/sync-chart.ts` 确定性写回 `<g data-chart-*>` 并重绘，配图支持 URL / 本地上传 / 搜图并同步嵌入 SVG（删除同步剥离嵌入层），无图表组的页面标记 svgStale 引导重画 |
+| §10 | Deck schema 迁移与校验 | ✅ 已落地 | `services/storage/{deck-schema,deck-migrations,deck-repair,deck-parse}.ts`；新增 `services/project-backup.ts` 项目 JSON 导出/导入（重新分配 id、复用迁移与修复链路） |
 | §11 | 安全密钥存储 | ✅ 已落地 | `services/secret-store.ts`（Tauri keychain，Web 降级并显式提示） |
-| §12 | 模板系统产品化 | ✅ 已落地 | 8 个内置模板 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则 + 模板专属提示）；模板级 `scenario`/`audience`/`defaultOptions`（语气/密度/图表倾向）已进入 pagePlan 提示词；模板选择页展示场景/页数/适用对象 |
-| §13 | 测试与质量门禁 | ✅ 已落地 | 688 个测试 + vitest coverage 阈值 + `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI） |
+| §12 | 模板系统产品化 | ✅ 已落地 | 8 个内置模板 + `presets/template-context.ts`（角色顺序 + 指令 + 质量规则 + 模板专属提示）；模板级 `scenario`/`audience`/`defaultOptions`（语气/密度/图表倾向）已进入 pagePlan 提示词；模板选择页展示场景/页数/适用对象；模板与示例的名称/描述/受众接入 i18n（`presets/display.ts`，缺失 key 回退内置中文） |
+| §13 | 测试与质量门禁 | ✅ 已落地 | 729 个测试 + vitest coverage 阈值（stmts 75 / branch 65 / funcs 77 / lines 78）+ `scripts/local-e2e/` 端侧无头实跑 harness（不进 CI）；CI 新增 `cargo fmt --check` + `cargo test` 的 Rust 后端 job |
 
 **因此，当前后续可做的主线见文末「后续方向」**（§4–§13 均已落地或被取代）。
 
@@ -1311,4 +1311,6 @@ storage.migration.test.ts
 
 > **上线打包状态（2026-10-25）**：Tauri 双侧依赖已对齐（tauri 2.12 / dialog 2.8 / fs 2.7 / updater 2.14，crate 与 npm 同 minor）；`llm_headless` 双 bin 场景已在 Cargo.toml 声明 `default-run`。`.app` 产物可正常产出（ad-hoc 签名、Info.plist 校验通过）。两个环境相关事项：① DMG 的 create-dmg 依赖 Finder AppleScript，无 GUI 会话下会超时，可用 `hdiutil create -volname "PPT Agent" -srcfolder <app> -format UDZO <dmg>` 直接产出（已验证 CRC）；② updater 工件（.app.tar.gz）签名需要维护者提供 `TAURI_SIGNING_PRIVATE_KEY`，属发布机密，不入库。
 >
-> **发布自动化（2026-10-26）**：已新增 `.github/workflows/ci.yml`（format / typecheck / test / build）与 `.github/workflows/release.yml`（`v*` tag 触发，跨平台构建、updater 签名、`latest.json` 生成、draft release）。签名私钥与密码需配置为仓库 Secrets；首个正式 tag 尚未推送，macOS 以外的产物仍待首次发布实跑验证。
+> **发布自动化（2026-10-26 更新）**：`ci.yml`（format / typecheck / test / build）与 `release.yml`（`v*` tag 触发，跨平台构建、updater 签名、`latest.json` 生成、draft release）已落地。**v0.1.0 已正式发布**：macOS arm64/x86_64、Linux deb/AppImage、Windows NSIS/MSI 及对应 `.sig`、`latest.json` 均已上传，release workflow 全矩阵成功。仍待人工验证：Windows / Linux 安装包真机安装与自动更新链路（Windows 未代码签名，SmartScreen 会提示）；macOS 从 v0.1.0 通过 updater 升级到下一版本的端到端验证。
+>
+> **手动发布验证清单（每次发版）**：① 各平台安装包可启动，新建项目、导入文档、导出 PPTX 正常；② 旧版本能检测到新版本并通过签名校验完成升级；③ Windows SmartScreen 提示与 Linux AppImage 可执行权限符合预期；④ `latest.json` 的版本、平台条目与签名文件齐全。
