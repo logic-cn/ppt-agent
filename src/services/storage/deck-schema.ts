@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { NARRATIVE_MODE_IDS, VISUAL_STYLE_IDS } from "@/types/design";
 import { SLIDE_LAYOUTS } from "@/types/layouts";
+import { IMAGE_SOURCES } from "@/types/deck";
 
 export const CURRENT_DECK_VERSION = 2;
 
@@ -53,7 +54,7 @@ const chartSpecSchema = z.object({
 });
 
 const imageSpecSchema = z.object({
-  type: z.enum(["ai", "icon", "url", "web"]),
+  type: z.enum(IMAGE_SOURCES),
   prompt: z.string().optional(),
   url: z.string().optional(),
   alt: z.string(),

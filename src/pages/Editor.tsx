@@ -253,6 +253,7 @@ export default function Editor() {
           canCancel: true,
         },
         async (job) => {
+          const failed: string[] = [];
           for (let i = 0; i < stale.length; i++) {
             if (job.signal.aborted) {
               throw new DOMException("已取消", "AbortError");
@@ -264,9 +265,15 @@ export default function Editor() {
                 total: stale.length,
               }),
             });
-            await useDeckStore
-              .getState()
-              .regenerateSlide(stale[i].id, job.signal);
+            try {
+              await useDeckStore
+                .getState()
+                .regenerateSlide(stale[i].id, job.signal);
+            } catch (e) {
+              // 单页失败不中断整批：其余页继续同步，最后汇总反馈
+              if (job.signal.aborted) throw e;
+              failed.push(stale[i].title || stale[i].id);
+            }
           }
           job.update({
             progress: 1,
@@ -275,6 +282,14 @@ export default function Editor() {
               total: stale.length,
             }),
           });
+          if (failed.length > 0) {
+            throw new Error(
+              t("editor.syncStalePartial", {
+                ok: stale.length - failed.length,
+                fail: failed.length,
+              }),
+            );
+          }
         },
       );
       addToast({

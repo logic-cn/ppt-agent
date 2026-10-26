@@ -185,6 +185,7 @@ export const zh: Record<TranslationKey, string> = {
   "editor.syncStaleProgress": "正在同步第 {current}/{total} 页",
   "editor.syncStaleDone": "过期页已同步",
   "editor.syncStaleDoneMessage": "已更新 {n} 页的视觉",
+  "editor.syncStalePartial": "已同步 {ok} 页，失败 {fail} 页",
   "editor.syncStaleFailed": "同步过期页失败",
   "editor.annotating": "AI 修改元素中",
   "editor.annotateApplied": "元素已修改",

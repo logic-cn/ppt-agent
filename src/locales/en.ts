@@ -199,6 +199,7 @@ export const en = {
   "editor.syncStaleProgress": "Syncing page {current}/{total}",
   "editor.syncStaleDone": "Stale pages synced",
   "editor.syncStaleDoneMessage": "Updated visuals for {n} page(s)",
+  "editor.syncStalePartial": "Synced {ok} page(s), {fail} failed",
   "editor.syncStaleFailed": "Failed to sync stale pages",
   "editor.annotating": "AI editing element",
   "editor.annotateApplied": "Element updated",

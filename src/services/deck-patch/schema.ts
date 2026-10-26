@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { SLIDE_LAYOUTS } from "@/types/layouts";
+import { IMAGE_SOURCES } from "@/types/deck";
 
 const bulletNodeDraftSchema = z.object({
   text: z.string(),
@@ -27,7 +28,7 @@ const chartSpecSchema = z.object({
 });
 
 const imageSpecSchema = z.object({
-  type: z.enum(["ai", "icon", "url"]),
+  type: z.enum(IMAGE_SOURCES),
   prompt: z.string().optional(),
   url: z.string().optional(),
   alt: z.string(),

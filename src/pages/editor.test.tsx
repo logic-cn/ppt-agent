@@ -5,6 +5,7 @@ import type { Deck } from "@/types/deck";
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
 import { useJobStore } from "@/store/job";
+import { useToastStore } from "@/store/toast";
 import { checkDeckQuality, hasHardError } from "@/services/quality";
 
 vi.mock("@/components/outline", () => ({
@@ -227,6 +228,45 @@ describe("Editor 任务面板状态机", () => {
     );
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: /同步过期页/ })).toBeNull(),
+    );
+  });
+
+  it("单页重画失败不中断整批，汇总成功与失败数", async () => {
+    const deck = makeDeck();
+    deck.slides[1] = {
+      ...deck.slides[1],
+      svg: '<svg viewBox="0 0 1280 720"></svg>',
+      svgStale: true,
+    };
+    deck.slides[2] = {
+      ...deck.slides[2],
+      svg: '<svg viewBox="0 0 1280 720"></svg>',
+      svgStale: true,
+    };
+    const regenerate = vi.fn(async (slideId: string) => {
+      if (slideId === "s1") throw new Error("模型超时");
+      const current = useDeckStore.getState().deck!;
+      useDeckStore.setState({
+        deck: {
+          ...current,
+          slides: current.slides.map((s) =>
+            s.id === slideId ? { ...s, svgStale: false } : s,
+          ),
+        },
+      });
+    });
+    useDeckStore.setState({ deck, regenerateSlide: regenerate });
+    useToastStore.setState({ toasts: [] });
+
+    renderEditor();
+    fireEvent.click(await screen.findByRole("button", { name: /同步过期页/ }));
+    await waitFor(() => expect(regenerate).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        useToastStore
+          .getState()
+          .toasts.some((x) => x.message?.includes("已同步 1 页，失败 1 页")),
+      ).toBe(true),
     );
   });
 

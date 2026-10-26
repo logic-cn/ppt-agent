@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Slide, ChartType, ChartDataPoint, ChartSpec } from "@/types/deck";
 import type { SpecLock } from "@/design/spec-lock";
 import {
@@ -24,6 +25,10 @@ interface Props {
 export function ChartTab({ slide, specLock, onUpdate }: Props) {
   const t = useT();
   const chart = slide.chart;
+  const commitTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // 切换页面时丢弃未落库的输入，避免写进上一页
+  useEffect(() => () => clearTimeout(commitTimer.current), [slide.id]);
 
   const applyChart = (next: ChartSpec | undefined) => {
     if (!slide.svg) {
@@ -52,6 +57,16 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
     applyChart({ ...chart!, ...patch });
   };
 
+  /** 连续输入合并为一次历史（§9.5），与 slide-tab 的防抖约定一致 */
+  const scheduleChart = (next: ChartSpec) => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(() => applyChart(next), 300);
+  };
+
+  const updateChartText = (patch: Partial<ChartSpec>) => {
+    scheduleChart({ ...chart!, ...patch });
+  };
+
   const addRow = () => {
     const data = [...(chart?.data ?? []), { label: "", value: 0 }];
     applyChart({ ...chart!, type: chart?.type ?? "bar", data });
@@ -70,7 +85,7 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
     const data =
       chart?.data.map((row, i) => (i === index ? { ...row, ...patch } : row)) ??
       [];
-    updateChart({ data });
+    scheduleChart({ ...chart!, data });
   };
 
   if (!chart) {
@@ -124,7 +139,9 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
         </label>
         <input
           value={chart.title ?? ""}
-          onChange={(e) => updateChart({ title: e.target.value || undefined })}
+          onChange={(e) =>
+            updateChartText({ title: e.target.value || undefined })
+          }
           placeholder={t("inspector.optional")}
           className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />

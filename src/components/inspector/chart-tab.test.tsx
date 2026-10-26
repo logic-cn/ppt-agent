@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Slide } from "@/types/deck";
 import type { SpecLock } from "@/design/spec-lock";
 import { useSettingsStore } from "@/store/settings";
@@ -47,7 +47,7 @@ describe("ChartTab", () => {
     useSettingsStore.getState().setLang("zh");
   });
 
-  it("修改图表标题时同步更新 SVG 并清除过期标记", () => {
+  it("修改图表标题时同步更新 SVG 并清除过期标记", async () => {
     const onUpdate = vi.fn();
     render(
       <ChartTab
@@ -59,11 +59,34 @@ describe("ChartTab", () => {
     fireEvent.change(screen.getByDisplayValue("旧标题"), {
       target: { value: "新标题" },
     });
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     const patch = onUpdate.mock.calls[0][0] as Partial<Slide>;
     expect(patch.chart?.title).toBe("新标题");
     expect(patch.svg).toContain('data-chart-title="新标题"');
     expect(patch.svg).toContain("新标题");
     expect(patch.svgStale).toBeUndefined();
+  });
+
+  it("连续输入合并为一次提交（一次 undo 历史）", async () => {
+    vi.useFakeTimers();
+    const onUpdate = vi.fn();
+    render(
+      <ChartTab
+        slide={makeSlide(svgWithChart)}
+        specLock={spec}
+        onUpdate={onUpdate}
+      />,
+    );
+    const input = screen.getByDisplayValue("旧标题");
+    fireEvent.change(input, { target: { value: "季度" } });
+    fireEvent.change(input, { target: { value: "季度营收" } });
+    fireEvent.change(input, { target: { value: "季度营收走势" } });
+    expect(onUpdate).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(300);
+    vi.useRealTimers();
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const patch = onUpdate.mock.calls[0][0] as Partial<Slide>;
+    expect(patch.chart?.title).toBe("季度营收走势");
   });
 
   it("删除图表时从 SVG 移除图表组", () => {
@@ -97,13 +120,14 @@ describe("ChartTab", () => {
     expect(patch.svgStale).toBe(true);
   });
 
-  it("无 SVG 的历史页只更新结构化图表数据", () => {
+  it("无 SVG 的历史页只更新结构化图表数据", async () => {
     const onUpdate = vi.fn();
     const slide = { ...makeSlide("", true), svg: undefined };
     render(<ChartTab slide={slide} specLock={spec} onUpdate={onUpdate} />);
     fireEvent.change(screen.getByDisplayValue("旧标题"), {
       target: { value: "新标题" },
     });
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     const patch = onUpdate.mock.calls[0][0] as Partial<Slide>;
     expect(patch.chart?.title).toBe("新标题");
     expect(patch.svg).toBeUndefined();

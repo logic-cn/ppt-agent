@@ -6,7 +6,13 @@ export type { SlideLayout } from "./layouts";
 export type ChartType = "bar" | "pie" | "line" | "doughnut";
 
 export type ImagePosition = "full" | "right" | "background";
-export type ImageSource = "ai" | "icon" | "url" | "web";
+/**
+ * 图片来源单一事实源（参照 SLIDE_LAYOUTS）：deck-schema / deck-patch 的枚举
+ * 都从这里派生，禁止再手写列表——分叉会让 AI patch 无法写入合法来源值。
+ */
+export const IMAGE_SOURCES = ["ai", "icon", "url", "web"] as const;
+
+export type ImageSource = (typeof IMAGE_SOURCES)[number];
 
 /** 幻灯片转场样式（D1 放映效果，none=不加转场） */
 export type TransitionStyle = "none" | "fade" | "push" | "wipe" | "cut";
