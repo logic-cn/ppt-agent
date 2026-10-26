@@ -1,0 +1,11 @@
+# Default owner for all files
+* @logic-cn
+
+# Security-sensitive paths: workflows, release config, dependencies
+/.github/ @logic-cn
+/.github/workflows/ @logic-cn
+/src-tauri/tauri.conf.json @logic-cn
+/src-tauri/Cargo.toml @logic-cn
+/src-tauri/Cargo.lock @logic-cn
+/package.json @logic-cn
+/pnpm-lock.yaml @logic-cn
