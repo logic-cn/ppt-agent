@@ -87,6 +87,21 @@ describe("fetchImageAsDataUrl", () => {
     expect(dataUrl.length).toBeGreaterThan(20);
   });
 
+  it("保留响应 MIME 类型", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(new Uint8Array([137, 80, 78, 71]), {
+            status: 200,
+            headers: { "content-type": "image/png" },
+          }),
+      ),
+    );
+    const dataUrl = await fetchImageAsDataUrl("https://img.example/a.png");
+    expect(dataUrl).toMatch(/^data:image\/png;base64,/);
+  });
+
   it("超限尺寸报错", async () => {
     vi.stubGlobal(
       "fetch",

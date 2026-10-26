@@ -98,13 +98,18 @@ export async function fetchImageAsDataUrl(
   if (blob.size > 8 * 1024 * 1024) {
     throw new Error("图片超过 8MB，请换一张");
   }
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("图片读取失败"));
-    reader.readAsDataURL(blob);
-  });
-  return dataUrl;
+  return blobToDataUrl(blob);
+}
+
+/** 用 arrayBuffer 而非 FileReader，避免不同运行时的 Blob 实现不互认 */
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  const type = blob.type || "application/octet-stream";
+  return `data:${type};base64,${btoa(binary)}`;
 }
 
 // ---- Pexels（可选源，需 API Key；商业摄影质量更稳）----
