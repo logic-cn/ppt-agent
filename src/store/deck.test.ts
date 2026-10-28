@@ -194,6 +194,18 @@ describe("svgStale（编辑后 SVG 过期标记）", () => {
     expect(useDeckStore.getState().deck!.slides[0].svgStale).toBeUndefined();
     expect(useDeckStore.getState().canUndo).toBe(false);
   });
+
+  it("setDesign 仅变更 canvasFormat 时同样生效并标记 SVG 过期（回归：同值守卫曾吞掉该字段）", () => {
+    const deck = deckWithSvg();
+    useDeckStore.setState({ deck });
+    const current = useDeckStore.getState().deck!.design;
+
+    useDeckStore.getState().setDesign({ ...current, canvasFormat: "xhs-3-4" });
+    const after = useDeckStore.getState().deck!;
+    expect(after.design.canvasFormat).toBe("xhs-3-4");
+    expect(after.slides[0].svgStale).toBe(true);
+    expect(useDeckStore.getState().canUndo).toBe(true);
+  });
 });
 
 describe("undo/redo 与历史", () => {

@@ -309,6 +309,14 @@ async function removeFromIndex(dir: string, id: string): Promise<void> {
 }
 
 async function rebuildIndex(dir: string): Promise<DeckMeta[]> {
+  const index = await scanDeckFileMetas(dir);
+  index.sort((a, b) => b.updatedAt - a.updatedAt);
+  await writeIndex(dir, index);
+  return index;
+}
+
+/** 扫描 decks 目录下全部 deck 文件并解析 meta（web 读 localStorage，桌面读文件） */
+async function scanDeckFileMetas(dir: string): Promise<DeckMeta[]> {
   const decksDir = await joinPath(dir, "decks");
   const index: DeckMeta[] = [];
 
@@ -368,16 +376,106 @@ async function rebuildIndex(dir: string): Promise<DeckMeta[]> {
     }
   }
 
-  index.sort((a, b) => b.updatedAt - a.updatedAt);
-  await writeIndex(dir, index);
   return index;
+}
+
+/**
+ * 扫描「索引里没有、但磁盘上存在」的 deck（保存与索引更新之间崩溃、
+ * 索引丢失后部分重建、文件被外部放入等场景），合并回索引实现自愈。
+ * 文件名即 `<id>.json`，已知 id 直接跳过读取，成本近零。
+ */
+async function scanMissingDeckMetas(
+  dir: string,
+  knownIds: Set<string>,
+): Promise<DeckMeta[]> {
+  const missing: DeckMeta[] = [];
+  if (!isTauri) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        key.startsWith("ppt-agent-data/decks/") &&
+        key.endsWith(".json")
+      ) {
+        // 文件名即 deck id：已知 id 直接跳过，避免每次首页都解析大 JSON
+        const idFromKey = key.slice(
+          "ppt-agent-data/decks/".length,
+          -".json".length,
+        );
+        if (knownIds.has(idFromKey)) continue;
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const deck = JSON.parse(raw) as Deck;
+            if (!knownIds.has(deck.id)) {
+              missing.push({
+                id: deck.id,
+                title: deck.title,
+                slidesCount: deck.slides.length,
+                createdAt: deck.createdAt,
+                updatedAt: deck.updatedAt,
+              });
+            }
+          } catch {
+            /* skip */
+          }
+        }
+      }
+    }
+  } else {
+    try {
+      const inv = await getInvoke();
+      const decksDir = await joinPath(dir, "decks");
+      if (inv) {
+        const names = await inv<string[]>("list_directory", { path: decksDir });
+        for (const name of names) {
+          const id = name.replace(/\.json$/, "");
+          if (
+            name.endsWith(".json") &&
+            name !== "index.json" &&
+            !knownIds.has(id)
+          ) {
+            const raw = await readText(await joinPath(decksDir, name));
+            if (raw) {
+              try {
+                const deck = JSON.parse(raw) as Deck;
+                missing.push({
+                  id: deck.id,
+                  title: deck.title,
+                  slidesCount: deck.slides.length,
+                  createdAt: deck.createdAt,
+                  updatedAt: deck.updatedAt,
+                });
+              } catch {
+                /* skip */
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  return missing;
 }
 
 export async function listDecks(): Promise<DeckMeta[]> {
   const dir = await getDataDir();
   const cached = await readIndex(dir);
-  if (cached) return cached;
-  return rebuildIndex(dir);
+  if (!cached) return rebuildIndex(dir);
+  // 对账自愈：索引存在但磁盘上有索引外 deck → 合并并写回，
+  // 避免保存与索引更新之间崩溃导致项目从首页永久消失
+  const missing = await scanMissingDeckMetas(
+    dir,
+    new Set(cached.map((m) => m.id)),
+  );
+  if (missing.length === 0) return cached;
+  const merged = [...cached, ...missing].sort(
+    (a, b) => b.updatedAt - a.updatedAt,
+  );
+  await writeIndex(dir, merged);
+  return merged;
 }
 
 export async function deleteDeck(id: string): Promise<void> {
@@ -479,6 +577,14 @@ export async function deleteCustomPalette(id: string): Promise<void> {
 }
 
 // ---- 工厂函数 ----
+
+/** 各语言下的「未命名」默认标题：自动命名逻辑据此判断项目是否仍是默认名 */
+const UNTITLED_DECK_TITLES = new Set(["未命名项目", "Untitled"]);
+
+/** deck 标题是否仍为任一语言下的默认名（用于 AI 生成后自动命名等场景） */
+export function isUntitledDeck(deck: { title: string }): boolean {
+  return UNTITLED_DECK_TITLES.has(deck.title.trim());
+}
 
 export function createEmptyDeck(title = "未命名项目"): Deck {
   const now = Date.now();

@@ -72,14 +72,36 @@ export const SlidePreview = memo(function SlidePreview({
     if (generatingIndex != null) setCurrentIndex(generatingIndex);
   }, [generatingIndex, setCurrentIndex]);
 
+  // 画布尺寸自适应：挂载即同步测量 + 短窗口收敛轮询（部分嵌入式/节流
+  // WebView 布局惰性且 RO/rAF/resize 不派发，单次测量可能拿到未布局的
+  // padding 盒）；RO + window resize 双通道跟进常规环境的变化
   useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect?.width) setContainerSize({ w: rect.width, h: rect.height });
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0) {
+        setContainerSize((prev) =>
+          prev.w === rect.width && prev.h === rect.height
+            ? prev
+            : { w: rect.width, h: rect.height },
+        );
+      }
+    };
+    measure();
+    let ticks = 0;
+    const settleTimer = setInterval(() => {
+      measure();
+      if (++ticks >= 20) clearInterval(settleTimer);
+    }, 100);
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      clearInterval(settleTimer);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   if (!currentSlide) {
@@ -142,7 +164,7 @@ export const SlidePreview = memo(function SlidePreview({
         className="flex flex-1 items-center justify-center overflow-auto p-4"
       >
         <div
-          className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
+          className="relative shrink-0 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
           style={{ width: slideWidth, height: slideHeight }}
         >
           {currentSlide.svg && onUpdateSlideSvg && (

@@ -14,7 +14,7 @@ import {
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
 import { useProjectStore } from "@/store/project";
-import { deleteDeck, loadDeck } from "@/services/storage";
+import { deleteDeck, loadDeck, isUntitledDeck } from "@/services/storage";
 import { importDeckJson, serializeDeckJson } from "@/services/project-backup";
 import { saveTextFile } from "@/services/file-save";
 import { useToastStore } from "@/store/toast";
@@ -72,7 +72,7 @@ export default function Home() {
     useDeckStore.getState().setDesign(preset.design);
     useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
     await useDeckStore.getState().replaceSlides(slides);
-    if (deck.title === "未命名项目") {
+    if (isUntitledDeck(deck)) {
       useDeckStore.getState().setTitle(topic);
     }
     navigate(`/editor/${deck.id}?new=1`);

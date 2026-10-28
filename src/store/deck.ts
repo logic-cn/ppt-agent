@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type { Deck, Slide } from "@/types/deck";
 import { touchesSvgVisual } from "@/types/deck";
 import type { DesignLock } from "@/types/design";
+import { isSameDesignLock } from "@/types/design";
 import { loadDeck, saveDeck, createEmptyDeck } from "@/services/storage";
+import { t } from "@/services/i18n";
 import { clearRenderCache } from "@/engine/render-ir/build";
 import { buildSpecLock } from "@/design/spec-lock";
 import { generateSlideSvg } from "@/engine/svg/executor";
@@ -145,7 +147,8 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
   },
 
   createDeck: async (title) => {
-    const deck = createEmptyDeck(title);
+    // 默认标题随界面语言（英文界面建项得到 Untitled，而非硬编码中文）
+    const deck = createEmptyDeck(title ?? t("editor.untitled"));
     await saveDeck(deck);
     clearRenderCache();
     set({ deck, dirty: false, past: [], future: [] });
@@ -169,13 +172,9 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
 
   setDesign: (design) => {
     set((s) => {
-      // 同值重设：不记录历史、不标记过期，避免误报
-      if (
-        s.deck &&
-        s.deck.design.mode === design.mode &&
-        s.deck.design.visualStyle === design.visualStyle &&
-        s.deck.design.palette === design.palette
-      ) {
+      // 同值重设：不记录历史、不标记过期，避免误报（全字段比较，
+      // 防止仅 canvasFormat 等部分字段的合法变更被误判为同值而吞掉）
+      if (s.deck && isSameDesignLock(s.deck.design, design)) {
         return s;
       }
       const snap = snapshot(s.deck);

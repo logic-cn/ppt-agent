@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { AppSettings } from "@/types/llm";
 import { PROVIDER_PRESETS } from "@/types/llm";
-import { loadSettings, saveSettings } from "./storage";
+import {
+  loadSettings,
+  saveSettings,
+  saveDeck,
+  listDecks,
+  isUntitledDeck,
+  createEmptyDeck,
+} from "./storage";
 import { getSecretStore, resetSecretStore, secretKey } from "./secret-store";
 
 /** 环境内全局 localStorage 实现残缺，注入内存实现 */
@@ -193,5 +200,55 @@ describe("settings 存储（密钥拆分）", () => {
     const store = getSecretStore();
     expect(await store.get(secretKey("provider", "qwen"))).toBeNull();
     expect(await store.get(secretKey("provider", "zhipu"))).toBeNull();
+  });
+});
+
+describe("deck 列表索引对账自愈", () => {
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.stubGlobal("crypto", {
+      randomUUID: () => `test-${Math.random().toString(36).slice(2)}`,
+    });
+  });
+
+  it("saveDeck 正常登记索引", async () => {
+    await saveDeck(createEmptyDeck("项目 A"));
+    const decks = await listDecks();
+    expect(decks).toHaveLength(1);
+    expect(decks[0].title).toBe("项目 A");
+  });
+
+  it("索引缺失时重建", async () => {
+    const deck = createEmptyDeck("项目 B");
+    localStorage.setItem(
+      `ppt-agent-data/decks/${deck.id}.json`,
+      JSON.stringify(deck),
+    );
+    const decks = await listDecks();
+    expect(decks).toHaveLength(1);
+    expect(decks[0].id).toBe(deck.id);
+  });
+
+  it("索引存在但磁盘有索引外 deck 时合并（保存与索引更新之间崩溃的自愈）", async () => {
+    const deckA = createEmptyDeck("项目 A");
+    await saveDeck(deckA);
+    // 模拟绕过 saveDeck 落盘的 deck（索引未更新）
+    const deckB = createEmptyDeck("项目 B");
+    localStorage.setItem(
+      `ppt-agent-data/decks/${deckB.id}.json`,
+      JSON.stringify(deckB),
+    );
+    const decks = await listDecks();
+    expect(decks.map((d) => d.title).sort()).toEqual(["项目 A", "项目 B"]);
+    // 合并结果写回索引：再次调用不再重复
+    const again = await listDecks();
+    expect(again).toHaveLength(2);
+  });
+
+  it("isUntitledDeck 兼容中英文默认标题", () => {
+    expect(isUntitledDeck({ title: "未命名项目" })).toBe(true);
+    expect(isUntitledDeck({ title: "Untitled" })).toBe(true);
+    expect(isUntitledDeck({ title: "  Untitled  " })).toBe(true);
+    expect(isUntitledDeck({ title: "数据分析报告" })).toBe(false);
   });
 });

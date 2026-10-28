@@ -9,6 +9,7 @@ import {
   LayoutTemplate,
   Square,
 } from "lucide-react";
+import { isUntitledDeck } from "@/services/storage";
 import { useDeckStore } from "@/store/deck";
 import { runJob, useJobStore } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
@@ -480,7 +481,7 @@ export function ChatPanel() {
                   })
                 : null,
             );
-            if (deck?.title === "未命名项目") {
+            if (deck && isUntitledDeck(deck)) {
               const name = deriveProjectName(text);
               if (name) setTitle(name);
             }
@@ -512,7 +513,7 @@ export function ChatPanel() {
                   })
                 : null,
             );
-            if (deck.title === "未命名项目") {
+            if (isUntitledDeck(deck)) {
               const name = deriveProjectName(text);
               if (name) setTitle(name);
             }
@@ -662,7 +663,7 @@ export function ChatPanel() {
           useQualityStore.getState().setPendingRules(preset.qualityRules ?? []);
           runQualityCheck();
           const deck = useDeckStore.getState().deck;
-          if (deck && deck.title === "未命名项目") setTitle(topic);
+          if (deck && isUntitledDeck(deck)) setTitle(topic);
         },
       );
       addMessage(
