@@ -24,10 +24,12 @@ import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import type { DeckPreset } from "@/types/preset";
 import type { Slide } from "@/types/deck";
 import { useT } from "@/hooks/use-page-t";
+import { useSettingsStore } from "@/store/settings";
 
 export default function Home() {
   const navigate = useNavigate();
   const t = useT();
+  const lang = useSettingsStore((s) => s.settings.lang);
   const createDeck = useDeckStore((s) => s.createDeck);
   const { recent, loading, loadRecent } = useProjectStore();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -49,8 +51,16 @@ export default function Home() {
   }, [loadRecent]);
 
   const createProject = async () => {
-    const deck = await createDeck();
-    navigate(`/editor/${deck.id}?new=1`);
+    try {
+      const deck = await createDeck();
+      navigate(`/editor/${deck.id}?new=1`);
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: t("common.error"),
+        message: (e as Error).message,
+      });
+    }
   };
 
   const handlePresetGenerate = async (
@@ -145,7 +155,9 @@ export default function Home() {
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
-          className="text-text-secondary hover:text-text-primary"
+          aria-label={t("common.settings")}
+          title={t("common.settings")}
+          className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <Settings className="h-5 w-5" />
         </button>
@@ -304,16 +316,18 @@ export default function Home() {
                     </h3>
                     <p className="flex items-center gap-1 text-xs text-text-muted">
                       <Clock className="h-3 w-3" />
-                      {new Date(p.updatedAt).toLocaleDateString("zh-CN")}
+                      {new Date(p.updatedAt).toLocaleDateString(
+                        lang === "en" ? "en-US" : "zh-CN",
+                      )}
                     </p>
                   </button>
-                  <div className="absolute right-2 top-2 flex items-center gap-1">
+                  <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleExportProject(p.id);
                       }}
-                      className="rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                      className="rounded-md p-1.5 text-text-muted transition hover:bg-accent/10 hover:text-accent"
                       title={t("home.exportProject")}
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -323,7 +337,7 @@ export default function Home() {
                         e.stopPropagation();
                         setDeleteTarget(p.id);
                       }}
-                      className="rounded-md p-1.5 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                      className="rounded-md p-1.5 text-text-muted transition hover:bg-danger/10 hover:text-danger"
                       title={t("home.deleteProject")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

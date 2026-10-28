@@ -35,6 +35,26 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
     };
   }, []);
 
+  // 生成进行中关闭弹框（Esc/背景/X）：先终止生成，避免后台静默改写 deck
+  const closeSafely = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    onClose();
+  };
+
+  // Esc 关闭（生成中同样先终止）
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeSafely();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   if (!open) return null;
   const presetDisplay = preset ? getPresetDisplay(preset, lang) : null;
 
@@ -90,10 +110,10 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="preset-picker-title"
-      onClick={onClose}
+      onClick={closeSafely}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl"
+        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -101,7 +121,7 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
             {preset ? t("preset.enterTopic") : t("preset.library")}
           </h2>
           <button
-            onClick={onClose}
+            onClick={closeSafely}
             className="rounded-md p-1.5 text-text-muted transition hover:bg-bg-hover hover:text-text-primary"
             aria-label={t("common.close")}
           >
@@ -145,11 +165,11 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                 placeholder={t("preset.topicPlaceholder")}
                 className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               />
-              {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && <p className="text-xs text-danger">{error}</p>}
               <button
                 onClick={handleGenerate}
                 disabled={!topic.trim() || generating}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {generating ? (
                   <>

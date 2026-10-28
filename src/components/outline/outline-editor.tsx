@@ -80,7 +80,7 @@ export function OutlineEditor({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-text-muted">
         {t("outline.title")}
         <button
           onClick={addSlide}

@@ -1,9 +1,10 @@
-import { memo, useState, useRef, useEffect, useMemo } from "react";
+import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useT } from "@/hooks/use-page-t";
 import type { ElementContext } from "./svg-editor-canvas";
 import type { Deck, Slide } from "@/types/deck";
 import { resolveTheme } from "@/themes";
 import { DEFAULT_DESIGN } from "@/types/design";
+import { getCanvasFormat } from "@/types/canvas";
 import { buildRenderSlideCached } from "@/engine/render-ir/build";
 import { getRendererMode } from "@/engine/renderer-config";
 import { RenderSlideViewer } from "./render-slide-viewer";
@@ -44,7 +45,7 @@ export const SlidePreview = memo(function SlidePreview({
   const currentIndex = controlledIndex ?? internalIndex;
   const setCurrentIndex = onIndexChange ?? setInternalIndex;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(960);
+  const [containerSize, setContainerSize] = useState({ w: 960, h: 540 });
 
   const theme = useMemo(
     () => resolveTheme(deck.design.palette, deck.design.visualStyle),
@@ -52,6 +53,10 @@ export const SlidePreview = memo(function SlidePreview({
   );
   const slides = deck.slides;
   const currentSlide: Slide | undefined = slides[currentIndex];
+
+  // 画布格式决定预览宽高比（16:9 / 3:4 / 1:1），与导出端同源
+  const canvas = getCanvasFormat(deck.design.canvasFormat);
+  const aspect = `${canvas.w} / ${canvas.h}`;
 
   // feature flag：当前仅 render-ir 一种模式（旧渲染器已迁移移除）
   const rendererMode = getRendererMode();
@@ -70,8 +75,8 @@ export const SlidePreview = memo(function SlidePreview({
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w) setContainerWidth(w);
+      const rect = entries[0]?.contentRect;
+      if (rect?.width) setContainerSize({ w: rect.width, h: rect.height });
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -82,17 +87,52 @@ export const SlidePreview = memo(function SlidePreview({
       <div
         className={`flex items-center justify-center text-text-muted ${className ?? ""}`}
       >
-        暂无幻灯片
+        {t("present.empty")}
       </div>
     );
   }
 
-  const slideWidth = Math.min(containerWidth - 32, 960);
-  const slideHeight = (slideWidth * 9) / 16;
+  // 竖版/方形画布按高度收口，避免内容溢出预览区（横向纵向都留 p-4 边距）
+  const padding = 32;
+  const availW = containerSize.w - padding;
+  const availH = containerSize.h - padding;
+  const slideWidth = Math.floor(
+    Math.min(availW, (availH * canvas.w) / canvas.h, 960),
+  );
+  const slideHeight = (slideWidth * canvas.h) / canvas.w;
 
-  const goPrev = () => setCurrentIndex(Math.max(0, currentIndex - 1));
-  const goNext = () =>
-    setCurrentIndex(Math.min(slides.length - 1, currentIndex + 1));
+  const goPrev = useCallback(
+    () => setCurrentIndex(Math.max(0, currentIndex - 1)),
+    [currentIndex, setCurrentIndex],
+  );
+  const goNext = useCallback(
+    () => setCurrentIndex(Math.min(slides.length - 1, currentIndex + 1)),
+    [slides.length, currentIndex, setCurrentIndex],
+  );
+
+  // 方向键翻页（输入框内不劫持按键）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goPrev();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPrev, goNext]);
 
   return (
     <div className={`flex h-full flex-col ${className ?? ""}`}>
@@ -102,7 +142,7 @@ export const SlidePreview = memo(function SlidePreview({
         className="flex flex-1 items-center justify-center overflow-auto p-4"
       >
         <div
-          className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10"
+          className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
           style={{ width: slideWidth, height: slideHeight }}
         >
           {currentSlide.svg && onUpdateSlideSvg && (
@@ -135,7 +175,11 @@ export const SlidePreview = memo(function SlidePreview({
                 className="h-full w-full"
               />
             ) : (
-              <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+              <SvgViewer
+                svg={currentSlide.svg}
+                className="h-full w-full"
+                aspect={aspect}
+              />
             )
           ) : (
             currentRenderSlide && (
@@ -151,10 +195,10 @@ export const SlidePreview = memo(function SlidePreview({
           {currentSlide.svg && currentSlide.svgStale && (
             <div
               role="status"
-              className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-medium text-white shadow"
+              className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-warning px-3 py-1 text-xs font-medium text-white shadow"
             >
               <span aria-hidden>⚠</span>
-              内容已修改，预览为旧版本
+              {t("preview.staleBadge")}
             </div>
           )}
         </div>
@@ -165,9 +209,9 @@ export const SlidePreview = memo(function SlidePreview({
         <button
           onClick={goPrev}
           disabled={currentIndex === 0}
-          className="rounded-md px-3 py-1 text-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30"
+          className="rounded-md px-3 py-1 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
         >
-          上一页
+          {t("preview.prevPage")}
         </button>
         <span className="min-w-[60px] text-center text-sm text-text-muted">
           {currentIndex + 1} / {slides.length}
@@ -175,9 +219,9 @@ export const SlidePreview = memo(function SlidePreview({
         <button
           onClick={goNext}
           disabled={currentIndex === slides.length - 1}
-          className="rounded-md px-3 py-1 text-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30"
+          className="rounded-md px-3 py-1 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
         >
-          下一页
+          {t("preview.nextPage")}
         </button>
         {currentSlide.svg && (
           <SlideRedrawButton
@@ -195,12 +239,18 @@ export const SlideThumbnail = memo(function SlideThumbnail({
   slide,
   theme,
   width = 160,
+  canvasFormat,
 }: {
   slide: Slide;
   theme: ReturnType<typeof resolveTheme>;
   width?: number;
+  /** 画布格式 id；缺省 16:9（历史 deck 兼容） */
+  canvasFormat?: string;
 }) {
-  const height = (width * 9) / 16;
+  const t = useT();
+  const canvas = getCanvasFormat(canvasFormat);
+  const height = (width * canvas.h) / canvas.w;
+  const aspect = `${canvas.w} / ${canvas.h}`;
 
   const renderSlide = useMemo(() => {
     const dummyDeck = {
@@ -217,11 +267,11 @@ export const SlideThumbnail = memo(function SlideThumbnail({
 
   return (
     <div
-      className="relative overflow-hidden rounded-md ring-1 ring-black/10"
+      className="relative overflow-hidden rounded-md ring-1 ring-border"
       style={{ width, height }}
     >
       {slide.svg ? (
-        <SvgViewer svg={slide.svg} className="h-full w-full" />
+        <SvgViewer svg={slide.svg} className="h-full w-full" aspect={aspect} />
       ) : (
         renderSlide && (
           <RenderSlideViewer
@@ -236,8 +286,8 @@ export const SlideThumbnail = memo(function SlideThumbnail({
       {slide.svg && slide.svgStale && (
         <div
           role="img"
-          aria-label="内容已修改，预览为旧版本"
-          className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] leading-none text-white"
+          aria-label={t("preview.staleBadge")}
+          className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] leading-none text-white"
         >
           <span aria-hidden>!</span>
         </div>

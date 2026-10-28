@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Download, Trash2, Loader2, Cpu } from "lucide-react";
 import { useModelStore, type ModelState } from "@/store/model";
 import { MODEL_REGISTRY, formatGB } from "@/services/model-manager";
@@ -71,6 +71,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
   const load = useModelStore((s) => s.load);
   const unload = useModelStore((s) => s.unload);
   const remove = useModelStore((s) => s.remove);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     void refresh();
@@ -78,6 +79,39 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
 
   const def = MODEL_REGISTRY[tier];
   const busy = state === "downloading" || state === "loading";
+
+  // 删除模型文件的两步确认（体积大，误删需重新下载）
+  const deleteControl = confirmDelete ? (
+    <span className="flex items-center gap-1.5 text-xs">
+      <span className="text-danger">{t("model.deleteConfirm")}</span>
+      <button
+        type="button"
+        onClick={() => {
+          setConfirmDelete(false);
+          void remove();
+        }}
+        className="rounded bg-danger px-2 py-0.5 text-white transition hover:bg-danger/90"
+      >
+        {t("common.confirm")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirmDelete(false)}
+        className="rounded px-1.5 py-0.5 text-text-muted transition hover:text-text-primary"
+      >
+        {t("common.cancel")}
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setConfirmDelete(true)}
+      className={`flex items-center gap-1 ${btnCls}`}
+    >
+      <Trash2 className="h-4 w-4" />
+      {t("model.delete")}
+    </button>
+  );
 
   return (
     <div className="space-y-3">
@@ -139,16 +173,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
             >
               {t("model.load")}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(t("model.deleteConfirm"))) void remove();
-              }}
-              className={`flex items-center gap-1 ${btnCls}`}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("model.delete")}
-            </button>
+            {deleteControl}
           </>
         )}
         {state === "loaded" && (
@@ -160,16 +185,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
             >
               {t("model.unload")}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(t("model.deleteConfirm"))) void remove();
-              }}
-              className={`flex items-center gap-1 ${btnCls}`}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("model.delete")}
-            </button>
+            {deleteControl}
           </>
         )}
         {state === "error" && (

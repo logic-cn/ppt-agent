@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
@@ -45,6 +45,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
   const t = useT();
   const palette = useDeckStore((s) => s.deck?.design.palette);
   const visualStyle = useDeckStore((s) => s.deck?.design.visualStyle);
+  const canvasFormat = useDeckStore((s) => s.deck?.design.canvasFormat);
   const theme = resolveTheme(
     palette ?? DEFAULT_DESIGN.palette,
     visualStyle ?? DEFAULT_DESIGN.visualStyle,
@@ -52,6 +53,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
   const updateSlide = useDeckStore((s) => s.updateSlide);
   const removeSlide = useDeckStore((s) => s.removeSlide);
   const moveSlide = useDeckStore((s) => s.moveSlide);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const {
     attributes,
@@ -73,19 +75,19 @@ export const SortableSlideItem = memo(function SortableSlideItem({
       ref={setNodeRef}
       style={style}
       onClick={() => onSelect?.(index)}
-      className={`group relative cursor-pointer rounded-lg border ${
+      className={`group relative cursor-pointer rounded-lg border transition-shadow ${
         isSelected
           ? "border-accent bg-accent-soft/40"
           : isDragging
-            ? "border-accent"
+            ? "z-50 border-accent shadow-lg ring-2 ring-accent"
             : "border-border"
-      } bg-bg-elevated transition-shadow hover:shadow-sm`}
+      } bg-bg-elevated hover:shadow-sm`}
     >
       {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
-        className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab touch-none rounded p-0.5 text-text-muted opacity-0 transition-opacity hover:text-text-secondary group-hover:opacity-100"
+        className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab touch-none rounded p-0.5 text-text-muted opacity-0 transition-opacity hover:text-text-secondary group-hover:opacity-100 group-focus-within:opacity-100"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
@@ -93,7 +95,12 @@ export const SortableSlideItem = memo(function SortableSlideItem({
       <div className="px-3 pb-3 pt-2">
         {/* 缩略图 */}
         <div className="mb-2 flex justify-center">
-          <SlideThumbnail slide={slide} theme={theme} width={260} />
+          <SlideThumbnail
+            slide={slide}
+            theme={theme}
+            width={260}
+            canvasFormat={canvasFormat}
+          />
         </div>
 
         {/* 底部信息行 */}
@@ -121,7 +128,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
           />
 
           {/* 悬浮操作栏 */}
-          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
             <select
               value={slide.layout}
               onChange={(e) =>
@@ -160,7 +167,10 @@ export const SortableSlideItem = memo(function SortableSlideItem({
             <span className="mx-0.5 h-3 w-px bg-border" />
 
             <button
-              onClick={() => removeSlide(slide.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDelete(true);
+              }}
               className="rounded p-0.5 text-text-muted hover:bg-danger/10 hover:text-danger"
               title={t("common.delete")}
             >
@@ -168,6 +178,35 @@ export const SortableSlideItem = memo(function SortableSlideItem({
             </button>
           </div>
         </div>
+
+        {/* 删除两步确认（与图片删除一致的内联确认，避免误删） */}
+        {confirmDelete && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-danger/10 px-2 py-1.5">
+            <span className="text-[11px] text-danger">
+              {t("outline.deleteSlideConfirm")}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSlide(slide.id);
+                }}
+                className="rounded bg-danger px-2 py-0.5 text-[11px] text-white hover:bg-danger/90"
+              >
+                {t("common.confirm")}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmDelete(false);
+                }}
+                className="rounded px-1.5 py-0.5 text-[11px] text-text-muted hover:text-text-primary"
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,9 @@
 export const en = {
   "app.name": "PPT Agent",
+  "errorBoundary.title": "Something went wrong",
+  "errorBoundary.message":
+    "The interface hit an unexpected error. Your projects are saved locally — reload to continue.",
+  "errorBoundary.reload": "Reload",
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
   "common.save": "Save",
@@ -239,6 +243,12 @@ export const en = {
   "preview.exitEditMode": "Exit editing",
   "preview.aiEditPlaceholder": "Describe how to change this element…",
   "preview.aiEditSubmit": "AI edit this element",
+  "preview.prevPage": "Previous",
+  "preview.nextPage": "Next",
+  "preview.staleBadge": "Content edited — preview shows the old version",
+  "preview.thanks": "Thank you",
+  "preview.imagePlaceholder": "Image placeholder",
+  "chat.stopGenerating": "Stop generating",
   "editor.previewPlaceholder":
     "The preview will appear here once an outline is generated",
   "editor.expandAiPanel": "Expand AI panel",
@@ -475,6 +485,7 @@ export const en = {
   "outline.qSoft": "Has suggestions",
   "outline.moveUp": "Move up",
   "outline.moveDown": "Move down",
+  "outline.deleteSlideConfirm": "Delete this slide?",
 
   "present.empty": "No slides",
   "present.notes": "Speaker Notes",

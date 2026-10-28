@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, MessageSquareText } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import type { Theme } from "@/types/theme";
+import { getCanvasFormat } from "@/types/canvas";
 import { buildRenderSlides } from "@/engine/render-ir/build";
 import { RenderSlideViewer } from "@/engine/preview/render-slide-viewer";
 import { SvgViewer } from "@/components/SvgViewer";
@@ -25,7 +26,6 @@ export function PresentationMode({
   const [showNotes, setShowNotes] = useState(false);
   const [showBar, setShowBar] = useState(true);
   const barTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -41,12 +41,16 @@ export function PresentationMode({
   );
   const currentRenderSlide = renderSlides[index];
 
+  // 画布格式决定放映宽高比（16:9 / 3:4 / 1:1），与导出端同源
+  const canvas = getCanvasFormat(deck.design.canvasFormat);
+
   // 计算最佳缩放尺寸
   const padding = 48;
   const availW = size.w - padding * 2;
   const availH = size.h - padding * 2;
-  const slideW = Math.min(availW, (availH * 16) / 9);
-  const slideH = (slideW * 9) / 16;
+  const slideW = Math.min(availW, (availH * canvas.w) / canvas.h);
+  const slideH = (slideW * canvas.h) / canvas.w;
+  const aspect = `${canvas.w} / ${canvas.h}`;
 
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -78,9 +82,7 @@ export function PresentationMode({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onExit, goPrev, goNext]);
-
-  // 鼠标移动时显示操作栏，3s 后自动隐藏
+  }, [onExit, goPrev, goNext]); // 鼠标移动时显示操作栏，3s 后自动隐藏
   useEffect(() => {
     const onMove = () => {
       setShowBar(true);
@@ -103,21 +105,9 @@ export function PresentationMode({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // 点击左右区域翻页
-  const handleClick = (e: React.MouseEvent) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const mid = rect.width * 0.3;
-    if (x < mid) goPrev();
-    else if (x > rect.width - mid) goNext();
-  };
-
   return (
     <div
-      ref={containerRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black"
-      onClick={handleClick}
       style={{ cursor: "default" }}
     >
       {/* 幻灯片 */}
@@ -127,7 +117,11 @@ export function PresentationMode({
           style={{ width: slideW, height: slideH }}
         >
           {currentSlide.svg ? (
-            <SvgViewer svg={currentSlide.svg} className="h-full w-full" />
+            <SvgViewer
+              svg={currentSlide.svg}
+              className="h-full w-full"
+              aspect={aspect}
+            />
           ) : (
             <RenderSlideViewer
               renderSlide={currentRenderSlide}
@@ -143,7 +137,7 @@ export function PresentationMode({
 
       {/* 演讲者备注面板 */}
       {showNotes && currentSlide?.notes && (
-        <div className="absolute bottom-20 left-1/2 z-10 max-w-lg -translate-x-1/2 rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-white/90 backdrop-blur-md">
+        <div className="absolute bottom-20 left-1/2 z-10 max-h-[40vh] max-w-lg -translate-x-1/2 overflow-y-auto rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-white/90 backdrop-blur-md">
           <div className="mb-2 text-xs font-medium text-white/50">
             {t("present.notes")}
           </div>
@@ -212,17 +206,27 @@ export function PresentationMode({
         </div>
       </div>
 
-      {/* 左右翻页热区指示（hover 时显示） */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-0 flex w-[15%] items-center justify-start pl-4 opacity-0 transition-opacity hover:opacity-100">
-        <div className="rounded-full bg-white/10 p-2 text-white/50 backdrop-blur-sm">
+      {/* 左右翻页热区（与点击分区一致：左右各 30%，hover 显示箭头） */}
+      <button
+        onClick={goPrev}
+        disabled={index === 0}
+        aria-label={t("preview.prevPage")}
+        className="group absolute inset-y-0 left-0 z-0 flex w-[30%] items-center justify-start pl-4 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 disabled:cursor-default disabled:opacity-0"
+      >
+        <span className="rounded-full bg-white/10 p-2 text-white/50 backdrop-blur-sm group-hover:text-white/80">
           <ChevronLeft className="h-5 w-5" />
-        </div>
-      </div>
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-0 flex w-[15%] items-center justify-end pr-4 opacity-0 transition-opacity hover:opacity-100">
-        <div className="rounded-full bg-white/10 p-2 text-white/50 backdrop-blur-sm">
+        </span>
+      </button>
+      <button
+        onClick={goNext}
+        disabled={index === slideCount - 1}
+        aria-label={t("preview.nextPage")}
+        className="group absolute inset-y-0 right-0 z-0 flex w-[30%] items-center justify-end pr-4 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 disabled:cursor-default disabled:opacity-0"
+      >
+        <span className="rounded-full bg-white/10 p-2 text-white/50 backdrop-blur-sm group-hover:text-white/80">
           <ChevronRight className="h-5 w-5" />
-        </div>
-      </div>
+        </span>
+      </button>
     </div>
   );
 }

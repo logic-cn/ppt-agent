@@ -63,7 +63,7 @@ export function GenerationOptionsBar({
       </button>
 
       {open && (
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-border bg-bg-elevated p-2.5">
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-border bg-bg-elevated p-2.5 animate-dialog origin-top">
           <label className={LABEL_CLS}>
             <span>{t("chat.genOptionsScenario")}</span>
             <select

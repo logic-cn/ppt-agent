@@ -19,14 +19,14 @@ const severityMeta: Record<
   Severity,
   { color: string; icon: typeof AlertTriangle }
 > = {
-  hard: { color: "text-red-500", icon: XCircle },
-  soft: { color: "text-amber-500", icon: AlertTriangle },
+  hard: { color: "text-danger", icon: XCircle },
+  soft: { color: "text-warning", icon: AlertTriangle },
 };
 
 function scoreColor(score: number): string {
-  if (score >= 90) return "text-green-500";
-  if (score >= 70) return "text-amber-500";
-  return "text-red-500";
+  if (score >= 90) return "text-success";
+  if (score >= 70) return "text-warning";
+  return "text-danger";
 }
 
 export function QualityReport({
@@ -52,7 +52,7 @@ export function QualityReport({
     <div className="rounded-xl border border-border bg-bg-surface p-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+          <span className="text-xs font-medium text-text-muted">
             {t("quality.title")}
           </span>
           <span className={`text-lg font-semibold ${scoreColor(score)}`}>
@@ -60,12 +60,12 @@ export function QualityReport({
           </span>
           <div className="flex items-center gap-1.5 text-[11px]">
             {counts.hard > 0 && (
-              <span className="text-red-500">
+              <span className="text-danger">
                 {t("quality.hardCount", { count: counts.hard })}
               </span>
             )}
             {counts.soft > 0 && (
-              <span className="text-amber-500">
+              <span className="text-warning">
                 {t("quality.softCount", { count: counts.soft })}
               </span>
             )}
@@ -115,7 +115,7 @@ export function QualityReport({
         <button
           onClick={onAutoFix}
           disabled={fixing || autoFixableCount === 0}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
         >
           <Wand2 className="h-3.5 w-3.5" />
           {fixing

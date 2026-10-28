@@ -96,7 +96,7 @@ export function SettingsDialog({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -360,7 +360,7 @@ function AboutUpdateSection({ t }: { t: ReturnType<typeof useT> }) {
           <div
             className={
               state.kind === "error"
-                ? "text-sm text-red-500"
+                ? "text-sm text-danger"
                 : "text-sm text-text-secondary"
             }
           >
@@ -589,6 +589,7 @@ function ProviderCard({
   const inputCls =
     "w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10";
   const isLocal = isLocalProviderConfig(cfg);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
     <div
@@ -616,7 +617,7 @@ function ProviderCard({
             <span className="font-medium text-text-primary">
               {cfg.label}
               {!isLocal && (cfg.apiKey == null || cfg.apiKey.trim() === "") ? (
-                <span className="ml-1 text-xs text-red-500">
+                <span className="ml-1 text-xs text-danger">
                   {t("settings.missingApiKey")}
                 </span>
               ) : null}
@@ -640,17 +641,36 @@ function ProviderCard({
           <button
             type="button"
             aria-label={t("settings.removeCustomModel")}
-            onClick={() => {
-              if (window.confirm(t("settings.removeCustomConfirm"))) {
-                removeCustomProvider(id as CustomProviderId);
-              }
-            }}
-            className="shrink-0 rounded-md p-1.5 text-text-secondary transition hover:bg-red-500/10 hover:text-red-500"
+            onClick={() => setConfirmRemove(true)}
+            className="shrink-0 rounded-md p-1.5 text-text-secondary transition hover:bg-danger/10 hover:text-danger"
           >
             <Trash2 className="h-4 w-4" />
           </button>
         )}
       </div>
+      {confirmRemove && isCustom && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-danger/10 px-3 py-2">
+          <span className="text-xs text-danger">
+            {t("settings.removeCustomConfirm")}
+          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => removeCustomProvider(id as CustomProviderId)}
+              className="rounded bg-danger px-2 py-0.5 text-xs text-white transition hover:bg-danger/90"
+            >
+              {t("common.confirm")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmRemove(false)}
+              className="rounded px-1.5 py-0.5 text-xs text-text-muted transition hover:text-text-primary"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
       {isLocal ? (
         <div className="space-y-3">
           <p className="text-xs text-text-muted">{t("model.help")}</p>

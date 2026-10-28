@@ -28,7 +28,10 @@ import type { ElementContext } from "@/engine/preview/svg-editor-canvas";
 import { useJobStore, runJob } from "@/store/job";
 import { SlidePreview } from "@/engine/preview";
 import { OutlineEditor } from "@/components/outline";
-import { InspectorPanel } from "@/components/inspector/inspector-panel";
+import {
+  InspectorPanel,
+  type InspectorTab,
+} from "@/components/inspector/inspector-panel";
 import { ImportDialog } from "@/components/import-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToastStore } from "@/store/toast";
@@ -61,6 +64,17 @@ export default function Editor() {
   const load = useDeckStore((s) => s.load);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  // 三栏宽度可拖拽调宽（220–420px），记忆到 localStorage
+  const [leftWidth, setLeftWidth] = useState(() =>
+    readPanelWidth("editor.leftWidth"),
+  );
+  const [rightWidth, setRightWidth] = useState(() =>
+    readPanelWidth("editor.rightWidth"),
+  );
+  const leftWidthRef = useRef(leftWidth);
+  const rightWidthRef = useRef(rightWidth);
+  leftWidthRef.current = leftWidth;
+  rightWidthRef.current = rightWidth;
   const [exporting, setExporting] = useState(false);
   const [syncingStale, setSyncingStale] = useState(false);
   const [annotating, setAnnotating] = useState(false);
@@ -68,6 +82,8 @@ export default function Editor() {
   const [importOpen, setImportOpen] = useState(params.get("import") === "1");
   const [designOpen, setDesignOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // 检查器 tab 受控于编辑器：质量门禁 chip 可一键跳到 AI tab 查看报告
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("ai");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [jobPanelOpen, setJobPanelOpen] = useState(false);
@@ -412,13 +428,11 @@ export default function Editor() {
   const statusColor = (status: string) => {
     switch (status) {
       case "running":
-        return "text-blue-500";
+        return "text-accent";
       case "succeeded":
-        return "text-green-500";
+        return "text-success";
       case "failed":
-        return "text-red-500";
-      case "cancelled":
-        return "text-text-muted";
+        return "text-danger";
       default:
         return "text-text-muted";
     }
@@ -427,11 +441,11 @@ export default function Editor() {
   return (
     <div className="flex h-full flex-col bg-bg-base">
       {/* 顶部工具栏 */}
-      <header className="flex items-center justify-between border-b border-border bg-bg-elevated px-4 h-10">
-        <div className="flex items-center gap-3">
+      <header className="flex h-10 items-center justify-between gap-2 border-b border-border bg-bg-elevated px-4">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={() => navigate("/")}
-            className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+            className="shrink-0 rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -445,7 +459,7 @@ export default function Editor() {
                 if (e.key === "Enter") commitTitle();
                 if (e.key === "Escape") setEditingTitle(false);
               }}
-              className="rounded border border-accent bg-bg-base px-1.5 py-0.5 text-sm font-medium text-text-primary outline-none"
+              className="w-56 rounded border border-accent bg-bg-base px-1.5 py-0.5 text-sm font-medium text-text-primary outline-none"
             />
           ) : (
             <button
@@ -453,24 +467,25 @@ export default function Editor() {
                 setTitleInput(deck?.title ?? t("editor.untitled"));
                 setEditingTitle(true);
               }}
-              className="rounded px-1.5 py-0.5 text-sm font-medium text-text-primary hover:bg-bg-hover"
+              className="min-w-0 max-w-[220px] truncate rounded px-1.5 py-0.5 text-sm font-medium text-text-primary hover:bg-bg-hover"
+              title={deck?.title}
             >
               {deck?.title ?? t("editor.untitled")}
             </button>
           )}
           {deck && (
-            <span className="text-xs text-text-muted">
+            <span className="shrink-0 text-xs text-text-muted">
               {t("editor.pageCount", { n: deck.slides.length })}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {/* 任务状态指示器 */}
           {hasActiveJobs && (
             <button
               onClick={() => setJobPanelOpen(!jobPanelOpen)}
-              className="flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2.5 py-1 text-xs text-blue-600 hover:bg-blue-500/20"
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent/10 px-2.5 py-1 text-xs text-accent transition-colors hover:bg-accent/20"
             >
               <Loader2 className="h-3 w-3 animate-spin" />
               {t("editor.activeJobsCount", { n: activeJobs.length })}
@@ -479,7 +494,7 @@ export default function Editor() {
           {failedJobs.length > 0 && !hasActiveJobs && (
             <button
               onClick={() => setJobPanelOpen(!jobPanelOpen)}
-              className="flex items-center gap-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-xs text-red-600 hover:bg-red-500/20"
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-danger/10 px-2.5 py-1 text-xs text-danger transition-colors hover:bg-danger/20"
             >
               {t("editor.failedJobsCount", { n: failedJobs.length })}
             </button>
@@ -536,7 +551,7 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setDesignOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-xl border border-border bg-bg-elevated p-3 shadow-lg">
+                <div className="absolute right-0 top-full z-20 mt-1 w-80 origin-top-right rounded-xl border border-border bg-bg-elevated p-3 shadow-lg animate-dialog">
                   <DesignPanel
                     design={deck?.design ?? DEFAULT_DESIGN}
                     onChange={(d) => setDesign(d)}
@@ -605,25 +620,29 @@ export default function Editor() {
             title={
               hasHard ? t("editor.qualityBlockExport") : t("common.exportPpt")
             }
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
           >
             <Download className="h-3.5 w-3.5" />
             {exporting ? t("common.exporting") : t("common.exportPpt")}
           </button>
           {hasHard && (
-            <span
-              className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-600"
+            <button
+              onClick={() => {
+                setRightOpen(true);
+                setInspectorTab("ai");
+              }}
+              className="shrink-0 rounded-md bg-danger/10 px-2 py-1 text-xs text-danger transition-colors hover:bg-danger/20"
               title={t("editor.qualityBlockExport")}
             >
               {t("editor.qualityNotMet")}
-            </span>
+            </button>
           )}
         </div>
       </header>
 
       {/* 任务面板 */}
       {jobPanelOpen && (hasActiveJobs || failedJobs.length > 0) && (
-        <div className="border-b border-border bg-bg-surface px-4 py-2">
+        <div className="max-h-44 overflow-y-auto border-b border-border bg-bg-surface px-4 py-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-text-secondary">
               {t("editor.taskList")}
@@ -658,10 +677,10 @@ export default function Editor() {
                     />
                   )}
                   {job.status === "failed" && (
-                    <X className="h-3 w-3 text-red-500" />
+                    <X className="h-3 w-3 text-danger" />
                   )}
                   {job.status === "succeeded" && (
-                    <Check className="h-3 w-3 text-green-500" />
+                    <Check className="h-3 w-3 text-success" />
                   )}
                   <span className="text-text-primary">{job.title}</span>
                   {job.message && (
@@ -700,12 +719,22 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：大纲编辑器 */}
         {leftOpen ? (
-          <aside className="flex w-[280px] flex-col border-r border-border bg-bg-elevated">
-            <OutlineEditor
-              onSelectSlide={setSelectedIndex}
-              selectedIndex={selectedIndex}
+          <>
+            <aside
+              className="flex flex-col border-r border-border bg-bg-elevated"
+              style={{ width: leftWidth }}
+            >
+              <OutlineEditor
+                onSelectSlide={setSelectedIndex}
+                selectedIndex={selectedIndex}
+              />
+            </aside>
+            <PanelDivider
+              onPointerDown={(e) =>
+                startPanelResize(e, "left", leftWidthRef, setLeftWidth)
+              }
             />
-          </aside>
+          </>
         ) : (
           <aside className="flex w-9 flex-col items-center border-r border-border bg-bg-elevated py-2">
             <button
@@ -744,9 +773,24 @@ export default function Editor() {
 
         {/* 右栏：属性检查器（AI / 页面 / 图表 / 配图 / 备注） */}
         {rightOpen && deck ? (
-          <aside className="flex w-[280px] flex-col border-l border-border bg-bg-elevated">
-            <InspectorPanel deck={deck} selectedIndex={selectedIndex} />
-          </aside>
+          <>
+            <PanelDivider
+              onPointerDown={(e) =>
+                startPanelResize(e, "right", rightWidthRef, setRightWidth)
+              }
+            />
+            <aside
+              className="flex flex-col border-l border-border bg-bg-elevated"
+              style={{ width: rightWidth }}
+            >
+              <InspectorPanel
+                deck={deck}
+                selectedIndex={selectedIndex}
+                activeTab={inspectorTab}
+                onTabChange={setInspectorTab}
+              />
+            </aside>
+          </>
         ) : (
           <aside className="flex w-9 flex-col items-center border-l border-border bg-bg-elevated py-2">
             <button
@@ -789,12 +833,74 @@ export default function Editor() {
   );
 }
 
+const PANEL_WIDTH_MIN = 220;
+const PANEL_WIDTH_MAX = 420;
+
+function readPanelWidth(storageKey: string): number {
+  try {
+    const v = Number(window.localStorage.getItem(storageKey));
+    if (Number.isFinite(v) && v >= PANEL_WIDTH_MIN && v <= PANEL_WIDTH_MAX) {
+      return v;
+    }
+  } catch {
+    // localStorage 不可用时使用默认宽度
+  }
+  return 280;
+}
+
+/** 拖拽调宽：side=left 向右拖增宽，side=right 向左拖增宽；松手后记忆 */
+function startPanelResize(
+  e: React.PointerEvent,
+  side: "left" | "right",
+  widthRef: { current: number },
+  setWidth: (w: number) => void,
+) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = widthRef.current;
+  const storageKey = side === "left" ? "editor.leftWidth" : "editor.rightWidth";
+  const onMove = (ev: PointerEvent) => {
+    const delta = side === "left" ? ev.clientX - startX : startX - ev.clientX;
+    setWidth(
+      Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, startWidth + delta)),
+    );
+  };
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    try {
+      window.localStorage.setItem(storageKey, String(widthRef.current));
+    } catch {
+      // 忽略持久化失败
+    }
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+}
+
+/** 面板间拖拽分隔条：4px 命中区，hover 显示强调色 */
+function PanelDivider({
+  onPointerDown,
+}: {
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={onPointerDown}
+      className="group/divider relative z-10 -mx-0.5 w-1 shrink-0 cursor-col-resize select-none py-2"
+    >
+      <div className="h-full w-px bg-transparent transition-colors group-hover/divider:bg-accent/60" />
+    </div>
+  );
+}
+
 /**
  * 顶栏模型状态 chip：状态点（绿=就绪/灰=未加载）+ 当前模型名称。
  * 本地模型按「实际已加载的模型路径」判定（tier 切换后未重载不误报绿）；
  * 远程模型无加载概念，配置了 API Key 即绿点。
- */
-function ModelStatusChip() {
+ */ function ModelStatusChip() {
   const t = useT();
   const settings = useSettingsStore((s) => s.settings);
   const modelState = useModelStore((s) => s.state);

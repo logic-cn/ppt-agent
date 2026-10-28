@@ -17,15 +17,30 @@ import { useT } from "@/hooks/use-page-t";
 
 type Tab = "ai" | "slide" | "chart" | "image" | "notes";
 
+export type InspectorTab = Tab;
+
 interface Props {
   deck: Deck;
   selectedIndex: number;
   onSelectIndex?: (index: number) => void;
+  /** 受控 tab（编辑器质量门禁 chip 需要跳转到 AI tab）；缺省内部自管理 */
+  activeTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
 }
 
-export function InspectorPanel({ deck, selectedIndex }: Props) {
+export function InspectorPanel({
+  deck,
+  selectedIndex,
+  activeTab: controlledTab,
+  onTabChange,
+}: Props) {
   const t = useT();
-  const [activeTab, setActiveTab] = useState<Tab>("ai");
+  const [internalTab, setInternalTab] = useState<Tab>("ai");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: Tab) => {
+    setInternalTab(tab);
+    onTabChange?.(tab);
+  };
   const [generating, setGenerating] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
   const updateSlide = useDeckStore((s) => s.updateSlide);
@@ -136,18 +151,20 @@ export function InspectorPanel({ deck, selectedIndex }: Props) {
   return (
     <div className="flex h-full flex-col">
       {/* Tab 切换 */}
-      <div className="flex border-b border-border">
-        {tabs.map((t) => (
+      <div className="flex border-b border-border" role="tablist">
+        {tabs.map((tab) => (
           <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
-              activeTab === t.key
-                ? "border-b-2 border-accent text-accent font-semibold"
+            key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`shrink-0 whitespace-nowrap px-2.5 py-2.5 text-xs font-medium transition-colors ${
+              activeTab === tab.key
+                ? "border-b-2 border-accent font-semibold text-accent"
                 : "text-text-muted hover:text-text-secondary"
             }`}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>

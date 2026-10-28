@@ -64,6 +64,11 @@
     @apply bg-bg-base text-text-primary;
   }
 
+  /* 键盘导航可见性：仅 focus-visible 显示焦点环，不影响鼠标点击 */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/60 ring-offset-1 ring-offset-bg-base;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -76,5 +81,36 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-border-strong;
+  }
+}
+
+@layer utilities {
+  /* 弹窗/下拉入场：轻微放大 + 淡入 */
+  @keyframes fade-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  /* toast 自底部滑入 */
+  @keyframes slide-up-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  .animate-dialog {
+    animation: fade-scale-in 0.16s ease-out;
+  }
+  .animate-toast {
+    animation: slide-up-in 0.2s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-dialog,
+    .animate-toast {
+      animation: none;
+    }
   }
 }

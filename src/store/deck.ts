@@ -65,6 +65,19 @@ function debouncedPersist(get: () => DeckStore) {
   }, 2000);
 }
 
+// 关闭/刷新页面前尽力落盘防抖窗口内的改动（异步 IPC 尽力而为，与 30s 自动保存互补）
+if (typeof window !== "undefined") {
+  const flushOnHide = () => {
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = null;
+    }
+    const { deck, dirty } = useDeckStore.getState();
+    if (dirty && deck) void saveDeck(deck).catch(() => {});
+  };
+  window.addEventListener("pagehide", flushOnHide);
+}
+
 // 把旧 SlideLayout 映射到 pagePlan 的语义角色（取交集，缺省归为 content）
 const SEMANTIC_ROLE_SET = new Set([
   "cover",

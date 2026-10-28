@@ -7,6 +7,7 @@ import type {
 } from "@/engine/render-ir/types";
 import type { Theme } from "@/types/theme";
 import type { Slide } from "@/types/deck";
+import { useT } from "@/hooks/use-page-t";
 
 interface Props {
   renderSlide: RenderSlide;
@@ -31,6 +32,7 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
   theme,
   width,
 }: Props) {
+  const t = useT();
   if (!renderSlide) return null;
 
   return (
@@ -53,7 +55,7 @@ export const RenderSlideViewer = memo(function RenderSlideViewer({
             color: theme.colors.textMuted,
           }}
         >
-          感谢聆听
+          {t("preview.thanks")}
         </div>
       )}
     </div>
@@ -77,7 +79,7 @@ const NodeViewer = memo(function NodeViewer({
     case "shape":
       return <ShapeNodeViewer node={node} width={width} />;
     case "image":
-      return <ImageNodeViewer node={node} width={width} />;
+      return <ImageNodeViewer node={node} theme={theme} width={width} />;
     case "chart":
       return <ChartNodeViewer node={node} theme={theme} width={width} />;
     default:
@@ -178,11 +180,14 @@ const ShapeNodeViewer = memo(function ShapeNodeViewer({
 
 const ImageNodeViewer = memo(function ImageNodeViewer({
   node,
+  theme,
   width,
 }: {
   node: Extract<RenderNode, { type: "image" }>;
+  theme: Theme;
   width: number;
 }) {
+  const t = useT();
   if (!node.src) {
     return (
       <div
@@ -191,13 +196,13 @@ const ImageNodeViewer = memo(function ImageNodeViewer({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#f3f4f6",
+          background: theme.colors.surface,
           borderRadius: `${(8 * width) / 1280}px`,
           fontSize: `${(14 * width) / 1280}px`,
-          color: "#9ca3af",
+          color: theme.colors.textMuted,
         }}
       >
-        图片占位
+        {t("preview.imagePlaceholder")}
       </div>
     );
   }
@@ -263,9 +268,9 @@ const ChartNodeViewer = memo(function ChartNodeViewer({
         </p>
       )}
       {chart.type === "pie" || chart.type === "doughnut" ? (
-        <PieView chart={chart} colors={colors} s={s} />
+        <PieView chart={chart} colors={colors} theme={theme} s={s} />
       ) : chart.type === "line" ? (
-        <LineView chart={chart} maxVal={maxVal} s={s} />
+        <LineView chart={chart} maxVal={maxVal} theme={theme} s={s} />
       ) : (
         <BarView chart={chart} maxVal={maxVal} theme={theme} s={s} />
       )}
@@ -329,10 +334,12 @@ const BarView = memo(function BarView({
 const LineView = memo(function LineView({
   chart,
   maxVal,
+  theme,
   s,
 }: {
   chart: Extract<RenderNode, { type: "chart" }>["chart"];
   maxVal: number;
+  theme: Theme;
   s: (px: number) => string;
 }) {
   const points = chart.data.map((d, i) => ({
@@ -340,6 +347,7 @@ const LineView = memo(function LineView({
     y: (1 - d.value / maxVal) * 100,
     value: d.value,
   }));
+  const stroke = theme.colors.accent;
   return (
     <div className="relative flex-1" style={{ margin: `${s(4)} 0` }}>
       <svg
@@ -350,18 +358,22 @@ const LineView = memo(function LineView({
         <polyline
           points={points.map((p) => `${p.x},${p.y}`).join(" ")}
           fill="none"
-          stroke="#f59e0b"
+          stroke={stroke}
           strokeWidth="2"
         />
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="2" fill="#f59e0b" />
+          <circle key={i} cx={p.x} cy={p.y} r="2" fill={stroke} />
         ))}
       </svg>
       <div className="flex justify-between px-1">
         {points.map((p, i) => (
           <span
             key={i}
-            style={{ fontSize: s(10), color: "#6b7280", textAlign: "center" }}
+            style={{
+              fontSize: s(10),
+              color: theme.colors.text,
+              textAlign: "center",
+            }}
           >
             {p.value}
           </span>
@@ -371,7 +383,11 @@ const LineView = memo(function LineView({
         {chart.data.map((d, i) => (
           <span
             key={i}
-            style={{ fontSize: s(9), color: "#9ca3af", textAlign: "center" }}
+            style={{
+              fontSize: s(9),
+              color: theme.colors.textMuted,
+              textAlign: "center",
+            }}
           >
             {d.label}
           </span>
@@ -384,10 +400,12 @@ const LineView = memo(function LineView({
 const PieView = memo(function PieView({
   chart,
   colors,
+  theme,
   s,
 }: {
   chart: Extract<RenderNode, { type: "chart" }>["chart"];
   colors: string[];
+  theme: Theme;
   s: (px: number) => string;
 }) {
   const total = chart.data.reduce((sum, d) => sum + d.value, 0);
@@ -425,7 +443,9 @@ const PieView = memo(function PieView({
                 borderRadius: "50%",
               }}
             />
-            <span style={{ fontSize: s(12), color: "#111827" }}>{d.label}</span>
+            <span style={{ fontSize: s(12), color: theme.colors.text }}>
+              {d.label}
+            </span>
           </div>
         ))}
       </div>

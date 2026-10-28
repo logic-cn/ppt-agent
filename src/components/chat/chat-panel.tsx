@@ -7,9 +7,10 @@ import {
   RefreshCw,
   AlertTriangle,
   LayoutTemplate,
+  Square,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
-import { runJob } from "@/store/job";
+import { runJob, useJobStore } from "@/store/job";
 import { useQualityStore } from "@/store/quality";
 import { useSettingsStore } from "@/store/settings";
 import { useModelStore } from "@/store/model";
@@ -102,6 +103,14 @@ export function ChatPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // 输入框随内容自动增高（上限与 max-h-32 一致）
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [input]);
+
   const addMessage = useCallback(
     (
       role: "user" | "assistant",
@@ -127,6 +136,13 @@ export function ChatPanel() {
     [],
   );
 
+  // 用户放弃该 patch 建议：移除确认按钮（保留摘要文本）
+  const dismissPatches = useCallback((msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, patches: undefined } : m)),
+    );
+  }, []);
+
   const applyPatches = useCallback(
     (msg: Message) => {
       const deck = useDeckStore.getState().deck;
@@ -145,6 +161,7 @@ export function ChatPanel() {
         if (result.deck.title !== deck.title) {
           setTitle(result.deck.title);
         }
+        dismissPatches(msg.id);
         addMessage(
           "assistant",
           `✅ ${t("chat.applied", {
@@ -161,7 +178,7 @@ export function ChatPanel() {
         );
       }
     },
-    [replaceSlides, setTitle, addMessage],
+    [replaceSlides, setTitle, addMessage, dismissPatches],
   );
 
   // 生成完成后跑一次质量检查，并把报告写入全局 store
@@ -309,6 +326,13 @@ export function ChatPanel() {
 
   const submittingRef = useRef(false);
   const lastUserText = useRef("");
+  // 当前由本面板启动且可取消的 job：供「停止」按钮终止生成
+  const runningJobIdRef = useRef<string | null>(null);
+
+  const stopActiveJob = () => {
+    const id = runningJobIdRef.current;
+    if (id) useJobStore.getState().cancelJob(id);
+  };
 
   const handleSubmit = useCallback(
     async (override?: string) => {
@@ -342,6 +366,7 @@ export function ChatPanel() {
                 canCancel: true,
               },
               async (job) => {
+                runningJobIdRef.current = job.id;
                 // X1 管线：用 buildDeckSvgs 生成 svg 设计真相
                 const targetDeck =
                   deck ?? (await useDeckStore.getState().createDeck());
@@ -507,6 +532,7 @@ export function ChatPanel() {
             const result = await runJob(
               { type: "deck.patch", title: t("chat.apply"), canCancel: true },
               async (job) => {
+                runningJobIdRef.current = job.id;
                 try {
                   const patches = await generateDeckPatches({
                     deck,
@@ -591,6 +617,7 @@ export function ChatPanel() {
       } finally {
         setLoading(false);
         submittingRef.current = false;
+        runningJobIdRef.current = null;
         useGenerationFollowStore.getState().setPartialText("");
         useGenerationFollowStore.getState().setGeneratingIndex(null);
       }
@@ -655,8 +682,8 @@ export function ChatPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
-        <span>{t("chat.assistantTitle")}</span>
+      <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-text-muted">
+        <div>{t("chat.assistantTitle")}</div>
         <button
           onClick={() => setPresetOpen(true)}
           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-bg-hover hover:text-accent ${
@@ -690,7 +717,7 @@ export function ChatPanel() {
             />
           )}
           {firstPageGateMsg && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+            <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <div className="flex-1">
                 <span className="font-medium">{t("chat.firstPageCheck")}</span>
@@ -698,13 +725,13 @@ export function ChatPanel() {
                 <div className="mt-1.5 flex gap-2">
                   <button
                     onClick={() => void handleSubmit(lastUserText.current)}
-                    className="rounded-md bg-amber-100 px-2 py-0.5 font-medium text-amber-800 hover:bg-amber-200"
+                    className="rounded-md bg-warning/20 px-2 py-0.5 font-medium text-text-primary transition-colors hover:bg-warning/30"
                   >
                     {t("chat.regenerateFirstPage")}
                   </button>
                   <button
                     onClick={() => setFirstPageGateMsg(null)}
-                    className="rounded-md border border-amber-300 px-2 py-0.5 text-amber-700 hover:bg-amber-100"
+                    className="rounded-md border border-warning/40 px-2 py-0.5 text-warning transition-colors hover:bg-warning/10"
                   >
                     {t("chat.continueAfterAdjust")}
                   </button>
@@ -723,16 +750,16 @@ export function ChatPanel() {
             >
               <button
                 onClick={() => copyMessage(msg.id, msg.content)}
-                className="absolute right-1.5 top-1.5 rounded p-1 text-text-muted opacity-0 transition-opacity hover:bg-bg-hover group-hover:opacity-100"
+                className="absolute right-1.5 top-1.5 rounded p-1 text-text-muted opacity-0 transition-opacity hover:bg-bg-hover focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100"
                 title={t("chat.copyMessage")}
               >
                 {copiedId === msg.id ? (
-                  <Check className="h-3.5 w-3.5 text-green-500" />
+                  <Check className="h-3.5 w-3.5 text-success" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
               </button>
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-inherit">
+              <div className="whitespace-pre-wrap text-inherit">
                 {msg.content}
               </div>
 
@@ -740,7 +767,7 @@ export function ChatPanel() {
               {msg.patches && msg.patches.length > 0 && (
                 <div className="mt-3 flex items-center gap-2 border-t border-border pt-2">
                   {msg.destructive && (
-                    <div className="flex items-center gap-1 text-xs text-amber-500">
+                    <div className="flex items-center gap-1 text-xs text-warning">
                       <AlertTriangle className="h-3 w-3" />
                       {t("chat.highRisk")}
                     </div>
@@ -748,11 +775,14 @@ export function ChatPanel() {
                   <div className="flex-1" />
                   <button
                     onClick={() => applyPatches(msg)}
-                    className="rounded-lg bg-gradient-to-r from-ai to-orange-400 px-3 py-1 text-xs font-medium text-white hover:opacity-90 shadow-sm shadow-ai/20"
+                    className="rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90 shadow-sm shadow-ai/20"
                   >
                     {t("chat.apply")}
                   </button>
-                  <button className="rounded-md border border-border px-3 py-1 text-xs text-text-muted hover:bg-bg-hover">
+                  <button
+                    onClick={() => dismissPatches(msg.id)}
+                    className="rounded-md border border-border px-3 py-1 text-xs text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+                  >
                     {t("common.cancel")}
                   </button>
                 </div>
@@ -825,17 +855,24 @@ export function ChatPanel() {
             rows={1}
             className="max-h-32 flex-1 resize-none bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
           />
-          <button
-            onClick={() => void handleSubmit()}
-            disabled={loading || !input.trim()}
-            className="rounded-lg bg-gradient-to-r from-ai to-orange-400 p-1.5 text-white hover:opacity-90 disabled:opacity-40 shadow-sm shadow-ai/20"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+          {loading ? (
+            <button
+              type="button"
+              onClick={stopActiveJob}
+              title={t("chat.stopGenerating")}
+              className="rounded-lg border border-border p-1.5 text-text-secondary transition-colors hover:border-danger/40 hover:text-danger"
+            >
+              <Square className="h-3 w-3 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={() => void handleSubmit()}
+              disabled={!input.trim()}
+              className="rounded-lg bg-gradient-to-r from-ai to-ai-hover p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm shadow-ai/20"
+            >
               <Sparkles className="h-4 w-4" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

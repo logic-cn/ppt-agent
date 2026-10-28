@@ -33,6 +33,7 @@ export function ImportDialog({ open, onClose }: Props) {
   const [tab, setTab] = useState<"file" | "url">("file");
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState<ImportStep>("input");
   const [parsed, setParsed] = useState<ParsedDocument | null>(null);
   const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
@@ -184,10 +185,8 @@ export function ImportDialog({ open, onClose }: Props) {
     }
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFile = async (file: File) => {
+    if (importing) return;
     setImporting(true);
     try {
       if (file.name.endsWith(".docx")) {
@@ -321,7 +320,7 @@ export function ImportDialog({ open, onClose }: Props) {
             })}
           </div>
           {parsed.warnings.length > 0 && (
-            <div className="mt-2 text-xs text-amber-500">
+            <div className="mt-2 text-xs text-warning">
               {parsed.warnings.map((w, i) => (
                 <div key={i}>⚠ {w}</div>
               ))}
@@ -376,7 +375,7 @@ export function ImportDialog({ open, onClose }: Props) {
           <button
             onClick={() => parsed && handleGenerate(parsed, selectedSectionIds)}
             disabled={importing || selectedSectionIds.length === 0}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-4 py-1.5 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {importing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -410,7 +409,7 @@ export function ImportDialog({ open, onClose }: Props) {
       }}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-border bg-bg-elevated shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
@@ -463,11 +462,26 @@ export function ImportDialog({ open, onClose }: Props) {
         )}
 
         {/* 内容 */}
-        <div className="p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {step === "input" && tab === "file" ? (
             <div
               onClick={() => fileRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border px-6 py-12 text-center transition hover:border-accent hover:bg-accent-soft/10"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) void handleFile(file);
+              }}
+              className={`flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed px-6 py-12 text-center transition ${
+                dragOver
+                  ? "border-accent bg-accent-soft/20"
+                  : "border-border hover:border-accent hover:bg-accent-soft/10"
+              }`}
             >
               <FileText className="h-10 w-10 text-text-muted" />
               <div>
@@ -482,7 +496,10 @@ export function ImportDialog({ open, onClose }: Props) {
                 ref={fileRef}
                 type="file"
                 accept=".docx,.md,.pdf"
-                onChange={handleFile}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleFile(f);
+                }}
                 className="hidden"
               />
             </div>
@@ -503,7 +520,7 @@ export function ImportDialog({ open, onClose }: Props) {
               <button
                 onClick={handleUrl}
                 disabled={importing || !url.trim()}
-                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-purple-500 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {importing && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("import.parseAndImport")}

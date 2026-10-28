@@ -2,6 +2,10 @@ import type { TranslationKey } from "./en";
 
 export const zh: Record<TranslationKey, string> = {
   "app.name": "PPT 代理",
+  "errorBoundary.title": "界面出现异常",
+  "errorBoundary.message":
+    "界面遇到未预期的错误。项目数据已保存在本地，刷新后可继续使用。",
+  "errorBoundary.reload": "刷新页面",
   "common.cancel": "取消",
   "common.confirm": "确认",
   "common.save": "保存",
@@ -224,6 +228,12 @@ export const zh: Record<TranslationKey, string> = {
   "preview.exitEditMode": "退出编辑",
   "preview.aiEditPlaceholder": "描述怎么改这个元素…",
   "preview.aiEditSubmit": "AI 修改此元素",
+  "preview.prevPage": "上一页",
+  "preview.nextPage": "下一页",
+  "preview.staleBadge": "内容已修改，预览为旧版本",
+  "preview.thanks": "感谢聆听",
+  "preview.imagePlaceholder": "图片占位",
+  "chat.stopGenerating": "停止生成",
   "editor.previewPlaceholder": "生成大纲后将在此预览",
   "editor.expandAiPanel": "展开 AI 面板",
   "editor.deleteConfirmMessage": "确定要删除「{title}」吗？此操作不可撤销。",
@@ -447,6 +457,7 @@ export const zh: Record<TranslationKey, string> = {
   "outline.qSoft": "存在提示",
   "outline.moveUp": "上移",
   "outline.moveDown": "下移",
+  "outline.deleteSlideConfirm": "删除这一页？",
 
   "present.empty": "暂无幻灯片",
   "present.notes": "演讲者备注",

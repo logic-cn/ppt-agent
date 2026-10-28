@@ -49,7 +49,7 @@ export function ConfirmDialog({
         aria-hidden="true"
       />
       <div
-        className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-bg-elevated p-6 shadow-xl"
+        className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-bg-elevated p-6 shadow-xl animate-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
