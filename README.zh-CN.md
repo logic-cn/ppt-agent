@@ -42,7 +42,7 @@ pnpm tauri:build
 
 应用已接入 Tauri updater（设置 → 通用 → 关于与更新，可检查并安装更新）。发布由 tag 驱动：
 
-1. **同步版本号**：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处保持一致。
+1. **同步版本号**：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处保持一致；`src-tauri/Cargo.lock` 由 `cargo update -p ppt-agent --offline` 自动跟随。
 2. **配置 `release` 环境 Secrets**（Settings → Environments → release → Environment secrets）：
    - `TAURI_SIGNING_PRIVATE_KEY`：签名私钥文件内容（`src-tauri/updater.key`，已 gitignore）
    - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：私钥密码
