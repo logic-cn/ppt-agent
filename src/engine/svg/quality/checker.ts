@@ -622,6 +622,54 @@ export function checkSvgIcons(svg: string): SvgIssue[] {
   return issues;
 }
 
+// ---- 颜色值合法性校验 ----
+
+/** 生成端允许的色板 token 名（autoPatchSvg 会确定性兑换为 HEX） */
+const COLOR_TOKEN_NAMES = new Set([
+  "primary",
+  "secondary",
+  "accent",
+  "background",
+  "surface",
+  "text",
+  "textmuted",
+]);
+
+/**
+ * 颜色值合法性校验（端侧实跑第 5 轮教训：模型偶发把色板 token 名当颜色值写
+ * `fill="background"`，甚至写命名色）：
+ * - HEX / none / url(#渐变) / 色板 token 名都放行——token 名由 autoPatchSvg
+ *   确定性兑换为色板 HEX，导出端 resolveFill 也有 token 兑换兜底；
+ * - 其余（命名色 white、rgb()、currentColor 等）预览端渲染不可靠、导出端
+ *   非 HEX 一律兜底纯黑，属 error 级回喂重画，让模型改回配色表取值。
+ */
+export function checkColorValues(svg: string): SvgIssue[] {
+  const issues: SvgIssue[] = [];
+  const re = /\b(fill|stroke|stop-color)\s*=\s*["']([^"']*)["']/gi;
+  let m: RegExpExecArray | null;
+  const seen = new Set<string>();
+  while ((m = re.exec(svg)) !== null) {
+    const name = m[1];
+    const value = m[2].trim();
+    if (!value) continue;
+    const key = `${name}=${value.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const v = value.toLowerCase();
+    if (v === "none" || v.startsWith("url(")) continue;
+    if (/^#[0-9a-f]{3}$/.test(v) || /^#[0-9a-f]{6}$/.test(v)) continue;
+    if (COLOR_TOKEN_NAMES.has(v)) continue;
+    issues.push({
+      severity: "error",
+      message: `颜色值非法：${name}="${value}" 不是配色表 HEX——只允许配色表中的 HEX、none、url(#渐变)；该值预览与导出都会变黑，请改用配色表取值`,
+      code: "svg.colorInvalidValue",
+      params: { attr: name, value },
+      location: `${name}@${m.index}`,
+    });
+  }
+  return issues;
+}
+
 // ---- 文本几何确定性检测（参照 PPT Master 文本测量校准的校验侧）----
 
 interface TextBox {
@@ -1065,13 +1113,23 @@ export function checkChartGeometry(svg: string): SvgIssue[] {
       if (h <= 0 || w <= 0) continue;
       rects.push({ x: num(attr(bm[0], "x")) ?? 0, w, h });
     }
-    // 铺底板按「宽度离群」剔除：柱体等宽，底板远宽于任何一根柱。
-    // （旧式 h²<面积×12 的量纲错误会把高而窄的柱当底板删掉 → 假柱数不符）
+    // 底板剔除两层（端侧实跑第 5 轮教训：模型常用一整块 rect 作图表区底板）：
+    // 1) 覆盖图表区 ≥80% 的 rect 是底板——柱体受柱宽与留白约束不可能占满
+    //    图表区（图表 <g> 自报 width/height 为基准，与导出端 translateChart
+    //    读取的是同一组属性）；单块底板场景此前无对照会被误判成「1 根柱」，
+    //    触发假阳性 hard 锁死导出且重画环修不掉。
+    // 2) 「宽度离群」兜底：柱体等宽，底板远宽于任何一根柱。
+    //    （旧式 h²<面积×12 的量纲错误会把高而窄的柱当底板删掉 → 假柱数不符）
+    const gw = num(attr(attrs, "width"));
+    const gh = num(attr(attrs, "height"));
     let cols = rects;
-    if (rects.length >= 2) {
-      const ws = [...rects].sort((a, b) => b.w - a.w);
+    if (gw && gw > 0 && gh && gh > 0) {
+      cols = cols.filter((r) => !(r.w >= gw * 0.8 && r.h >= gh * 0.8));
+    }
+    if (cols.length >= 2) {
+      const ws = [...cols].sort((a, b) => b.w - a.w);
       if (ws.length >= 2 && ws[0].w > 3 * ws[1].w) {
-        cols = rects.filter((r) => r !== ws[0]);
+        cols = cols.filter((r) => r !== ws[0]);
       }
     }
     const bars = cols.sort((a, b) => a.x - b.x);
@@ -1154,7 +1212,10 @@ export function checkLayoutBalance(
     });
   }
 
+  // 左缘聚类只看左对齐锚点的文本：居中/右对齐文本左缘随内容宽度浮动，
+  // 居中版式的封面页（每行 est.left 都不同）会被误判成「对齐碎片化」。
   const lefts = boxes
+    .filter((b) => !b.anchored)
     .map((b) => Math.round(b.left))
     .filter((x) => x > 0 && x < canvasW * 0.8);
   const clusters: number[] = [];
@@ -1390,6 +1451,27 @@ export function autoPatchSvg(
       return `<${tag}${stripped}>${inner}</${tag}>`;
     },
   );
+
+  // 3) 色板 token 名兑换：模型偶发把 token 名当颜色值写（fill="background"）。
+  //    非法值预览渲染不可靠、导出端 resolveFill 非 HEX 兜底纯黑——此处确定性
+  //    兑换为实际色板 HEX。token 名语义无歧义（模型就是要该角色色），与 HEX
+  //    吸附不同，无需跳过 <text> 内部。
+  const tokenHexes: Record<string, string> = {};
+  for (const [k, v] of Object.entries(specLock.colors)) {
+    const h = normalizeHex(v);
+    if (h) tokenHexes[k.toLowerCase()] = h;
+  }
+  if (Object.keys(tokenHexes).length > 0) {
+    out = out.replace(
+      /\b(fill|stroke|stop-color)\s*=\s*["']([a-zA-Z]+)["']/g,
+      (m2, name: string, token: string) => {
+        const hex = tokenHexes[token.toLowerCase()];
+        if (!hex) return m2;
+        changed++;
+        return `${name}="#${hex}"`;
+      },
+    );
+  }
 
   return { svg: out, changed };
 }

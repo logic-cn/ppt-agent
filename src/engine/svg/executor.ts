@@ -13,6 +13,7 @@ import {
   checkCohortConsistency,
   checkPresetShapes,
   checkSvgIcons,
+  checkColorValues,
   checkTextGeometry,
   checkAesthetics,
   checkChartGeometry,
@@ -196,6 +197,10 @@ export async function generateSlideSvg(
         // 预设形状/图标词表：未知标记导出端会静默降级为矩形
         ...checkPresetShapes(s),
         ...checkSvgIcons(s),
+        // 颜色值合法性：命名色/rgb() 等非法值导出端兜底纯黑（端侧实跑第 5 轮
+        // 教训）；token 名写法已被 autoPatch 兑换为 HEX，此处只会漏报已回滚的
+        // 兑换——由导出端 token 兑换兜底。
+        ...checkColorValues(s),
         // 图表必现性：plan 要求图表页时，SVG 中必须出现原生图表标记
         ...(opts.plan.chartType && !svgContainsChart(s)
           ? [
@@ -391,7 +396,9 @@ export async function generateDeckSvgs(
     onProgress?.(i + 1, total);
   }
 
-  // Phase 2: early gate —— cohort 一致性检查：错误页修复一次，全部问题下发剩余页
+  // Phase 2: early gate —— cohort 一致性检查：错误页修复一次，问题下发剩余页。
+  // 修复后复验一次：下发剩余页的 guidance 以「复验后仍存在的问题」为准——
+  // 修复成功的问题不再下发（省 token、避免陈旧指令），修复失败的如实下发。
   let extraGuidance: string | undefined;
   if (!opts?.skipEarlyGate && pages.length > 0) {
     const cohortIssues = checkCohortConsistency(
@@ -401,9 +408,6 @@ export async function generateDeckSvgs(
     const errors = cohortIssues.filter((i) => i.severity === "error");
     const warns = cohortIssues.filter((i) => i.severity === "warn");
     if (errors.length > 0 || warns.length > 0) {
-      extraGuidance = [...errors, ...warns]
-        .map((i) => "- " + i.message)
-        .join("\n");
       for (let i = 0; i < pages.length; i++) {
         const own = checkCohortConsistency([pages[i].svg], spec).filter(
           (x) => x.severity === "error",
@@ -420,6 +424,17 @@ export async function generateDeckSvgs(
               .join("\n")}`,
           }),
         };
+      }
+      const residual = checkCohortConsistency(
+        pages.map((p) => p.svg),
+        spec,
+      ).filter((i) => i.severity === "error" || i.severity === "warn");
+      // 有残余 → 只下发残余（修复成功的问题不再重复）；
+      // 全部修复成功 → 保留原始问题作为剩余页的预防性要求（不同页可能重蹈同类覆辙）
+      const guidanceIssues =
+        residual.length > 0 ? residual : [...errors, ...warns];
+      if (guidanceIssues.length > 0) {
+        extraGuidance = guidanceIssues.map((i) => "- " + i.message).join("\n");
       }
     }
   }

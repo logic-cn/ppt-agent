@@ -13,6 +13,7 @@ import {
   removeEmbeddedImageFromSvg,
 } from "@/engine/svg/embed-image";
 import { useSettingsStore } from "@/store/settings";
+import { runJob } from "@/store/job";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
 
@@ -41,11 +42,19 @@ function WebImageSearchPanel({
     setSearching(true);
     setError(null);
     try {
-      setResults(
-        await searchWebImages(query, {
-          pexelsApiKey: useSettingsStore.getState().settings.pexelsApiKey,
-        }),
+      const found = await runJob(
+        {
+          type: "image.generate",
+          title: t("inspector.imageSearchJob", { query: query.trim() }),
+          canCancel: true,
+        },
+        (job) =>
+          searchWebImages(query, {
+            pexelsApiKey: useSettingsStore.getState().settings.pexelsApiKey,
+            signal: job.signal,
+          }),
       );
+      setResults(found);
     } catch (e) {
       setError((e as Error).message);
     } finally {

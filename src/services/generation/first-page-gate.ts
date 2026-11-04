@@ -18,7 +18,11 @@ export function runFirstPageGate(
   if (!first) return [];
 
   // 仅对首屏做检查：剔除 deck 级规则（首屏单页无法判定），避免误报
-  const DECK_WIDE_RULES = new Set(["require_closing"]);
+  const DECK_WIDE_RULES = new Set([
+    "require_closing",
+    "notes_missing",
+    "chart_sample_data",
+  ]);
   const findings = checkDeckQuality(
     { ...deck, slides: [first] },
     { skipSvgChecks: true },

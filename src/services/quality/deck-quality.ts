@@ -6,6 +6,7 @@ import {
   checkTextGeometry,
   checkAesthetics,
   checkChartGeometry,
+  checkColorValues,
   checkLayoutBalance,
   checkVisualRhythm,
   checkPaletteContrast,
@@ -286,6 +287,54 @@ function checkChartFacts(
   return findings;
 }
 
+/**
+ * 图表数据可信度提示（PM 视角）：不提供来源材料时，图表数值全部是模型
+ * 生成的示例数据——用户可能直接拿去正式汇报。有 sourceText 的场景已由
+ * checkChartFacts 逐值事实校准，此处只覆盖「无来源可校准」的场景，
+ * deck 级一条 soft 提醒（X1 管线的图表数据在 SVG 的 data-chart-data 里）。
+ */
+function checkChartSampleData(
+  deck: Deck,
+  options?: QualityCheckOptions,
+): QualityFinding[] {
+  if (options?.sourceText) return [];
+  const chartPages = deck.slides.filter(
+    (s) => s.svg && extractChartValues(s.svg).length > 0,
+  ).length;
+  if (chartPages === 0) return [];
+  return [
+    {
+      rule: "chart_sample_data",
+      severity: "soft",
+      message: `本 deck 有 ${chartPages} 页图表，图表数值为 AI 生成的示例数据（未提供来源材料校准），正式汇报前请核对`,
+      code: "deck.chartSampleData",
+      params: { count: chartPages },
+      autoFixable: false,
+    },
+  ];
+}
+
+/**
+ * 讲稿缺失提示（PM 视角）：演讲者备注会写入 PPTX 备注页，是控场的关键
+ * 辅助信息；生成端已要求每页 notes，但历史项目/隔离失败的页可能缺失。
+ * deck 级一条 soft，避免逐页刷屏。
+ */
+function checkMissingNotes(deck: Deck): QualityFinding[] {
+  if (deck.slides.length === 0) return [];
+  const missing = deck.slides.filter((s) => !(s.notes ?? "").trim()).length;
+  if (missing === 0) return [];
+  return [
+    {
+      rule: "notes_missing",
+      severity: "soft",
+      message: `${missing} 页缺少演讲者备注——讲稿会写入 PPTX 备注页，帮助演讲者控场`,
+      code: "deck.notesMissing",
+      params: { count: missing },
+      autoFixable: false,
+    },
+  ];
+}
+
 function checkPageCount(
   deck: Deck,
   options?: QualityCheckOptions,
@@ -380,6 +429,7 @@ export function checkSvgFindings(deck: Deck): QualityFinding[] {
       { issues: checkTextGeometry(slide.svg, spec), rule: "svg_geometry" },
       { issues: checkAesthetics(slide.svg, spec), rule: "svg_aesthetics" },
       { issues: checkChartGeometry(slide.svg), rule: "svg_chart" },
+      { issues: checkColorValues(slide.svg), rule: "svg_color" },
       { issues: checkLayoutBalance(slide.svg, spec), rule: "svg_balance" },
       { issues: checkVisualRhythm(slide.svg, spec), rule: "svg_rhythm" },
     ];
@@ -425,6 +475,8 @@ export function checkDeckQuality(
   findings.push(...checkGenericTitle(deck));
   findings.push(...checkPageCount(deck, options));
   findings.push(...checkChartFacts(deck, options));
+  findings.push(...checkChartSampleData(deck, options));
+  findings.push(...checkMissingNotes(deck));
   if (!options?.skipSvgChecks) {
     findings.push(...checkSvgFindings(deck));
   }

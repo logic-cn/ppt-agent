@@ -3,7 +3,9 @@ import {
   collectDefs,
   resolveFill,
   resolveGradientFill,
+  resolveTokenColor,
   sampleGradient,
+  setTokenColorScope,
   type ResolvedFill,
 } from "./gradient";
 import { translateChart } from "./chart";
@@ -188,6 +190,10 @@ function transposedBBox(
 
 function hexColor(value: string | null | undefined): string {
   if (!value) return "000000";
+  // 色板 token 名（fill="background" 类写法）先经兑换表解析为 HEX，
+  // 否则非 HEX 值会被原样写入 OOXML、PowerPoint 渲染不可预期
+  const token = resolveTokenColor(value.trim());
+  if (token) return token;
   return value.replace(/^#/, "").trim() || "000000";
 }
 
@@ -258,9 +264,12 @@ export function translateSvgToSlide(
   specLock?: SpecLock,
   notes?: string,
 ): void {
-  // B5：按 deck 画布格式切转换作用域（未传 specLock 时保持当前/默认作用域）
+  // B5：按 deck 画布格式切转换作用域（未传 specLock 时保持当前/默认作用域）；
+  // 同步注入色板 token 兑换表——存量页里的 fill="background" 等 token 名写法
+  // 在导出端确定性兑换为实际 HEX（否则 resolveFill 非 HEX 兜底纯黑）
   if (specLock) {
     setCanvasScope(specLock.canvas.w, specLock.canvas.h);
+    setTokenColorScope(specLock.colors);
   }
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   const root = doc.documentElement;

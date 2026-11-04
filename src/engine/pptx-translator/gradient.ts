@@ -80,9 +80,32 @@ export interface ResolvedFill {
 
 const warned = new Set<string>();
 
+// 色板 token 名 → HEX 的导出端兑换表（setTokenColorScope 注入）。
+// 历史项目或被修复环保留的页可能仍写 fill="background"——非 HEX 在旧逻辑里
+// 会被 normalizeHex 兜底成纯黑（端侧实跑第 5 轮实跑复现：深色主题侥幸近似，
+// 浅色主题整页变黑）。按设计契约兑换为实际色板 HEX 是确定性的最后防线；
+// 生成端 autoPatchSvg 已在源头兑换，此处兜住存量 deck 与被回滚的修复。
+let tokenColorScope: Record<string, string> = {};
+
+/** 注入当前 deck 的色板 token 兑换表（translateSvgToSlide 每次导出前调用） */
+export function setTokenColorScope(colors: Record<string, string>): void {
+  const map: Record<string, string> = {};
+  for (const [k, v] of Object.entries(colors)) {
+    const h = normalizeHex(v);
+    if (h) map[k.toLowerCase()] = h;
+  }
+  tokenColorScope = map;
+}
+
+/** token 名 → HEX（无 # 大写）；非 token 名返回 undefined */
+export function resolveTokenColor(raw: string): string | undefined {
+  return tokenColorScope[raw.trim().toLowerCase()];
+}
+
 /**
  * 解析 SVG 元素的填充色。
  * - 纯色 fill（如 #abc）直接返回（去 #）。
+ * - 色板 token 名（如 fill="background"）按注入的兑换表返回实际 HEX。
  * - fill="url(#g)" 且 defs 中存在对应渐变：取首 stop 与末 stop 的平均色作为 solid 兜底。
  * 渐变降级为纯色属于 pptxgenjs 4.0.1 限制下的务实策略，会向控制台 warn 一次。
  */
@@ -117,6 +140,8 @@ export function resolveFill(
     return { color: "000000" };
   }
 
+  const token = resolveTokenColor(raw);
+  if (token) return { color: token };
   return { color: normalizeHex(raw) };
 }
 

@@ -3,7 +3,7 @@ import type PptxGenJS from "pptxgenjs";
 import { translateSvgToSlide } from "./elements";
 import { classifyPath, parseTransformAttr } from "./elements";
 import { svgToPptx, defineDeckMasters, roleMasterForLayout } from "./index";
-import { collectDefs, resolveFill } from "./gradient";
+import { collectDefs, resolveFill, setTokenColorScope } from "./gradient";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { buildSpecLock } from "@/design/spec-lock";
 import type { Slide } from "@/types/deck";
@@ -161,6 +161,21 @@ describe("渐变降级", () => {
   it("纯色 fill 直接返回该色", () => {
     const fill = resolveFill({ fill: "#abc123" }, {});
     expect(fill.color.toLowerCase()).toBe("abc123");
+  });
+
+  it("token 名 fill 经兑换表解析为色板 HEX（存量页导出兜底）", () => {
+    // 端侧实跑第 5 轮：模型写 fill="background"，非 HEX 旧逻辑兜底纯黑，
+    // 浅色主题整页变黑。setTokenColorScope 注入后 resolveFill 确定性兑换。
+    setTokenColorScope({
+      primary: "#2563EB",
+      background: "#0C1929",
+      text: "#F1F5F9",
+    });
+    expect(resolveFill({ fill: "background" }, {}).color).toBe("0C1929");
+    expect(resolveFill({ fill: "Text" }, {}).color).toBe("F1F5F9");
+    // 未注入时维持原行为（normalizeHex 兜底）
+    setTokenColorScope({});
+    expect(resolveFill({ fill: "background" }, {}).color).not.toBe("0C1929");
   });
 });
 

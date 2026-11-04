@@ -456,6 +456,7 @@ export const en = {
   "inspector.imageDeleteConfirm": "Delete image?",
   "inspector.imageDelete": "Delete Image",
   "inspector.imageSearch": "Search web images",
+  "inspector.imageSearchJob": "Searching images: {query}",
   "inspector.imageSearchPlaceholder": "Search keywords, e.g. city skyline",
   "inspector.imageSearchEmpty": "No results found",
   "inspector.imageApplyFailed": "Failed to apply image: {error}",
@@ -552,6 +553,8 @@ export const en = {
     "Bar geometry mismatch: drew {bars} bars but the data has {points} points — redraw",
   "quality.svg.chartBarRatioMismatch":
     "Bar geometry distorted: bar {index} height ratio {barPercent}% differs from value ratio {valuePercent}% by more than 12% — recompute the bar heights",
+  "quality.svg.colorInvalidValue":
+    "Invalid colour value: {attr}=“{value}” is not a palette HEX — only palette HEX, none and url(#gradient) are allowed; it renders black in preview and export",
   "quality.svg.contentMissingTitle":
     "Content missing: title “{title}” does not appear in the SVG text",
   "quality.svg.contentMissingBullet":
@@ -604,6 +607,10 @@ export const en = {
     "Page “{title}” has a vague title — add a subtitle or a more specific title",
   "quality.deck.chartUnverified":
     "Page “{title}” shows chart values {values} that were not found in the source material — check whether they were fabricated",
+  "quality.deck.chartSampleData":
+    "This deck has {count} chart pages whose values are AI-generated sample data (no source material to verify against) — double-check numbers before presenting",
+  "quality.deck.notesMissing":
+    "{count} pages are missing speaker notes — notes are written to the PPTX notes pane to help you present",
   "quality.deck.pageCountMismatch":
     "Expected {expected} pages, got {actual} (off by {diff})",
   "quality.deck.templateNeedsChart":

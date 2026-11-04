@@ -10,6 +10,7 @@ import {
   contrastRatio,
   checkAesthetics,
   checkChartGeometry,
+  checkColorValues,
   checkLayoutBalance,
   checkVisualRhythm,
   checkPaletteContrast,
@@ -882,5 +883,92 @@ describe("review 修复回归（Code Review (c) 条目逐条验证）", () => {
         /左缘对齐漂移/.test(i.message),
       ),
     ).toHaveLength(0);
+  });
+});
+
+describe("端侧实跑第 5 轮回归（E2E 实锤问题）", () => {
+  it("图表区单块满区底板不误判为柱体（1 底板 + 3 数据点 → 无 error）", () => {
+    // 实跑复现：模型在图表组里画一整块 rect 作底板（589×588 满区），
+    // 旧逻辑把它数成「1 根柱」报 hard 锁死导出，且重画环修不掉
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"a","value":3},{"label":"b","value":3},{"label":"c","value":3}]' x="651" y="92" width="589" height="588">` +
+        `<rect x="651" y="92" width="589" height="588" fill="#2563EB"/>` +
+        `</g>`,
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("图表区底板 + 正确柱体仍按柱数与比例对账", () => {
+    const bars = [300, 150]
+      .map(
+        (h, i) =>
+          `<rect x="${660 + i * 90}" y="${600 - h}" width="60" height="${h}" fill="#3B82F6"/>`,
+      )
+      .join("");
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"a","value":10},{"label":"b","value":5}]' x="651" y="92" width="589" height="588">` +
+        `<rect x="651" y="92" width="589" height="588" fill="#2563EB"/>${bars}</g>`,
+    );
+    expect(checkChartGeometry(svg)).toHaveLength(0);
+  });
+
+  it("窄柱 ≠ 数据点数仍报错（底板剔除不放过真实缺柱）", () => {
+    const svg = wrap(
+      `<g data-chart-type="bar" data-chart-data='[{"label":"a","value":3},{"label":"b","value":3},{"label":"c","value":3}]' x="651" y="92" width="589" height="588">` +
+        `<rect x="660" y="400" width="80" height="200" fill="#2563EB"/>` +
+        `</g>`,
+    );
+    expect(
+      checkChartGeometry(svg).some((i) => /柱图几何不符/.test(i.message)),
+    ).toBe(true);
+  });
+
+  it("checkColorValues：命名色报 error，token 名/HEX/none/url 放行", () => {
+    const bad = wrap(
+      `<rect x="0" y="0" width="100" height="50" fill="white"/>`,
+    );
+    expect(
+      checkColorValues(bad).some((i) => /颜色值非法/.test(i.message)),
+    ).toBe(true);
+    const good = wrap(
+      `<rect x="0" y="0" width="100" height="50" fill="background"/>` +
+        `<rect x="0" y="60" width="100" height="50" fill="#0C1929"/>` +
+        `<rect x="0" y="120" width="100" height="50" fill="none"/>` +
+        `<rect x="0" y="180" width="100" height="50" stroke="url(#g1)" fill="#123456"/>`,
+    );
+    expect(checkColorValues(good)).toHaveLength(0);
+  });
+
+  it("autoPatchSvg：token 名颜色确定性兑换为色板 HEX（含 text 元素）", () => {
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="background"/>` +
+        `<text x="100" y="200" font-size="20" fill="text">字</text>`,
+    );
+    const { svg: out, changed } = autoPatchSvg(svg, specLock);
+    expect(changed).toBe(2);
+    expect(out).not.toContain('fill="background"');
+    expect(out).not.toContain('fill="text"');
+    expect(out).toContain(
+      `fill="#${specLock.colors.background.replace("#", "")}"`,
+    );
+    expect(out).toContain(`fill="#${specLock.colors.text.replace("#", "")}"`);
+  });
+
+  it("checkLayoutBalance：居中文本（text-anchor=middle）不触发左缘碎片化", () => {
+    // 实跑复现：封面页 6 个居中文本被误判成 5 个「不同左缘」
+    const svg = wrap(
+      `<rect x="0" y="0" width="1280" height="720" fill="${specLock.colors.background}"/>` +
+        [300, 380, 470, 540, 590, 660]
+          .map(
+            (y, i) =>
+              `<text x="640" y="${y}" text-anchor="middle" font-size="${40 - i * 6}" fill="${specLock.colors.text}">标题行${i}${i === 0 ? "更长一些" : ""}</text>`,
+          )
+          .join(""),
+    );
+    expect(
+      checkLayoutBalance(svg, specLock).some((i) =>
+        /左缘对齐碎片化/.test(i.message),
+      ),
+    ).toBe(false);
   });
 });

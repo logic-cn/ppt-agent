@@ -38,7 +38,12 @@ import { buildDeckSvgsDetailed } from "@/engine/svg/pipeline";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { useSettingsStore } from "@/store/settings";
 import { PROVIDER_PRESETS } from "@/types/llm";
-import { checkDeckQuality, hasHardError } from "@/services/quality";
+import {
+  checkDeckQuality,
+  hasHardError,
+  qualityScore,
+} from "@/services/quality";
+import { checkContentPresence } from "@/engine/svg/quality/checker";
 import { exportDeckToBlob } from "@/engine/pptx/exporter";
 import type { Deck } from "@/types/deck";
 import type { PagePlanItem } from "@/types/page-plan";
@@ -46,6 +51,8 @@ import type { PagePlanItem } from "@/types/page-plan";
 const ROOT = resolve(process.cwd());
 const TAURI_DIR = join(ROOT, "src-tauri");
 const BIN = join(TAURI_DIR, "target/release/llm_headless");
+/** 插桩基准时刻：与 Rust 侧 +Ns 对齐，定位请求在队列/Rust 侧的滞留段 */
+const BOOT_MS = Date.now();
 const MODEL_PATH =
   process.env.PPT_LOCAL_MODEL ??
   join(
@@ -56,6 +63,13 @@ const PAGE_COUNT = Number(process.env.PPT_LOCAL_PAGES ?? 6);
 const TOPIC =
   process.env.PPT_LOCAL_TOPIC ?? "2026 年企业级 AI 落地进展与下一步规划";
 const CTX_SIZE = Number(process.env.PPT_LOCAL_CTX ?? 8192);
+/**
+ * 墙钟时限（毫秒）：与 vitest.local.config.ts 的 PPT_LOCAL_TIMEOUT_MS 同源。
+ * 宿主挂起会虚耗墙钟而推理（单调钟）不动，挂起频发时需放宽时限。
+ */
+const WALL_TIMEOUT_MS = Number(
+  process.env.PPT_LOCAL_TIMEOUT_MS ?? 60 * 60 * 1000,
+);
 
 /** 无头推理子进程：行 JSON 请求 → 行 JSON 响应 */
 class LlmChild {
@@ -93,16 +107,33 @@ class LlmChild {
   }
 
   chat(req: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const at = Date.now();
     const next = this.queue.then(
       () =>
         new Promise<Record<string, unknown>>((res) => {
           this.pending = res;
           this.child.stdin.write(JSON.stringify(req) + "\n");
+          const waited = ((Date.now() - at) / 1000).toFixed(1);
+          const since = ((Date.now() - BOOT_MS) / 1000).toFixed(1);
+          const messages = req.messages as { content?: string }[] | undefined;
+          const promptChars = String(messages?.[1]?.content ?? "").length;
+          process.stderr.write(
+            `[harness] +${since}s 请求写入 stdin（排队等待 ${waited}s，前 ${promptChars} 字）\n`,
+          );
         }),
     );
     // 串行化：推理本身是串行的，队列只用于保持请求/响应一一对应
     this.queue = next.catch(() => undefined);
     return next;
+  }
+
+  /**
+   * 请求停止当前生成（对齐桌面端 local_llm_cancel 语义）。
+   * 页面软超时放弃的失控生成若不停止，会占住串行队列直到自然结束
+   * （端侧实跑第 5 轮实测 25 分钟，直接顶穿 60 分钟测试总时限）。
+   */
+  cancelCurrent() {
+    this.child.stdin.write(JSON.stringify({ cancel: true }) + "\n");
   }
 
   close() {
@@ -141,6 +172,14 @@ describe("端侧模型无头实跑", () => {
   let child: LlmChild;
   let outDir: string;
 
+  /**
+   * 请求级度量：每次 chat 调用的 prompt/生成 token 与耗时。
+   * report.json 汇总 tok/s、重画轮数（请求数 − plan 1 次 − 页数），
+   * 让「慢在哪、重画多少」从 progress.log 的原始行变成可对比的结构化指标。
+   */
+  const requests: { promptTokens: number; genTokens: number; ms: number }[] =
+    [];
+
   /** 进度落盘：端侧推理是分钟级，跑超时也能留下过程证据 */
   const log = (line: string) => {
     if (!outDir) return;
@@ -151,65 +190,73 @@ describe("端侧模型无头实跑", () => {
     );
   };
 
-  beforeAll(
-    async () => {
-      if (!existsSync(MODEL_PATH)) {
-        throw new Error(
-          `模型文件不存在: ${MODEL_PATH}（先在设置页下载端侧模型）`,
-        );
-      }
-      const build = spawnSync(
-        "cargo",
-        ["build", "--release", "--bin", "llm_headless"],
-        { cwd: TAURI_DIR, stdio: "inherit" },
+  beforeAll(async () => {
+    if (!existsSync(MODEL_PATH)) {
+      throw new Error(
+        `模型文件不存在: ${MODEL_PATH}（先在设置页下载端侧模型）`,
       );
-      if (build.status !== 0) {
-        throw new Error(`cargo build --bin llm_headless 失败: ${build.status}`);
+    }
+    const build = spawnSync(
+      "cargo",
+      ["build", "--release", "--bin", "llm_headless"],
+      { cwd: TAURI_DIR, stdio: "inherit" },
+    );
+    if (build.status !== 0) {
+      throw new Error(`cargo build --bin llm_headless 失败: ${build.status}`);
+    }
+
+    // 本地 provider 的运行时判定与 Tauri IPC 桩
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    invokeMock.mockImplementation(async (cmd: string, args: unknown) => {
+      if (cmd === "local_llm_chat") {
+        const req = (args as { req: Record<string, unknown> }).req;
+        const userChars = JSON.stringify(req.messages).length;
+        const res = await child.chat(req);
+        if (res.ok === false) throw new Error(String(res.error));
+        // 提示词体积双侧对照：TS 侧字符数 vs Rust 侧 token 数
+        log(
+          `请求：tsChars=${userChars} rustPromptTokens=${res.prompt_tokens} gen=${res.tokens_generated} ms=${res.elapsed_ms}`,
+        );
+        requests.push({
+          promptTokens: Number(res.prompt_tokens ?? 0),
+          genTokens: Number(res.tokens_generated ?? 0),
+          ms: Number(res.elapsed_ms ?? 0),
+        });
+        return res;
       }
+      // 取消链路与桌面端一致：provider 在 abort 时发起 local_llm_cancel，
+      // 这里转换为 stdio 协议的 {"cancel":true}，让失控生成尽快收尾
+      if (cmd === "local_llm_cancel") {
+        child.cancelCurrent();
+        return;
+      }
+      throw new Error(`无头 harness 不支持的命令: ${cmd}`);
+    });
 
-      // 本地 provider 的运行时判定与 Tauri IPC 桩
-      (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
-      invokeMock.mockImplementation(async (cmd: string, args: unknown) => {
-        if (cmd === "local_llm_chat") {
-          const req = (args as { req: Record<string, unknown> }).req;
-          const userChars = JSON.stringify(req.messages).length;
-          const res = await child.chat(req);
-          if (res.ok === false) throw new Error(String(res.error));
-          // 提示词体积双侧对照：TS 侧字符数 vs Rust 侧 token 数
-          log(
-            `请求：tsChars=${userChars} rustPromptTokens=${res.prompt_tokens} gen=${res.tokens_generated} ms=${res.elapsed_ms}`,
-          );
-          return res;
-        }
-        throw new Error(`无头 harness 不支持的命令: ${cmd}`);
-      });
-
-      // 设置：激活内置本地模型
-      useSettingsStore.setState((s) => ({
-        settings: {
-          ...s.settings,
-          activeProvider: "local",
-          providers: {
-            ...s.settings.providers,
-            local: {
-              ...PROVIDER_PRESETS.local,
-              apiKey: "",
-              enabled: true,
-            },
+    // 设置：激活内置本地模型
+    useSettingsStore.setState((s) => ({
+      settings: {
+        ...s.settings,
+        activeProvider: "local",
+        providers: {
+          ...s.settings.providers,
+          local: {
+            ...PROVIDER_PRESETS.local,
+            apiKey: "",
+            enabled: true,
           },
         },
-      }));
+      },
+    }));
 
-      child = new LlmChild();
-      outDir = join(
-        ROOT,
-        "dist/local-e2e",
-        new Date().toISOString().replace(/[:.]/g, "-"),
-      );
-      mkdirSync(outDir, { recursive: true });
-    },
-    60 * 60 * 1000,
-  );
+    child = new LlmChild();
+    outDir = join(
+      ROOT,
+      "dist/local-e2e",
+      new Date().toISOString().replace(/[:.]/g, "-"),
+    );
+    mkdirSync(outDir, { recursive: true });
+  }, WALL_TIMEOUT_MS);
 
   afterAll(() => {
     child?.close();
@@ -340,6 +387,52 @@ describe("端侧模型无头实跑", () => {
       const hard = findings.filter((f) => f.severity === "hard");
       const soft = findings.filter((f) => f.severity === "soft");
 
+      // ---- 内容必现性对账（生成环已在逐页强制，这里做 deck 级复核观测）----
+      const contentMissing = deck.slides
+        .map((slide, i) => {
+          const planItem = plan[i];
+          if (!slide.svg || !planItem) return null;
+          const issues = checkContentPresence(slide.svg, {
+            title: planItem.title,
+            bullets: planItem.bullets,
+          });
+          return issues.length > 0
+            ? { page: i + 1, missing: issues.map((x) => x.message) }
+            : null;
+        })
+        .filter((x): x is { page: number; missing: string[] } => x !== null);
+
+      // ---- 请求度量汇总 ----
+      const totalGenTokens = requests.reduce((s, r) => s + r.genTokens, 0);
+      const totalMs = requests.reduce((s, r) => s + r.ms, 0);
+      const requestStats = {
+        count: requests.length,
+        /** 重画/续写轮数 ≈ 请求数 − plan 1 次 − 页数 */
+        repaintRounds: Math.max(0, requests.length - 1 - deck.slides.length),
+        totalPromptTokens: requests.reduce((s, r) => s + r.promptTokens, 0),
+        totalGenTokens,
+        totalMs,
+        tokPerSec:
+          totalMs > 0
+            ? Number(((totalGenTokens / totalMs) * 1000).toFixed(1))
+            : null,
+      };
+
+      // ---- 演讲备注度量 ----
+      const notesLens = pages.map((p) => p.notesLength);
+      const notesStats =
+        notesLens.length > 0
+          ? {
+              pages: notesLens.length,
+              withNotes: notesLens.filter((n) => n > 0).length,
+              min: Math.min(...notesLens),
+              max: Math.max(...notesLens),
+              avg: Math.round(
+                notesLens.reduce((s, n) => s + n, 0) / notesLens.length,
+              ),
+            }
+          : null;
+
       // ---- 导出 pptx（产物是否可编辑由 translator 保证，这里验证不报错且非空） ----
       const blob = await exportDeckToBlob(deck);
       const bytes = await blobToBytes(blob);
@@ -366,23 +459,31 @@ describe("端侧模型无头实跑", () => {
       const report = {
         topic: TOPIC,
         pathUsed,
+        requestedPages: PAGE_COUNT,
         pageCount: deck.slides.length,
+        planPageCount: plan.length,
         elapsedMs: elapsed,
         modelPath: MODEL_PATH,
         pages,
         runErrors,
         pageErrors,
         rotationPairs,
+        requestStats,
+        notesStats,
+        contentMissingPages: contentMissing,
         notesSlideCount: notesSlides.length,
         notesSlideWithContent: notesWithContent.length,
         notesSlides: notesText,
         findings: findings.map((f) => ({
           rule: f.rule,
           severity: f.severity,
+          code: f.code ?? null,
+          page: f.page?.index ?? null,
           message: f.message,
         })),
         hardCount: hard.length,
         softCount: soft.length,
+        qualityScore: qualityScore(findings),
         exportLocked: hasHardError(findings),
         pptxBytes: bytes.length,
         outDir,
@@ -399,6 +500,17 @@ describe("端侧模型无头实跑", () => {
 
       // ---- 验收 ----
       expect(deck.slides.length).toBeGreaterThan(0);
+
+      // 页数对账：pagePlan grammar 约束解码锁定「恰好 N 页」，deck 与 plan
+      // 必须与请求页数一致——这是确定性能力，任何偏差都是回归。
+      expect(
+        plan.length,
+        `pagePlan 页数 ${plan.length} ≠ 请求的 ${PAGE_COUNT}（grammar 锁页数失效）`,
+      ).toBe(PAGE_COUNT);
+      expect(
+        deck.slides.length,
+        `deck 页数 ${deck.slides.length} ≠ plan 页数 ${plan.length}`,
+      ).toBe(plan.length);
 
       // 生成成功率：端侧小模型并非每页都能一次过（重画 2 轮仍不达标即隔离该页），
       // 这里只要求多数页面成功——失败页本身就是要报告的结论。
@@ -417,7 +529,8 @@ describe("端侧模型无头实跑", () => {
       const chartSide = (svg: string): "left" | "right" | null => {
         const g = svg.match(/<g\b[^>]*data-chart-type[^>]*>/i)?.[0];
         if (!g) return null;
-        const mid = Number(svg.match(/viewBox="0 0 (\d+(?:\.\d+)?)/)?.[1] ?? 1280) / 2;
+        const mid =
+          Number(svg.match(/viewBox="0 0 (\d+(?:\.\d+)?)/)?.[1] ?? 1280) / 2;
         const x =
           g.match(/\bx="([\d.]+)"/)?.[1] ??
           g.match(/transform="translate\(([\d.]+)/)?.[1];
@@ -467,6 +580,6 @@ describe("端侧模型无头实跑", () => {
       // 导出产物非空
       expect(bytes.length).toBeGreaterThan(10_000);
     },
-    60 * 60 * 1000,
+    WALL_TIMEOUT_MS,
   );
 });

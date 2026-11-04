@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Slide } from "@/types/deck";
 import { embedImageIntoSvg } from "@/engine/svg/embed-image";
 import { useSettingsStore } from "@/store/settings";
+import { useJobStore } from "@/store/job";
+import * as imageSearch from "@/services/image-search";
 
 vi.mock("@/services/image-search", async (importOriginal) => {
   const actual =
@@ -30,6 +32,7 @@ function slide(patch: Partial<Slide> = {}): Slide {
 describe("ImageTab", () => {
   beforeEach(() => {
     useSettingsStore.getState().setLang("zh");
+    useJobStore.getState().clearFinishedJobs();
   });
 
   it("无配图页也提供 URL、上传和搜图入口", () => {
@@ -90,6 +93,33 @@ describe("ImageTab", () => {
     expect(patch.image).toBeUndefined();
     expect(patch.svg).not.toContain("<image");
     expect(patch.svg).toContain("标题");
+  });
+
+  it("搜图走 jobStore，并把 job signal 传给搜索服务", async () => {
+    const searchSpy = vi.spyOn(imageSearch, "searchWebImages");
+    searchSpy.mockResolvedValueOnce([
+      {
+        url: "https://img.example/found.png",
+        thumb: "https://img.example/found_t.png",
+        source: "openverse",
+        license: "CC0",
+        attribution: "© someone",
+      },
+    ]);
+    render(<ImageTab slide={slide()} onUpdate={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("搜索关键词，如：城市天际线"), {
+      target: { value: "天际线" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "网络搜图" }));
+    await waitFor(() => expect(searchSpy).toHaveBeenCalled());
+    const opts = searchSpy.mock.calls[0][1];
+    expect(opts?.signal).toBeInstanceOf(AbortSignal);
+    // job 完成后应从活动任务中移除
+    await waitFor(() =>
+      expect(useJobStore.getState().activeJobIds).toHaveLength(0),
+    );
+    expect(useJobStore.getState().jobs[0]?.type).toBe("image.generate");
+    searchSpy.mockRestore();
   });
 
   it("SVG 页面隐藏仅对历史页生效的位置选择", () => {

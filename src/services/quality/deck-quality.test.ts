@@ -227,3 +227,81 @@ describe("SVG 层校验纳入质量检查（导出锁）", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("deck 级可信度提示（PM 视角）", () => {
+  it("无来源材料且含图表 → chart_sample_data soft 提示", () => {
+    const deck = createMockDeck({
+      slides: [
+        {
+          id: "s1",
+          layout: "content",
+          title: "季度收入",
+          svg: CHART_SVG,
+          notes: "讲稿",
+        },
+      ],
+    });
+    const findings = checkDeckQuality(deck);
+    const finding = findings.find((f) => f.rule === "chart_sample_data");
+    expect(finding).toBeDefined();
+    expect(finding!.severity).toBe("soft");
+    expect(finding!.params?.count).toBe(1);
+  });
+
+  it("提供 sourceText 时走事实校准，不重复提示", () => {
+    const deck = createMockDeck({
+      slides: [
+        {
+          id: "s1",
+          layout: "content",
+          title: "季度收入",
+          svg: CHART_SVG,
+          notes: "讲稿",
+        },
+      ],
+    });
+    const findings = checkDeckQuality(deck, {
+      sourceText: "Q1 收入 970，Q2 收入 1180",
+    });
+    expect(
+      findings.find((f) => f.rule === "chart_sample_data"),
+    ).toBeUndefined();
+  });
+
+  it("无图表页不提示", () => {
+    const deck = createMockDeck({
+      slides: [{ id: "s1", layout: "content", title: "纯文本", notes: "讲稿" }],
+    });
+    expect(
+      checkDeckQuality(deck).find((f) => f.rule === "chart_sample_data"),
+    ).toBeUndefined();
+  });
+
+  it("缺备注页数 >0 → notes_missing soft 提示", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "一", notes: "有讲稿" },
+        { id: "s2", layout: "content", title: "二" },
+        { id: "s3", layout: "content", title: "三", notes: "  " },
+      ],
+    });
+    const finding = checkDeckQuality(deck).find(
+      (f) => f.rule === "notes_missing",
+    );
+    expect(finding).toBeDefined();
+    expect(finding!.severity).toBe("soft");
+    expect(finding!.params?.count).toBe(2);
+  });
+
+  it("全部页面都有备注时不提示", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "一", notes: "有讲稿" },
+        { id: "s2", layout: "content", title: "二", notes: "也有" },
+      ],
+    });
+    expect(
+      checkDeckQuality(deck).find((f) => f.rule === "notes_missing"),
+    ).toBeUndefined();
+  });
+});

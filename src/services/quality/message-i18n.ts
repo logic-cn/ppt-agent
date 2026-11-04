@@ -42,6 +42,8 @@ export const QUALITY_MESSAGE_KEYS: Record<string, TranslationKey> = {
   "svg.chartMissingMarker": "quality.svg.chartMissingMarker",
   "svg.chartBarCountMismatch": "quality.svg.chartBarCountMismatch",
   "svg.chartBarRatioMismatch": "quality.svg.chartBarRatioMismatch",
+  // ---- 颜色值合法性 ----
+  "svg.colorInvalidValue": "quality.svg.colorInvalidValue",
   // ---- 内容必现性 ----
   "svg.contentMissingTitle": "quality.svg.contentMissingTitle",
   "svg.contentMissingBullet": "quality.svg.contentMissingBullet",
@@ -74,6 +76,8 @@ export const QUALITY_MESSAGE_KEYS: Record<string, TranslationKey> = {
   "deck.twoColumnIncomplete": "quality.deck.twoColumnIncomplete",
   "deck.genericTitle": "quality.deck.genericTitle",
   "deck.chartUnverified": "quality.deck.chartUnverified",
+  "deck.chartSampleData": "quality.deck.chartSampleData",
+  "deck.notesMissing": "quality.deck.notesMissing",
   "deck.pageCountMismatch": "quality.deck.pageCountMismatch",
   "deck.templateNeedsChart": "quality.deck.templateNeedsChart",
   "deck.pyramidTitle": "quality.deck.pyramidTitle",

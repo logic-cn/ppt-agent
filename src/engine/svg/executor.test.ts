@@ -296,6 +296,52 @@ describe("generateDeckSvgs early gate（跨页一致性门）", () => {
     });
   });
 
+  it("early gate 修复后复验：修复成功的问题不再下发，残余问题如实下发", async () => {
+    // 第 1 页字体越锁（修复成功）、第 2 页 text 内越锁色（autoPatch 不动 text
+    // 内取色，修复模拟失败）→ 剩余页 guidance 只应包含残余的配色问题
+    const offColorSvg = (title: string) =>
+      svgWithTitle(title).replace('fill="#0F172A"', 'fill="#ABCDEF"');
+    const plans = makePlan(7);
+    vi.mocked(chat).mockImplementation(async (req: unknown) => {
+      const content = (req as { messages: { content: string }[] }).messages[1]
+        .content;
+      if (content.includes("定向修改要求")) {
+        // 第 1 页修复成功；第 2 页修复失败（原样返回越锁色）
+        if (content.includes("字体越锁")) {
+          return { content: svgWithTitle("第 1 页") };
+        }
+        return { content: offColorSvg("第 2 页") };
+      }
+      const title = titleFromPrompt(req);
+      if (title === "第 1 页") return { content: offLockSvg(title) };
+      if (title === "第 2 页") return { content: offColorSvg(title) };
+      return { content: svgWithTitle(title) };
+    });
+
+    const pages = await generateDeckSvgs(plans, spec);
+
+    // 第 1 页修复成功、第 2 页修复失败
+    expect(pages[0].svg).not.toContain("Impact");
+    expect(pages[1].svg).toContain("#ABCDEF");
+
+    const guided = vi
+      .mocked(chat)
+      .mock.calls.filter((c) =>
+        (
+          c[0] as { messages: { content: string }[] }
+        ).messages[1].content.includes("全 deck 一致性要求"),
+      );
+    expect(guided.length).toBe(2);
+    for (const call of guided) {
+      const body = (call[0] as { messages: { content: string }[] }).messages[1]
+        .content;
+      // 残余问题下发
+      expect(body).toContain("配色越锁");
+      // 修复成功的问题不再下发（旧逻辑会把修复前全部问题原样下发）
+      expect(body).not.toContain("字体越锁");
+    }
+  });
+
   it("skipEarlyGate 时跳过一致性门，不产生修复与指引", async () => {
     const plans = makePlan(7);
     vi.mocked(chat).mockImplementation(async (req: unknown) => {

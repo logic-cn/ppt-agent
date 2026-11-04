@@ -430,6 +430,7 @@ export const zh: Record<TranslationKey, string> = {
   "inspector.imageDeleteConfirm": "确定删除配图？",
   "inspector.imageDelete": "删除配图",
   "inspector.imageSearch": "网络搜图",
+  "inspector.imageSearchJob": "搜索图片：{query}",
   "inspector.imageSearchPlaceholder": "搜索关键词，如：城市天际线",
   "inspector.imageSearchEmpty": "没有找到结果",
   "inspector.imageApplyFailed": "图片应用失败：{error}",
@@ -521,6 +522,8 @@ export const zh: Record<TranslationKey, string> = {
     "柱图几何不符：画了 {bars} 根柱但数据有 {points} 个点，请重画",
   "quality.svg.chartBarRatioMismatch":
     "柱图几何失真：第 {index} 根柱高度比例 {barPercent}% 与数值比例 {valuePercent}% 偏差超过 12%，请按数据重算柱高",
+  "quality.svg.colorInvalidValue":
+    "颜色值非法：{attr}=“{value}” 不是配色表 HEX——只允许配色表中的 HEX、none、url(#渐变)；该值预览与导出都会变黑，请改用配色表取值",
   "quality.svg.contentMissingTitle":
     "内容缺失：标题「{title}」未出现在 SVG 文本中",
   "quality.svg.contentMissingBullet":
@@ -568,6 +571,10 @@ export const zh: Record<TranslationKey, string> = {
     "页面「{title}」标题较为空泛，建议添加副标题或更具体的标题",
   "quality.deck.chartUnverified":
     "页面「{title}」图表数值 {values} 未在来源材料中找到，请核对是否为编造数据",
+  "quality.deck.chartSampleData":
+    "本 deck 有 {count} 页图表，图表数值为 AI 生成的示例数据（未提供来源材料校准），正式汇报前请核对",
+  "quality.deck.notesMissing":
+    "{count} 页缺少演讲者备注——讲稿会写入 PPTX 备注页，帮助演讲者控场",
   "quality.deck.pageCountMismatch":
     "期望 {expected} 页，实际 {actual} 页（偏差 {diff} 页）",
   "quality.deck.templateNeedsChart": "该模板要求至少包含一个图表页",

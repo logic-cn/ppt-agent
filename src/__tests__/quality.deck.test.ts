@@ -27,14 +27,15 @@ describe("checkDeckQuality", () => {
   it("完美 deck 无检查项", () => {
     const deck = createMockDeck({
       slides: [
-        { id: "s1", layout: "cover", title: "封面" },
+        { id: "s1", layout: "cover", title: "封面", notes: "开场讲稿" },
         {
           id: "s2",
           layout: "content",
           title: "市场分析",
           bullets: [{ id: "b1", text: "要点1", level: 0 }],
+          notes: "正文讲稿",
         },
-        { id: "s3", layout: "closing", title: "感谢聆听" },
+        { id: "s3", layout: "closing", title: "感谢聆听", notes: "收尾讲稿" },
       ],
     });
     const findings = checkDeckQuality(deck);
@@ -155,11 +156,11 @@ describe("checkDeckQuality", () => {
 
   it("评分计算正确", () => {
     const deck = createMockDeck({
-      slides: [{ id: "s1", layout: "content", title: "概述" }],
+      slides: [{ id: "s1", layout: "content", title: "概述", notes: "讲稿" }],
     });
     const findings = checkDeckQuality(deck);
     // hard: require_cover, require_closing (2)；soft: vague_title (1)
-    // score = 100 - 2*15 - 1*6 = 64
+    // （notes 补齐避免 notes_missing 计入）score = 100 - 2*15 - 1*6 = 64
     expect(qualityScore(findings)).toBe(64);
   });
 });
