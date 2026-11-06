@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use futures_util::StreamExt;
@@ -11,6 +12,13 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 const PROGRESS_EVENT: &str = "model-download-progress";
 const PROGRESS_MIN_INTERVAL_MS: u64 = 200;
 
+/// 下载取消标志：由 model_download_cancel 置位，下载循环逐块检查。
+/// 取消时保留 .part 断点文件，下次下载可续传。
+static DOWNLOAD_CANCEL: AtomicBool = AtomicBool::new(false);
+
+/// 下载互斥锁（try_lock）：防止两个并发 model_download 向同一 .part 交错写入
+static DOWNLOAD_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// 随模型保存的许可声明（Apache-2.0 + llama.cpp MIT 第三方清单）
 const MODEL_NOTICE: &str = include_str!("../../assets/model-notice.txt");
 
@@ -21,6 +29,8 @@ pub struct DownloadOptions {
     pub file_name: String,
     /// 小写十六进制 sha256
     pub sha256: String,
+    /// 期望文件大小（字节）：用于磁盘剩余空间预检；缺省时跳过预检
+    pub expected_size_bytes: Option<u64>,
 }
 
 #[derive(Clone, Serialize)]
@@ -133,6 +143,12 @@ async fn try_download_one(
     let resp = request.send().await.map_err(|e| format!("请求失败: {e}"))?;
     let status = resp.status();
 
+    // 416 = 断点已到文件末尾但文件其实可能完整：保留 .part 交由调用方
+    // 做 sha256 复核，完整则直接转正，不完整才换源重下
+    if status.as_u16() == 416 && existing > 0 {
+        return Err("PART_MAYBE_COMPLETE".into());
+    }
+
     // 续传被拒绝（返回 200 全量）时从头下载
     let mut written = existing;
     let append = status.as_u16() == 206;
@@ -141,6 +157,24 @@ async fn try_download_one(
     }
     if !status.is_success() {
         return Err(format!("HTTP {status}"));
+    }
+
+    // 续传必须核对 Content-Range 起点 == 本地断点：行为异常的服务器
+    // 返回错位 206 会拼出损坏文件（只靠最终 sha256 兜底会浪费整次下载）
+    if append {
+        let start_ok = resp
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.split('/').next())
+            .and_then(|r| r.strip_prefix("bytes "))
+            .and_then(|r| r.split('-').next())
+            .and_then(|s| s.parse::<u64>().ok())
+            .map(|start| start == existing)
+            .unwrap_or(false);
+        if !start_ok {
+            return Err("CONTENT_RANGE_MISMATCH".into());
+        }
     }
 
     let total = resp
@@ -174,6 +208,9 @@ async fn try_download_one(
     let mut stream = resp.bytes_stream();
     let mut last_emit = Instant::now();
     while let Some(chunk) = stream.next().await {
+        if DOWNLOAD_CANCEL.load(Ordering::Relaxed) {
+            return Err("DOWNLOAD_CANCELLED".into());
+        }
         let chunk = chunk.map_err(|e| format!("下载中断: {e}"))?;
         file.write_all(&chunk)
             .await
@@ -211,12 +248,35 @@ pub async fn model_download(
         return Err("sha256 校验值格式错误".into());
     }
 
+    // 并发防重：同一时间只允许一个下载任务（否则两个流交错写同一 .part）
+    let _guard = match DOWNLOAD_LOCK.try_lock() {
+        Ok(g) => g,
+        Err(_) => return Err("已有下载任务进行中".into()),
+    };
+    DOWNLOAD_CANCEL.store(false, Ordering::Relaxed);
+
     let dir = models_dir(&app)?;
     fs::create_dir_all(&dir)
         .await
         .map_err(|e| format!("创建模型目录失败: {e}"))?;
     let dest = dir.join(&opts.file_name);
     let part = dir.join(format!("{}.part", opts.file_name));
+
+    // 磁盘剩余空间预检：1.5 GB 模型下到一半失败只剩一个含糊的写错误
+    if let Some(expected_size) = opts.expected_size_bytes {
+        if let Some(parent) = part.parent() {
+            if let Ok(avail) = fs2::available_space(parent) {
+                if avail < expected_size + 512 * 1024 * 1024 {
+                    return Err(format!(
+                        "磁盘剩余空间不足（需约 {} MB，含余量；仅剩 {} MB）",
+                        (expected_size + 512 * 1024 * 1024) / 1024 / 1024,
+                        avail / 1024 / 1024
+                    ));
+                }
+            }
+            // 无法查询时跳过预检，交由写盘错误兜底
+        }
+    }
 
     if dest.exists() {
         let sum = sha256_of_file(&dest).await?;
@@ -265,13 +325,44 @@ pub async fn model_download(
                 });
             }
             Err(e) => {
-                // 416 = 断点已到尾部但文件其实完整；其余错误删掉断点防止跨源混拼损坏文件
+                if e == "DOWNLOAD_CANCELLED" {
+                    // 用户取消：保留 .part 断点，下次下载续传
+                    return Err("下载已取消".into());
+                }
+                if e == "PART_MAYBE_COMPLETE" {
+                    // 断点已到 EOF：.part 可能已完整，sha256 复核通过则直接转正
+                    if let Ok(sum) = sha256_of_file(&part).await {
+                        if sum == expected {
+                            fs::rename(&part, &dest)
+                                .await
+                                .map_err(|e| format!("移动文件失败: {e}"))?;
+                            let size = fs::metadata(&dest).await.map_err(|e| e.to_string())?.len();
+                            ensure_license_file(&dir, &opts.file_name).await;
+                            return Ok(DownloadResult {
+                                path: dest.to_string_lossy().into_owned(),
+                                size_bytes: size,
+                                source_index: idx,
+                            });
+                        }
+                    }
+                    let _ = fs::remove_file(&part).await;
+                    last_err = format!("来源 {idx} 断点复核失败，已换源");
+                    continue;
+                }
+                // 其余错误删掉断点防止跨源混拼损坏文件
                 let _ = fs::remove_file(&part).await;
                 last_err = format!("来源 {idx} 失败: {e}");
             }
         }
     }
     Err(last_err)
+}
+
+/// 取消进行中的下载：置位取消标志，下载循环逐块检查后自行退出。
+/// .part 断点保留，下次下载可续传。
+#[tauri::command]
+pub fn model_download_cancel() {
+    DOWNLOAD_CANCEL.store(true, Ordering::Relaxed);
 }
 
 #[tauri::command]

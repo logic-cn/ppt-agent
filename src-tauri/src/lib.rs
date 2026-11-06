@@ -26,6 +26,7 @@ pub fn run() {
             commands::local_llm::local_llm_unload,
             commands::local_llm::local_llm_status,
             commands::model_manager::model_download,
+            commands::model_manager::model_download_cancel,
             commands::model_manager::model_installed,
             commands::model_manager::model_delete,
         ])

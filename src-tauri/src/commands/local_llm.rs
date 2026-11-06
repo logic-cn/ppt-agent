@@ -35,6 +35,18 @@ fn default_threads() -> i32 {
     (logical.saturating_sub(1)).clamp(1, 8) as i32
 }
 
+/// 生成看门狗：前端 abort 丢失（webview 刷新、事件监听掉线）时，
+/// 防止无界推理占死串行生成队列。默认 360 秒（前端端侧单页软超时
+/// 5 分钟之上留余量）；设 PPT_LOCAL_GEN_TIMEOUT_SECS=0 关闭，
+/// 无头 harness 长跑可自行调大。
+fn generation_watchdog() -> Option<std::time::Duration> {
+    let secs: u64 = std::env::var("PPT_LOCAL_GEN_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(360);
+    (secs > 0).then(|| std::time::Duration::from_secs(secs))
+}
+
 pub struct LocalLlmState {
     model: Mutex<Option<Arc<LlamaModel>>>,
     model_path: Mutex<Option<String>>,
@@ -112,7 +124,8 @@ pub async fn local_llm_load(
         return Err(format!("模型文件不存在: {model_path}"));
     }
     let _guard = state.generation.lock().await;
-    let ctx_size = ctx_size.unwrap_or(8192).max(2048);
+    // 上限钳制：异常 IPC 值（如接近 u32::MAX）会尝试巨大 KV 分配拖垮进程
+    let ctx_size = ctx_size.unwrap_or(8192).clamp(2048, 65_536);
     let b = backend();
     let load_path = path.clone();
     let model = tokio::task::spawn_blocking(move || {
@@ -163,8 +176,10 @@ pub fn local_llm_cancel(state: State<'_, LocalLlmState>) {
 
 #[tauri::command]
 pub async fn local_llm_unload(state: State<'_, LocalLlmState>) -> Result<LoadStatus, String> {
-    let _guard = state.generation.lock().await;
+    // 先置取消再等锁：在途生成会尽快自行退出，unload 不必等满一轮推理；
+    // 旧顺序（先锁后置位）会让取消标志永远赶不上本次生成
     state.cancel.store(true, Ordering::Relaxed);
+    let _guard = state.generation.lock().await;
     *state.model.lock().unwrap_or_else(|e| e.into_inner()) = None;
     *state.model_path.lock().unwrap_or_else(|e| e.into_inner()) = None;
     Ok(LoadStatus {
@@ -203,6 +218,13 @@ pub fn generate(
     let started = Instant::now();
     let b = backend();
     let vocab = model.vocab();
+
+    if req.messages.is_empty() {
+        return Err("messages 不能为空".to_string());
+    }
+    // 看门狗：超过时限的推理直接报错释放锁，而不是无限占用串行队列
+    let watchdog_deadline: Option<Instant> =
+        generation_watchdog().map(|d| started.checked_add(d).unwrap_or(started));
 
     let tmpl = model
         .chat_template(None)
@@ -264,7 +286,11 @@ pub fn generate(
     let max_new = req.max_tokens.unwrap_or(1024) as usize;
     let budget = (n_ctx as usize - n_prompt - 1).min(max_new).max(1);
 
-    let temperature = req.temperature.unwrap_or(0.7);
+    // NaN/inf 或越界采样参数按默认值处理，避免 sampler 进入未定义行为
+    let temperature = match req.temperature {
+        Some(t) if t.is_finite() => t.clamp(0.0, 2.0),
+        _ => 0.7,
+    };
     let seed = req.seed.unwrap_or_else(|| {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -290,7 +316,11 @@ pub fn generate(
         parts.push(LlamaSampler::greedy());
     } else {
         parts.push(LlamaSampler::temp(temperature));
-        parts.push(LlamaSampler::top_p(req.top_p.unwrap_or(0.9), 1));
+        let top_p = match req.top_p {
+            Some(p) if p.is_finite() => p.clamp(0.05, 1.0),
+            _ => 0.9,
+        };
+        parts.push(LlamaSampler::top_p(top_p, 1));
         parts.push(LlamaSampler::dist(seed));
     }
     let mut sampler = LlamaSampler::chain_simple(parts);
@@ -304,6 +334,14 @@ pub fn generate(
     while fed < n_prompt {
         if cancel.load(Ordering::Relaxed) {
             return Ok(cancelled_response(started));
+        }
+        if let Some(deadline) = watchdog_deadline {
+            if Instant::now() > deadline {
+                return Err(format!(
+                    "本地推理超时（看门狗 {} 秒），已中止本次生成",
+                    generation_watchdog().map(|d| d.as_secs()).unwrap_or(0)
+                ));
+            }
         }
         let end = (fed + chunk).min(n_prompt);
         batch.clear();
@@ -333,6 +371,14 @@ pub fn generate(
         if cancel.load(Ordering::Relaxed) {
             cancelled = true;
             break;
+        }
+        if let Some(deadline) = watchdog_deadline {
+            if Instant::now() > deadline {
+                return Err(format!(
+                    "本地推理超时（看门狗 {} 秒），已中止本次生成",
+                    generation_watchdog().map(|d| d.as_secs()).unwrap_or(0)
+                ));
+            }
         }
         if vocab.is_eog(next) {
             break;
