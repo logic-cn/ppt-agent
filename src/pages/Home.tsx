@@ -9,7 +9,6 @@ import {
   Trash2,
   Download,
   Upload,
-  Loader2,
 } from "lucide-react";
 import { useDeckStore } from "@/store/deck";
 import { useQualityStore } from "@/store/quality";
@@ -25,6 +24,8 @@ import type { DeckPreset } from "@/types/preset";
 import type { Slide } from "@/types/deck";
 import { useT } from "@/hooks/use-page-t";
 import { useSettingsStore } from "@/store/settings";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -172,7 +173,7 @@ export default function Home() {
           <h1 className="mb-6 text-2xl font-semibold">
             {t("home.startCreating")}
           </h1>
-          <div className="mb-12 grid grid-cols-3 gap-4">
+          <div className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={createProject}
               className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-bg-elevated p-8 transition-all hover:border-accent hover:shadow-sm"
@@ -227,18 +228,14 @@ export default function Home() {
             <h2 className="text-lg font-semibold">
               {t("home.recentProjects")}
             </h2>
-            <button
+            <Button
+              variant="secondary"
               onClick={() => importRef.current?.click()}
-              disabled={importing}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+              loading={importing}
             >
-              {importing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
+              {!importing && <Upload className="h-4 w-4" aria-hidden="true" />}
               {importing ? t("home.importingProject") : t("home.importProject")}
-            </button>
+            </Button>
             <input
               ref={importRef}
               type="file"
@@ -261,7 +258,7 @@ export default function Home() {
               <h2 className="mb-4 text-lg font-semibold">
                 {t("home.quickStart")}
               </h2>
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                 <div className="space-y-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
                     1
@@ -295,11 +292,11 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {recent.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative rounded-xl border border-border bg-bg-elevated p-5 text-left transition-all hover:border-accent hover:shadow-sm"
+                  className="group rounded-xl border border-border bg-bg-elevated p-5 text-left transition-all hover:border-accent hover:shadow-sm"
                 >
                   <button
                     onClick={() => navigate(`/editor/${p.id}`)}
@@ -323,27 +320,19 @@ export default function Home() {
                       )}
                     </p>
                   </button>
-                  <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleExportProject(p.id);
-                      }}
-                      className="rounded-md p-1.5 text-text-muted transition hover:bg-accent/10 hover:text-accent"
-                      title={t("home.exportProject")}
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(p.id);
-                      }}
-                      className="rounded-md p-1.5 text-text-muted transition hover:bg-danger/10 hover:text-danger"
-                      title={t("home.deleteProject")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                  {/* 操作区独立成行：不再覆盖右上角页数徽标 */}
+                  <div className="mt-2 flex items-center justify-end gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                    <IconButton
+                      label={t("home.exportProject")}
+                      onClick={() => void handleExportProject(p.id)}
+                      icon={<Download className="h-3.5 w-3.5" />}
+                    />
+                    <IconButton
+                      label={t("home.deleteProject")}
+                      variant="danger"
+                      onClick={() => setDeleteTarget(p.id)}
+                      icon={<Trash2 className="h-3.5 w-3.5" />}
+                    />
                   </div>
                 </div>
               ))}

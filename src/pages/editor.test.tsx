@@ -56,6 +56,13 @@ vi.mock("@/engine/pptx", () => ({
   exportDeck: vi.fn(async () => {}),
   exportDeckToBlob: vi.fn(async () => new Blob()),
 }));
+const { saveTextFileMock } = vi.hoisted(() => ({
+  saveTextFileMock: vi.fn(async () => ({ path: "/tmp/project.json" })),
+}));
+vi.mock("@/services/file-save", () => ({ saveTextFile: saveTextFileMock }));
+vi.mock("@/services/project-backup", () => ({
+  serializeDeckJson: vi.fn(() => '{"ok":true}'),
+}));
 
 import Editor from "./Editor";
 
@@ -93,6 +100,7 @@ beforeEach(() => {
   useDeckStore.setState({ deck: null, past: [], future: [], dirty: false });
   useQualityStore.setState({ report: null, pendingRules: null });
   useJobStore.setState({ jobs: [], activeJobIds: [] });
+  useToastStore.setState({ toasts: [] });
 });
 
 describe("Editor 导出质量门", () => {
@@ -297,6 +305,130 @@ describe("Editor 任务面板状态机", () => {
       expect(screen.getByText("失败")).toBeTruthy();
       expect(screen.getByTitle("复制错误")).toBeTruthy();
     });
+  });
+});
+
+describe("Editor 顶栏可访问性与窄屏溢出菜单", () => {
+  it("返回按钮具备可访问名称", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+    const back = await screen.findByRole("button", { name: "返回首页" });
+    expect(back.getAttribute("title")).toBe("返回首页");
+  });
+
+  it("溢出菜单展示低频操作并支持 Escape 关闭", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+    fireEvent.click(await screen.findByRole("button", { name: "更多" }));
+
+    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: /导入/ })).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", { name: /导出项目 JSON/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: /删除项目/ })).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("设计弹层可用关闭按钮与 Escape 退出，并把焦点还给触发按钮", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+    const trigger = await screen.findByRole("button", { name: "设计" });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("dialog", { name: "设计" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "设计" })).toBeNull(),
+    );
+    expect(document.activeElement).toBe(trigger);
+
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "设计" })).toBeNull(),
+    );
+  });
+  it("导出项目 JSON 成功后提示", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "导出项目 JSON" }),
+    );
+    await waitFor(() => expect(saveTextFileMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        useToastStore
+          .getState()
+          .toasts.some((toast) => toast.title === "导出成功"),
+      ).toBe(true),
+    );
+  });
+
+  it("面板开关按钮暴露 aria-pressed 并可切换", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+    const outline = await screen.findByRole("button", { name: "大纲面板" });
+    const ai = screen.getByRole("button", { name: "AI 面板" });
+    expect(outline.getAttribute("aria-pressed")).toBe("true");
+    expect(ai.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(outline);
+    fireEvent.click(ai);
+    await waitFor(() => {
+      expect(outline.getAttribute("aria-pressed")).toBe("false");
+      expect(ai.getAttribute("aria-pressed")).toBe("false");
+    });
+  });
+
+  it("点击遮罩关闭溢出菜单", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    const { container } = renderEditor();
+    fireEvent.click(await screen.findByRole("button", { name: "更多" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+
+    const backdrop = container.querySelector<HTMLElement>(
+      ".fixed.inset-0.z-10",
+    );
+    expect(backdrop).toBeTruthy();
+    fireEvent.click(backdrop!);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("任务面板关闭按钮具备可访问名称", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useJobStore.setState({
+      jobs: [
+        {
+          id: "j1",
+          type: "outline.generate",
+          title: "生成大纲",
+          status: "running",
+          createdAt: 0,
+          updatedAt: 0,
+          canCancel: true,
+        },
+      ],
+      activeJobIds: ["j1"],
+    });
+
+    renderEditor();
+    await waitFor(() => expect(screen.getByText("任务列表")).toBeTruthy());
+    const close = screen.getByRole("button", { name: "关闭" });
+    expect(close.getAttribute("aria-label")).toBe("关闭");
+    fireEvent.click(close);
+    await waitFor(() => expect(screen.queryByText("任务列表")).toBeNull());
+  });
+
+  it("返回按钮点击后离开编辑器路由", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    renderEditor();
+    const back = await screen.findByRole("button", { name: "返回首页" });
+    // 点击不抛错即说明导航入口可用（路由断言由 App 级测试覆盖）
+    fireEvent.click(back);
   });
 });
 

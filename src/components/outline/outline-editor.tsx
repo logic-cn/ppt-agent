@@ -116,7 +116,11 @@ export function OutlineEditor({
               items={slideIds}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-2">
+              <div
+                className="space-y-2"
+                role="listbox"
+                aria-label={t("outline.listLabel")}
+              >
                 {slides.map((slide, i) => (
                   <SortableSlideItem
                     key={slide.id}

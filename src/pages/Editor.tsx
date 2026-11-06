@@ -14,12 +14,15 @@ import {
   Loader2,
   RefreshCw,
   FileJson,
+  MoreHorizontal,
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useGenerationFollowStore } from "@/store/generation-follow";
 import { useSettingsStore } from "@/store/settings";
 import { useModelStore } from "@/store/model";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { isLocalProviderConfig } from "@/types/llm";
 import { MODEL_REGISTRY } from "@/services/model-manager";
 import { generateSlideSvg } from "@/engine/svg/executor";
@@ -87,6 +90,9 @@ export default function Editor() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [jobPanelOpen, setJobPanelOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  // 记录设计面板触发按钮：Escape/关闭按钮退出时归还焦点
+  const designTriggerRef = useRef<HTMLButtonElement>(null);
   const setDesign = useDeckStore((s) => s.setDesign);
   const setTitle = useDeckStore((s) => s.setTitle);
   const persist = useDeckStore((s) => s.persist);
@@ -105,6 +111,21 @@ export default function Editor() {
     const reportHard = qualityReport ? hasHardError(qualityReport) : false;
     return liveHard || reportHard;
   }, [deck, pendingRules, qualityReport]);
+
+  // 设计面板与溢出菜单：Escape 关闭，并把焦点归还给触发按钮
+  useEffect(() => {
+    if (!designOpen && !overflowOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (designOpen) {
+        setDesignOpen(false);
+        designTriggerRef.current?.focus();
+      }
+      if (overflowOpen) setOverflowOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [designOpen, overflowOpen]);
 
   const staleSlides = useMemo(
     () => deck?.slides.filter((s) => s.svg && s.svgStale) ?? [],
@@ -454,12 +475,11 @@ export default function Editor() {
       {/* 顶部工具栏 */}
       <header className="flex h-10 items-center justify-between gap-2 border-b border-border bg-bg-elevated px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <button
+          <IconButton
+            label={t("editor.backHome")}
             onClick={() => navigate("/")}
-            className="shrink-0 rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
+            icon={<ChevronLeft className="h-4 w-4" />}
+          />
           {editingTitle ? (
             <input
               ref={titleRef}
@@ -511,41 +531,44 @@ export default function Editor() {
             </button>
           )}
 
-          <ModelStatusChip />
-          <button
+          <div className="hidden lg:block">
+            <ModelStatusChip />
+          </div>
+          <IconButton
+            label={t("editor.outlinePanel")}
+            aria-pressed={leftOpen}
             onClick={() => setLeftOpen((v) => !v)}
-            className={`rounded-md p-1.5 hover:bg-bg-hover ${
-              leftOpen ? "text-accent" : "text-text-secondary"
-            }`}
-            title={t("editor.outlinePanel")}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-          <button
+            className={leftOpen ? "text-accent" : ""}
+            icon={<PanelLeft className="h-4 w-4" />}
+          />
+          <IconButton
+            label={t("editor.aiPanel")}
+            aria-pressed={rightOpen}
             onClick={() => setRightOpen((v) => !v)}
-            className={`rounded-md p-1.5 hover:bg-bg-hover ${
-              rightOpen ? "text-accent" : "text-text-secondary"
-            }`}
-            title={t("editor.aiPanel")}
-          >
-            <PanelRight className="h-4 w-4" />
-          </button>
+            className={rightOpen ? "text-accent" : ""}
+            icon={<PanelRight className="h-4 w-4" />}
+          />
 
-          <div className="mx-2 h-5 w-px bg-border" />
+          <div className="mx-2 hidden h-5 w-px bg-border xl:block" />
 
-          <button
-            onClick={() => setDeleteConfirm(true)}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-danger/10 hover:text-danger"
-            title={t("editor.deleteProject")}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          {/* 低频操作在窄窗口收进溢出菜单，避免顶栏挤压 */}
+          <div className="hidden xl:flex">
+            <IconButton
+              label={t("editor.deleteProject")}
+              variant="danger"
+              onClick={() => setDeleteConfirm(true)}
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+            />
+          </div>
 
-          <div className="mx-2 h-5 w-px bg-border" />
+          <div className="mx-2 hidden h-5 w-px bg-border xl:block" />
 
           <div className="relative">
             <button
+              ref={designTriggerRef}
               onClick={() => setDesignOpen((v) => !v)}
+              aria-haspopup="dialog"
+              aria-expanded={designOpen}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm hover:bg-bg-hover ${
                 designOpen
                   ? "text-accent"
@@ -562,7 +585,24 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setDesignOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 max-h-[calc(100vh-3.5rem)] w-80 origin-top-right overflow-y-auto rounded-xl border border-border bg-bg-elevated p-3 shadow-lg animate-dialog">
+                <div
+                  className="absolute right-0 top-full z-20 mt-1 max-h-[calc(100vh-3.5rem)] w-80 origin-top-right overflow-y-auto rounded-xl border border-border bg-bg-elevated p-3 shadow-lg animate-dialog"
+                  role="dialog"
+                  aria-label={t("editor.design")}
+                >
+                  <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-sm font-semibold text-text-primary">
+                      {t("editor.design")}
+                    </span>
+                    <IconButton
+                      label={t("common.close")}
+                      onClick={() => {
+                        setDesignOpen(false);
+                        designTriggerRef.current?.focus();
+                      }}
+                      icon={<X className="h-4 w-4" />}
+                    />
+                  </div>
                   <DesignPanel
                     design={deck?.design ?? DEFAULT_DESIGN}
                     onChange={(d) => setDesign(d)}
@@ -582,21 +622,78 @@ export default function Editor() {
             )}
           </div>
 
-          <button
+          <IconButton
+            label={t("home.exportProject")}
             onClick={() => void handleExportProject()}
             disabled={!deck}
-            title={t("home.exportProject")}
-            className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
-          >
-            <FileJson className="h-4 w-4" />
-          </button>
+            className="hidden xl:inline-flex"
+            icon={<FileJson className="h-4 w-4" />}
+          />
           <button
             onClick={() => setImportOpen(true)}
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+            className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary xl:flex"
           >
             <Upload className="h-3.5 w-3.5" />
             {t("editor.import")}
           </button>
+
+          {/* 窄窗口的「更多」菜单：收纳删除项目/导出 JSON/导入 */}
+          <div className="relative xl:hidden">
+            <IconButton
+              label={t("common.more")}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              onClick={() => setOverflowOpen((v) => !v)}
+              icon={<MoreHorizontal className="h-4 w-4" />}
+            />
+            {overflowOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setOverflowOpen(false)}
+                />
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-bg-elevated p-1 shadow-lg animate-dialog"
+                >
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      setImportOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  >
+                    <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("editor.import")}
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      void handleExportProject();
+                    }}
+                    disabled={!deck}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
+                  >
+                    <FileJson className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("home.exportProject")}
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      setDeleteConfirm(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-danger hover:bg-danger/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("editor.deleteProject")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => setPresenting(true)}
             disabled={!deck || deck.slides.length === 0}
@@ -625,17 +722,20 @@ export default function Editor() {
                 : t("editor.syncStale", { n: staleSlides.length })}
             </button>
           )}
-          <button
+          <Button
+            variant="primary"
             onClick={handleExport}
-            disabled={exporting || !deck || deck.slides.length === 0 || hasHard}
+            loading={exporting}
+            disabled={!deck || deck.slides.length === 0 || hasHard}
             title={
               hasHard ? t("editor.qualityBlockExport") : t("common.exportPpt")
             }
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-accent/20"
           >
-            <Download className="h-3.5 w-3.5" />
+            {!exporting && (
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
             {exporting ? t("common.exporting") : t("common.exportPpt")}
-          </button>
+          </Button>
           {hasHard && (
             <button
               onClick={() => {
@@ -667,12 +767,12 @@ export default function Editor() {
                   {t("editor.clearCompleted")}
                 </button>
               )}
-              <button
+              <IconButton
+                label={t("common.close")}
+                size="sm"
                 onClick={() => setJobPanelOpen(false)}
-                className="rounded p-0.5 text-text-muted hover:text-text-primary"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+                icon={<X className="h-3.5 w-3.5" />}
+              />
             </div>
           </div>
           <div className="mt-1 space-y-1">
@@ -715,6 +815,7 @@ export default function Editor() {
                     <button
                       onClick={() => navigator.clipboard.writeText(job.error!)}
                       className="rounded p-0.5 text-text-muted hover:text-text-primary"
+                      aria-label={t("editor.copyError")}
                       title={t("editor.copyError")}
                     >
                       <Copy className="h-3 w-3" />
@@ -753,7 +854,8 @@ export default function Editor() {
           <aside className="flex w-9 flex-col items-center border-r border-border bg-bg-elevated py-2">
             <button
               onClick={() => setLeftOpen(true)}
-              className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
+              className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-on-accent"
+              aria-label={t("editor.expandOutline")}
               title={t("editor.expandOutline")}
             >
               <PanelLeft className="h-3.5 w-3.5" />
@@ -812,7 +914,8 @@ export default function Editor() {
           <aside className="flex w-9 flex-col items-center border-l border-border bg-bg-elevated py-2">
             <button
               onClick={() => setRightOpen(true)}
-              className="w-6 h-6 rounded-md bg-accent-soft text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
+              className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-on-accent"
+              aria-label={t("editor.expandAiPanel")}
               title={t("editor.expandAiPanel")}
             >
               <PanelRight className="h-3.5 w-3.5" />
@@ -1031,7 +1134,7 @@ function PanelDivider({
             title={statusText}
             disabled={busy}
             onClick={() => void ensureReady().catch(() => {})}
-            className="flex items-center gap-1 rounded-full bg-accent px-2 py-px text-[11px] text-white transition hover:opacity-90 disabled:opacity-60"
+            className="flex items-center gap-1 rounded-full bg-accent px-2 py-px text-[11px] text-on-accent transition hover:opacity-90 disabled:opacity-60"
           >
             {busy ? (
               <Loader2 className="h-3 w-3 animate-spin" />

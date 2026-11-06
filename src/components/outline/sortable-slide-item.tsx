@@ -8,6 +8,7 @@ import { resolveTheme } from "@/themes";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { SlideThumbnail } from "@/engine/preview";
 import { useT } from "@/hooks/use-page-t";
+import { IconButton } from "@/components/ui/icon-button";
 import type { TranslationKey } from "@/services/i18n";
 
 interface Props {
@@ -17,6 +18,15 @@ interface Props {
   isSelected?: boolean;
   onSelect?: (index: number) => void;
   qualitySeverity?: "hard" | "soft";
+}
+
+/** 方向键移动选中时同步移动焦点，避免焦点与 listbox 选中态错位 */
+function focusSiblingOption(current: HTMLElement, delta: number) {
+  const siblings =
+    current.parentElement?.querySelectorAll<HTMLElement>('[role="option"]');
+  if (!siblings) return;
+  const pos = Array.from(siblings).indexOf(current);
+  siblings[pos + delta]?.focus();
 }
 
 const layoutLabels: Record<string, TranslationKey> = {
@@ -74,8 +84,28 @@ export const SortableSlideItem = memo(function SortableSlideItem({
     <div
       ref={setNodeRef}
       style={style}
+      role="option"
+      aria-selected={isSelected}
+      aria-label={`${index + 1}. ${slide.title || t("editor.untitled")}`}
+      tabIndex={0}
       onClick={() => onSelect?.(index)}
-      className={`group relative cursor-pointer rounded-lg border transition-shadow ${
+      onKeyDown={(e) => {
+        // 只处理卡片本身的按键：避免抢占标题输入框与操作按钮
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.(index);
+        } else if (e.key === "ArrowUp" && index > 0) {
+          e.preventDefault();
+          onSelect?.(index - 1);
+          focusSiblingOption(e.currentTarget, -1);
+        } else if (e.key === "ArrowDown" && index < total - 1) {
+          e.preventDefault();
+          onSelect?.(index + 1);
+          focusSiblingOption(e.currentTarget, 1);
+        }
+      }}
+      className={`group relative cursor-pointer rounded-lg border transition-shadow focus-visible:ring-2 focus-visible:ring-accent/60 ${
         isSelected
           ? "border-accent bg-accent-soft/40"
           : isDragging
@@ -87,6 +117,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
       <button
         {...attributes}
         {...listeners}
+        aria-label={t("outline.dragHandle")}
         className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab touch-none rounded p-0.5 text-text-muted opacity-0 transition-opacity hover:text-text-secondary group-hover:opacity-100 group-focus-within:opacity-100"
       >
         <GripVertical className="h-3.5 w-3.5" />
@@ -147,7 +178,9 @@ export const SortableSlideItem = memo(function SortableSlideItem({
 
             <span className="mx-0.5 h-3 w-px bg-border" />
 
-            <button
+            <IconButton
+              data-no-select="true"
+              label={t("outline.moveUp")}
               onClick={(e) => {
                 // 阻止冒泡，避免移动后父容器再把选中索引设回旧位置
                 e.stopPropagation();
@@ -158,12 +191,10 @@ export const SortableSlideItem = memo(function SortableSlideItem({
                 }
               }}
               disabled={index === 0}
-              className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
-              title={t("outline.moveUp")}
-            >
-              <ChevronUp className="h-3.5 w-3.5" />
-            </button>
-            <button
+              icon={<ChevronUp className="h-3.5 w-3.5" />}
+            />
+            <IconButton
+              label={t("outline.moveDown")}
               onClick={(e) => {
                 e.stopPropagation();
                 if (index < total - 1) {
@@ -172,24 +203,20 @@ export const SortableSlideItem = memo(function SortableSlideItem({
                 }
               }}
               disabled={index === total - 1}
-              className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
-              title={t("outline.moveDown")}
-            >
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
+              icon={<ChevronDown className="h-3.5 w-3.5" />}
+            />
 
             <span className="mx-0.5 h-3 w-px bg-border" />
 
-            <button
+            <IconButton
+              label={t("common.delete")}
+              variant="danger"
               onClick={(e) => {
                 e.stopPropagation();
                 setConfirmDelete(true);
               }}
-              className="rounded p-0.5 text-text-muted hover:bg-danger/10 hover:text-danger"
-              title={t("common.delete")}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+            />
           </div>
         </div>
 
@@ -205,7 +232,7 @@ export const SortableSlideItem = memo(function SortableSlideItem({
                   e.stopPropagation();
                   removeSlide(slide.id);
                 }}
-                className="rounded bg-danger px-2 py-0.5 text-[11px] text-white hover:bg-danger/90"
+                className="rounded bg-danger px-2 py-0.5 text-[11px] text-on-danger hover:bg-danger/90"
               >
                 {t("common.confirm")}
               </button>

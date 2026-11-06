@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { useQualityStore } from "@/store/quality";
 vi.mock("@/engine/preview", () => ({
   SlideThumbnail: () => <div />,
@@ -109,6 +115,42 @@ describe("OutlineEditor 页序调整", () => {
       expect(useDeckStore.getState().deck!.slides).toHaveLength(4),
     );
     expect(useDeckStore.getState().deck!.slides[3].layout).toBe("closing");
+  });
+
+  it("键盘可选中页面并用方向键移动选中", () => {
+    const onSelectSlide = vi.fn();
+    render(<OutlineEditor selectedIndex={0} onSelectSlide={onSelectSlide} />);
+
+    const listbox = screen.getByRole("listbox", { name: "页面列表" });
+    // 只取卡片 option（排除版式下拉里的原生 option）
+    const options = within(listbox).getAllByRole("option", {
+      name: /^\d+\. /,
+    });
+    expect(options).toHaveLength(3);
+
+    // Enter 选中第二页（索引 1）
+    fireEvent.keyDown(options[0], { key: "Enter" });
+    expect(onSelectSlide).toHaveBeenCalledWith(0);
+
+    fireEvent.keyDown(options[0], { key: "ArrowDown" });
+    expect(onSelectSlide).toHaveBeenLastCalledWith(1);
+    // 选中移动后焦点跟随，保证键盘焦点与 listbox 选中态一致
+    expect(options[1]).toBe(document.activeElement);
+
+    // 边界不越界
+    options[2].focus();
+    fireEvent.keyDown(options[2], { key: "ArrowDown" });
+    expect(onSelectSlide).toHaveBeenLastCalledWith(1);
+    expect(options[2]).toBe(document.activeElement);
+
+    fireEvent.keyDown(options[2], { key: "ArrowUp" });
+    expect(onSelectSlide).toHaveBeenLastCalledWith(1);
+    expect(options[1]).toBe(document.activeElement);
+
+    // 标题输入框内的按键不应改变选中
+    const input = screen.getAllByPlaceholderText("页面标题")[1];
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(onSelectSlide).toHaveBeenLastCalledWith(1);
   });
 
   it("质量标记取每页最严重级别", () => {
