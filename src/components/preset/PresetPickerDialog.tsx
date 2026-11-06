@@ -35,6 +35,17 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
     };
   }, []);
 
+  // 关闭后彻底复位，保证再次打开时回到模板列表而不是上次的主题输入页
+  useEffect(() => {
+    if (open) return;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setPreset(null);
+    setTopic("");
+    setError(null);
+    setGenerating(false);
+  }, [open]);
+
   // 生成进行中关闭弹框（Esc/背景/X）：先终止生成，避免后台静默改写 deck
   const closeSafely = () => {
     if (abortRef.current) {
@@ -157,7 +168,11 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                 autoFocus
                 onChange={(e) => setTopic(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (
+                    e.key === "Enter" &&
+                    !e.shiftKey &&
+                    !(e.nativeEvent as KeyboardEvent).isComposing
+                  ) {
                     e.preventDefault();
                     void handleGenerate();
                   }

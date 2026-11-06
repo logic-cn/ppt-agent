@@ -469,7 +469,18 @@ export function ChatPanel() {
                 return { slides: newDeck.slides, streamed };
               },
             );
-          } catch {
+          } catch (e) {
+            if ((e as Error).name === "AbortError") return;
+            // 大纲生成失败必须回显到聊天区，避免消息永久停在“正在生成大纲”
+            addMessage(
+              "assistant",
+              t("chat.errorWithApiKey", {
+                error: ((e as Error).message || t("chat.unknownError")).replace(
+                  /[。.]\s*$/,
+                  "",
+                ),
+              }),
+            );
             return;
           }
           // 流式路径中 slides 已经在 deck 里（onPlanReady/onPageReady 上屏）
@@ -658,7 +669,12 @@ export function ChatPanel() {
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // 中文等输入法确认候选词时的 Enter 不应触发提交
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey &&
+      !(e.nativeEvent as KeyboardEvent).isComposing
+    ) {
       e.preventDefault();
       void handleSubmit();
     }
