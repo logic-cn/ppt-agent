@@ -4,6 +4,8 @@
  */
 
 import type { ImportResult } from "./types";
+import { MAX_IMPORT_FILE_BYTES } from "./limits";
+import { t } from "@/services/i18n";
 
 interface TextItemLike {
   str: string;
@@ -114,6 +116,15 @@ export function linesToSections(
 }
 
 export async function importPdf(file: File): Promise<ImportResult> {
+  // 大小上限：超大 PDF 逐页解析既慢又占内存，明确报错优于无响应
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    throw new Error(
+      t("import.warnPdfTooLarge", {
+        size: (file.size / 1024 / 1024).toFixed(0),
+        limit: MAX_IMPORT_FILE_BYTES / 1024 / 1024,
+      }),
+    );
+  }
   const pdfjs = await loadPdfjs();
   const data = await file.arrayBuffer();
   const doc = await pdfjs.getDocument({ data }).promise;
@@ -127,7 +138,7 @@ export async function importPdf(file: File): Promise<ImportResult> {
     const pageLines = itemsToLines(items, n);
     if (n === 1) firstPageText = pageLines.map((l) => l.text).join("\n");
     if (pageLines.length === 0 && n === 1) {
-      warnings.push("第 1 页未抽取到文本，可能是扫描件（仅图片）");
+      warnings.push(t("import.warnScannedPdf"));
     }
     lines.push(...pageLines);
   }
@@ -138,7 +149,7 @@ export async function importPdf(file: File): Promise<ImportResult> {
   const medianSize = median(lines.map((l) => l.size));
   const sections = linesToSections(lines, medianSize);
   if (sections.length === 0) {
-    warnings.push("未识别出章节结构，将按全文生成");
+    warnings.push(t("import.warnNoSections"));
   }
 
   const text = lines.map((l) => l.text).join("\n");

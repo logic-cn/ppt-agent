@@ -1,32 +1,152 @@
 import type { ImportResult } from "./types";
-import { httpRequest } from "@/services/http-client";
+import { httpRequest, isTauriEnv } from "@/services/http-client";
+import { t } from "@/services/i18n";
 
-export async function importUrl(url: string): Promise<ImportResult> {
-  // URL 安全校验
+/** 单次抓取超时与正文长度上限 */
+const FETCH_TIMEOUT_MS = 30_000;
+const MAX_IMPORT_CHARS = 2_000_000;
+/** 重定向逐跳校验的最大跳数 */
+const MAX_REDIRECT_HOPS = 5;
+
+/** 判断 IPv4（点分十进制）是否属内网/保留段 */
+function isPrivateIPv4(parts: number[]): boolean {
+  if (parts.length !== 4 || parts.some((p) => p < 0 || p > 255)) return true;
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT
+    (a === 169 && b === 254) || // link-local
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+}
+
+/**
+ * 解析可能非常规编码的 IPv4 主机名（十六进制 0x7f.0.0.1、八进制 0177.0.0.1、
+ * 无点十进制 2130706433），归一化为四段后判私网。
+ */
+function isPrivateIpv4Host(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (/^[\d.]+$/.test(h)) {
+    // 纯数字点分：直接按段解析
+    const parts = h.split(".").map((seg) => {
+      if (seg.startsWith("0x")) return parseInt(seg, 16);
+      if (seg.length > 1 && seg.startsWith("0")) return parseInt(seg, 8);
+      return parseInt(seg, 10);
+    });
+    if (parts.length === 4) return isPrivateIPv4(parts);
+    if (parts.length === 1 && Number.isFinite(parts[0])) {
+      // 无点十进制 → 四段
+      const n = parts[0];
+      return isPrivateIPv4([
+        (n >>> 24) & 255,
+        (n >>> 16) & 255,
+        (n >>> 8) & 255,
+        n & 255,
+      ]);
+    }
+    return true; // 无法识别的数字主机名一律视为不安全
+  }
+  const hex = h.match(/^0x([0-9a-f]+)$/);
+  if (hex) {
+    const n = parseInt(hex[1], 16);
+    return isPrivateIPv4([
+      (n >>> 24) & 255,
+      (n >>> 16) & 255,
+      (n >>> 8) & 255,
+      n & 255,
+    ]);
+  }
+  return false;
+}
+
+/** 判断 IPv6 主机名（含 IPv4-mapped 形式）是否属内网/保留段 */
+function isPrivateIpv6Host(hostname: string): boolean {
+  const h = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  // IPv4-mapped 两种形态：::ffff:127.0.0.1 与 URL 归一化后的 ::ffff:7f00:1
+  const mappedDotted = h.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mappedDotted) return isPrivateIpv4Host(mappedDotted[1]);
+  const mappedHex = h.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (mappedHex) {
+    const n =
+      ((parseInt(mappedHex[1], 16) << 16) | parseInt(mappedHex[2], 16)) >>> 0;
+    return isPrivateIPv4([
+      (n >>> 24) & 255,
+      (n >>> 16) & 255,
+      (n >>> 8) & 255,
+      n & 255,
+    ]);
+  }
+  if (h === "::" || h === "::1") return true;
+  if (/^f[de]/.test(h)) return true; // fc00::/7 ULA、fe80::/10 link-local
+  return false;
+}
+
+/**
+ * URL 安全校验（SSRF 防护）：仅允许公网 http(s) 地址。
+ * 覆盖 loopback 全段、私网全段、链路本地、CGNAT、ULA、
+ * IPv4-mapped IPv6、非规范编码（十六进制/八进制/无点十进制）。
+ * 重定向场景必须对每一跳的 Location 重新调用本函数。
+ */
+export function assertPublicHttpUrl(url: string): URL {
   const parsedUrl = new URL(url);
   if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    throw new Error(`不支持的协议: ${parsedUrl.protocol}`);
+    throw new Error(
+      t("import.warnUnsupportedProtocol", { protocol: parsedUrl.protocol }),
+    );
   }
-  // 阻止内网地址（SSRF 防护）
-  const hostname = parsedUrl.hostname;
-  if (
+  const hostname = parsedUrl.hostname.toLowerCase();
+  const blocked =
     hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "0.0.0.0" ||
-    hostname.startsWith("10.") ||
-    hostname.startsWith("172.16.") ||
-    hostname.startsWith("192.168.") ||
+    hostname.endsWith(".localhost") ||
     hostname.endsWith(".local") ||
-    hostname === "[::1]"
-  ) {
-    throw new Error("不支持内网地址");
+    hostname.endsWith(".internal") ||
+    isPrivateIpv4Host(hostname) ||
+    isPrivateIpv6Host(hostname);
+  if (blocked) {
+    throw new Error(t("import.warnPrivateAddress"));
   }
+  return parsedUrl;
+}
 
-  const resp = await httpRequest(url);
-  if (!resp.ok) {
-    throw new Error(`获取 URL 失败 (${resp.status})`);
+export async function importUrl(url: string): Promise<ImportResult> {
+  // 首跳校验；重定向逐跳重新校验，防止公网 URL 302 到内网绕过黑名单。
+  // 浏览器 fetch 的 redirect:"manual" 返回 opaque response 读不到 Location，
+  // 仅 Tauri（走 Rust proxy）启用逐跳校验；Web 模式保持默认跟随。
+  assertPublicHttpUrl(url);
+
+  let currentUrl = url;
+  let resp: Response | null = null;
+  if (isTauriEnv()) {
+    for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+      resp = await httpRequest(currentUrl, {
+        followRedirects: false,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get("location");
+        if (!location) break;
+        // 相对 Location 以当前 URL 为基解析
+        const next = new URL(location, currentUrl).toString();
+        assertPublicHttpUrl(next);
+        currentUrl = next;
+        continue;
+      }
+      break;
+    }
+  } else {
+    resp = await httpRequest(currentUrl, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
   }
-  const html = await resp.text();
+  if (!resp) throw new Error("获取 URL 失败");
+
+  if (!resp.ok) {
+    throw new Error(t("import.warnFetchFailed", { status: resp.status }));
+  }
+  const html = (await resp.text()).slice(0, MAX_IMPORT_CHARS);
 
   // 检测源站的反爬/安全验证中转页（返回 200 但非正文）。
   // 这类页面无法用简单 HTTP 请求越过，明确报错而非把验证页当正文导入。
@@ -45,9 +165,7 @@ export async function importUrl(url: string): Promise<ImportResult> {
   ];
   const lower = html.toLowerCase();
   if (BLOCK_MARKERS.some((m) => lower.includes(m.toLowerCase()))) {
-    throw new Error(
-      "该网页启用了安全验证/反爬机制，无法自动抓取。请手动复制正文内容后粘贴导入。",
-    );
+    throw new Error(t("import.warnAntiCrawl"));
   }
 
   const parser = new DOMParser();

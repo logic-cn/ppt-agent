@@ -206,9 +206,20 @@ export async function summarizeChunks(
   if (chunks.every((c) => c.summary)) return chunks;
 
   const batches = batchChunks(chunks, SUMMARY_BATCH_CHARS);
-  const summarized = await Promise.all(
-    batches.map((b) => summarizeBatch(b, opts?.signal)),
+  // 并发限流：Promise.all 全量并发会在长文档时瞬间打出大量请求，
+  // 触发 provider 限流；按 3 并发滚动执行，单批失败仍退化为原文不抛错
+  const summarized: DocumentChunk[][] = new Array(batches.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(3, batches.length) },
+    async () => {
+      while (next < batches.length) {
+        const index = next++;
+        summarized[index] = await summarizeBatch(batches[index], opts?.signal);
+      }
+    },
   );
+  await Promise.all(workers);
   return summarized.flat();
 }
 
