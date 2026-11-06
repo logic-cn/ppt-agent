@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   X,
   Key,
@@ -27,6 +27,7 @@ import type {
 import { LocalModelSection } from "./LocalModelSection";
 import type { Lang, ThemeMode } from "@/types/preferences";
 import { useT } from "@/hooks/use-page-t";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 const THEME_OPTIONS: {
   value: ThemeMode;
@@ -52,10 +53,14 @@ interface Props {
 export function SettingsDialog({ open, onClose }: Props) {
   const t = useT();
   const [tab, setTab] = useState<SettingsTab>("general");
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialogRef);
   const {
     settings,
     loaded,
     load,
+    secretWarning,
+    clearSecretWarning,
     setActiveProvider,
     updateProvider,
     addCustomProvider,
@@ -96,9 +101,28 @@ export function SettingsDialog({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
+        {secretWarning && (
+          <div
+            role="alert"
+            className="flex items-start justify-between gap-3 border-b border-warning/30 bg-warning/10 px-5 py-2.5 text-sm text-text-primary"
+          >
+            <span>
+              {t("settings.secretStoreWarning")}{" "}
+              <span className="text-xs text-text-muted">({secretWarning})</span>
+            </span>
+            <button
+              onClick={clearSecretWarning}
+              className="shrink-0 rounded p-0.5 text-text-muted hover:text-text-primary"
+              aria-label={t("common.close")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 id="settings-dialog-title" className="text-base font-semibold">
             {t("common.settings")}

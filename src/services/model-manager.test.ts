@@ -105,7 +105,12 @@ describe("downloadModel", () => {
 
     const res = await downloadModel(def, onProgress);
     expect(invoke).toHaveBeenCalledWith("model_download", {
-      opts: { urls: def.urls, file_name: def.fileName, sha256: def.sha256 },
+      opts: {
+        urls: def.urls,
+        file_name: def.fileName,
+        sha256: def.sha256,
+        expected_size_bytes: def.sizeBytes,
+      },
     });
     expect(res.source_index).toBe(1);
     expect(unlisten).toHaveBeenCalledOnce();

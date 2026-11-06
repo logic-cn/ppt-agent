@@ -3,6 +3,7 @@ import {
   MODEL_REGISTRY,
   type ModelDef,
   type ModelTier,
+  cancelModelDownload,
   checkInstalled,
   deleteModel,
   downloadModel,
@@ -45,6 +46,8 @@ interface ModelStore {
   /** 应用启动时调用：激活 provider 为本地模型且已下载未加载 → 自动加载进内存 */
   bootstrap: () => Promise<void>;
   download: () => Promise<void>;
+  /** 取消进行中的下载（保留断点，可续传） */
+  cancelDownload: () => Promise<void>;
   load: () => Promise<void>;
   unload: () => Promise<void>;
   remove: () => Promise<void>;
@@ -181,15 +184,30 @@ export const useModelStore = create<ModelStore>((set, get) => {
     },
 
     download: async () => {
-      try {
-        await doDownload();
-      } catch (e) {
-        set({
-          state: "error",
-          error: e instanceof Error ? e.message : String(e),
-          progress: null,
-        });
-      }
+      // busy 去重：与 ensureReady 同一约定，避免两个并发下载写同一 .part
+      if (busy) return busy;
+      const run = (async () => {
+        try {
+          await doDownload();
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.includes("取消")) {
+            // 用户主动取消：回到「未下载」态，不算错误
+            set({ state: "absent", error: null, progress: null });
+          } else {
+            set({ state: "error", error: msg, progress: null });
+          }
+        }
+      })().finally(() => {
+        busy = null;
+      });
+      busy = run;
+      await run;
+    },
+
+    cancelDownload: async () => {
+      if (get().state !== "downloading") return;
+      await cancelModelDownload();
     },
     load: async () => {
       try {

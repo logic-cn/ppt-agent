@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 import { Upload, Link, FileText, Loader2, X, Check } from "lucide-react";
 import {
   importDocx,
@@ -29,6 +30,8 @@ interface Props {
 type ImportStep = "input" | "parsed" | "generating";
 
 export function ImportDialog({ open, onClose }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialogRef);
   const t = useT();
   const [tab, setTab] = useState<"file" | "url">("file");
   const [url, setUrl] = useState("");
@@ -409,6 +412,7 @@ export function ImportDialog({ open, onClose }: Props) {
       }}
     >
       <div
+        ref={dialogRef}
         className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >

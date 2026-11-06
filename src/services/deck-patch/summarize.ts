@@ -1,5 +1,6 @@
 import type { DeckPatch, AppliedPatchSummary } from "./types";
 import { DESTRUCTIVE_OPS } from "./types";
+import { t } from "@/services/i18n";
 
 export interface PatchSummary {
   title: string;
@@ -32,37 +33,43 @@ export function summarizePatches(patches: DeckPatch[]): PatchSummary {
 
     switch (patch.op) {
       case "set_deck_title":
-        details.push(`修改标题为「${patch.title}」`);
+        details.push(t("patch.setTitle", { title: patch.title }));
         break;
       case "insert_slide":
         details.push(
-          `插入新页「${patch.slide.title}」（位置: ${patch.index + 1}）`,
+          t("patch.insertSlide", {
+            title: patch.slide.title,
+            position: patch.index + 1,
+          }),
         );
         changes.inserts++;
         break;
       case "delete_slide":
-        details.push(`删除页面`);
+        details.push(t("patch.deleteSlide"));
         changes.deletes++;
         break;
       case "move_slide":
-        details.push(`移动页面到第 ${patch.toIndex + 1} 位`);
+        details.push(t("patch.moveSlide", { position: patch.toIndex + 1 }));
         changes.moves++;
         break;
       case "update_slide":
-        details.push(`修改页面`);
+        details.push(t("patch.updateSlide"));
         changes.updates++;
         break;
       case "replace_slide":
-        details.push(`替换页面为「${patch.slide.title}」`);
+        details.push(t("patch.replaceSlide", { title: patch.slide.title }));
         changes.updates++;
         break;
       case "split_slide":
-        details.push(`拆分为 ${patch.slides.length} 页`);
+        details.push(t("patch.splitSlide", { count: patch.slides.length }));
         changes.splits++;
         break;
       case "merge_slides":
         details.push(
-          `合并 ${patch.slideIds.length} 页为「${patch.slide.title}」`,
+          t("patch.mergeSlides", {
+            count: patch.slideIds.length,
+            title: patch.slide.title,
+          }),
         );
         changes.merges++;
         break;
@@ -70,17 +77,23 @@ export function summarizePatches(patches: DeckPatch[]): PatchSummary {
   }
 
   const summaryParts: string[] = [];
-  if (changes.inserts > 0) summaryParts.push(`新增 ${changes.inserts} 页`);
-  if (changes.deletes > 0) summaryParts.push(`删除 ${changes.deletes} 页`);
-  if (changes.moves > 0) summaryParts.push(`移动 ${changes.moves} 页`);
-  if (changes.updates > 0) summaryParts.push(`修改 ${changes.updates} 页`);
-  if (changes.splits > 0) summaryParts.push(`拆分 ${changes.splits} 处`);
-  if (changes.merges > 0) summaryParts.push(`合并 ${changes.merges} 处`);
+  if (changes.inserts > 0)
+    summaryParts.push(t("patch.changesInsert", { count: changes.inserts }));
+  if (changes.deletes > 0)
+    summaryParts.push(t("patch.changesDelete", { count: changes.deletes }));
+  if (changes.moves > 0)
+    summaryParts.push(t("patch.changesMove", { count: changes.moves }));
+  if (changes.updates > 0)
+    summaryParts.push(t("patch.changesUpdate", { count: changes.updates }));
+  if (changes.splits > 0)
+    summaryParts.push(t("patch.changesSplit", { count: changes.splits }));
+  if (changes.merges > 0)
+    summaryParts.push(t("patch.changesMerge", { count: changes.merges }));
 
   const title =
     summaryParts.length > 0
       ? summaryParts.join("，")
-      : `${patches.length} 个操作`;
+      : t("patch.operationsCount", { count: patches.length });
 
   return { title, details, destructive, changes };
 }
@@ -88,6 +101,6 @@ export function summarizePatches(patches: DeckPatch[]): PatchSummary {
 export function summarizeAppliedPatches(
   applied: AppliedPatchSummary[],
 ): string {
-  if (applied.length === 0) return "没有修改。";
+  if (applied.length === 0) return t("patch.noChanges");
   return applied.map((a) => `- ${a.description}`).join("\n");
 }

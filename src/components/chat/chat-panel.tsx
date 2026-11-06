@@ -61,6 +61,8 @@ interface Message {
   summary?: string;
   destructive?: boolean;
   error?: boolean;
+  /** 生成建议时的 deck.updatedAt：应用前校验 deck 是否已被手动修改 */
+  patchBaseUpdatedAt?: number;
 }
 
 export function ChatPanel() {
@@ -120,6 +122,7 @@ export function ChatPanel() {
       summary?: string,
       destructive?: boolean,
       error?: boolean,
+      patchBaseUpdatedAt?: number,
     ) => {
       setMessages((prev) => [
         ...prev,
@@ -131,6 +134,7 @@ export function ChatPanel() {
           summary,
           destructive,
           error,
+          patchBaseUpdatedAt,
         },
       ]);
     },
@@ -148,6 +152,19 @@ export function ChatPanel() {
     (msg: Message) => {
       const deck = useDeckStore.getState().deck;
       if (!msg.patches || !deck) return;
+      // 新鲜度检查：建议生成后 deck 已被手动编辑、且这批 patch 含整页
+      // 覆盖（update/replace）时拒绝应用，防止静默吞掉用户的编辑
+      const stale =
+        msg.patchBaseUpdatedAt !== undefined &&
+        deck.updatedAt !== msg.patchBaseUpdatedAt;
+      const overwriting = msg.patches.some(
+        (p) => p.op === "update_slide" || p.op === "replace_slide",
+      );
+      if (stale && overwriting) {
+        addMessage("assistant", t("chat.patchStaleBlock"));
+        dismissPatches(msg.id);
+        return;
+      }
       try {
         const result = applyDeckPatches(deck, msg.patches);
         const fatal = result.warnings.find((w) => w.fatal);
@@ -540,6 +557,11 @@ export function ChatPanel() {
                     userRequest: text,
                     signal: job.signal,
                   });
+                  return {
+                    kind: "patches" as const,
+                    patches,
+                    baseUpdatedAt: deck.updatedAt,
+                  };
                   return { kind: "patches" as const, patches };
                 } catch (e) {
                   if (job.signal.aborted) throw e;
@@ -591,6 +613,8 @@ export function ChatPanel() {
                 patches,
                 summary.title,
                 hasDestructive,
+                undefined,
+                result.baseUpdatedAt,
               );
             }
           } catch (e) {

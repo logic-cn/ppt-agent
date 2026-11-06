@@ -57,6 +57,39 @@ function snapshot(deck: Deck | null): HistoryEntry | null {
   return { deck: structuredClone(deck) };
 }
 
+// ---- 历史合并（P1）：连续字段编辑合并为一次撤销 ----
+// 检查器输入框按 300ms debounce 落盘，一句带停顿的句子会产生多次
+// updateSlide；不合并的话撤销粒度碎到几个字符，且每步都是全量克隆。
+const COALESCE_WINDOW_MS = 2000;
+let lastCoalesce: { key: string | null; at: number } = {
+  key: null,
+  at: 0,
+};
+
+/**
+ * 追加历史；带 coalesceKey 的连续编辑在时间窗口内只保留首个快照
+ * （撤销即回到整段编辑开始前的状态）。无 key 的结构操作（增删页等）
+ * 会打断合并，避免与后续字段编辑误粘。
+ */
+function pushHistory(
+  past: HistoryEntry[],
+  snap: HistoryEntry | null,
+  coalesceKey?: string,
+): HistoryEntry[] {
+  if (!snap) return past;
+  const now = Date.now();
+  if (
+    coalesceKey &&
+    lastCoalesce.key === coalesceKey &&
+    now - lastCoalesce.at < COALESCE_WINDOW_MS
+  ) {
+    lastCoalesce.at = now;
+    return past;
+  }
+  lastCoalesce = { key: coalesceKey ?? null, at: now };
+  return [...past.slice(-49), snap];
+}
+
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function debouncedPersist(get: () => DeckStore) {
@@ -136,6 +169,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       const deck = await loadDeck(id);
       if (deck) {
         clearRenderCache();
+        lastCoalesce = { key: null, at: 0 };
         set({ deck, loading: false, dirty: false, past: [], future: [] });
       } else {
         set({ deck: null, loading: false });
@@ -162,7 +196,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       return {
         deck: s.deck ? { ...s.deck, title, updatedAt: Date.now() } : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap, "deck:title"),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -192,7 +226,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
             }
           : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -236,7 +270,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
             }
           : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -251,7 +285,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       return {
         deck: s.deck ? { ...s.deck, source, updatedAt: Date.now() } : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -272,7 +306,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
             }
           : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -307,7 +341,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
             }
           : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap, `slide:${id}`),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -328,7 +362,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
             }
           : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -347,7 +381,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       return {
         deck: { ...s.deck, slides, updatedAt: Date.now() },
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -361,7 +395,7 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       return {
         deck: s.deck ? { ...s.deck, slides, updatedAt: Date.now() } : null,
         dirty: true,
-        past: snap ? [...s.past.slice(-49), snap] : s.past,
+        past: pushHistory(s.past, snap),
         future: [],
         canUndo: true,
         canRedo: false,
@@ -387,8 +421,13 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     const bullets = collectBullets(slide);
     const plan: PagePlanItem = {
       role,
-      title: slide.title || `${deck.title}（第 ${slideIndex + 1} 页）`,
-      intent: slide.title || slide.subtitle || "重画该页内容",
+      title:
+        slide.title ||
+        t("gen.fallbackPageTitle", {
+          deckTitle: deck.title,
+          page: slideIndex + 1,
+        }),
+      intent: slide.title || slide.subtitle || t("gen.redrawIntent"),
       bullets,
       ...(slide.chart?.data.length ? { chartType: slide.chart.type } : {}),
     };
@@ -438,16 +477,18 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     const { past, deck } = get();
     if (past.length === 0 || !deck) return;
     clearRenderCache();
+    // 打断合并：撤销后的字段编辑必须产生新历史，不能粘回撤销前的会话
+    lastCoalesce = { key: null, at: 0 };
     const entry = past[past.length - 1];
     const newPast = past.slice(0, -1);
     debouncedPersist(get);
     set({
       deck: {
-        ...JSON.parse(JSON.stringify(entry.deck)),
+        ...structuredClone(entry.deck),
         updatedAt: Date.now(),
       },
       past: newPast,
-      future: [...get().future, { deck: JSON.parse(JSON.stringify(deck)) }],
+      future: [...get().future, { deck: structuredClone(deck) }],
       canUndo: newPast.length > 0,
       canRedo: true,
       dirty: true,
@@ -458,15 +499,16 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     const { future, deck } = get();
     if (future.length === 0 || !deck) return;
     clearRenderCache();
+    lastCoalesce = { key: null, at: 0 };
     const entry = future[future.length - 1];
     const newFuture = future.slice(0, -1);
     debouncedPersist(get);
     set({
       deck: {
-        ...JSON.parse(JSON.stringify(entry.deck)),
+        ...structuredClone(entry.deck),
         updatedAt: Date.now(),
       },
-      past: [...get().past, { deck: JSON.parse(JSON.stringify(deck)) }],
+      past: [...get().past, { deck: structuredClone(deck) }],
       future: newFuture,
       canUndo: true,
       canRedo: newFuture.length > 0,

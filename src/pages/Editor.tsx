@@ -733,6 +733,9 @@ export default function Editor() {
               onPointerDown={(e) =>
                 startPanelResize(e, "left", leftWidthRef, setLeftWidth)
               }
+              side="left"
+              widthRef={leftWidthRef}
+              setWidth={setLeftWidth}
             />
           </>
         ) : (
@@ -778,6 +781,9 @@ export default function Editor() {
               onPointerDown={(e) =>
                 startPanelResize(e, "right", rightWidthRef, setRightWidth)
               }
+              side="right"
+              widthRef={rightWidthRef}
+              setWidth={setRightWidth}
             />
             <aside
               className="flex flex-col border-l border-border bg-bg-elevated"
@@ -881,15 +887,59 @@ function startPanelResize(
 /** 面板间拖拽分隔条：4px 命中区，hover 显示强调色 */
 function PanelDivider({
   onPointerDown,
+  side,
+  widthRef,
+  setWidth,
 }: {
   onPointerDown: (e: React.PointerEvent) => void;
+  side: "left" | "right";
+  widthRef: { current: number };
+  setWidth: (w: number) => void;
 }) {
+  // 键盘等效操作：方向键步进 16px，Home/End 到边界（拖拽把柄的可键盘替代）
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = 16;
+    const clamp = (w: number) =>
+      Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, w));
+    let handled = true;
+    if (e.key === "ArrowLeft") {
+      // 左栏左箭头变窄，右栏左箭头变宽
+      setWidth(clamp(widthRef.current + (side === "left" ? -step : step)));
+    } else if (e.key === "ArrowRight") {
+      setWidth(clamp(widthRef.current + (side === "left" ? step : -step)));
+    } else if (e.key === "Home") {
+      setWidth(PANEL_WIDTH_MIN);
+    } else if (e.key === "End") {
+      setWidth(PANEL_WIDTH_MAX);
+    } else {
+      handled = false;
+    }
+    if (handled) {
+      e.preventDefault();
+      try {
+        window.localStorage.setItem(
+          side === "left" ? "editor.leftWidth" : "editor.rightWidth",
+          String(widthRef.current),
+        );
+      } catch {
+        /* 存储不可用时忽略 */
+      }
+    }
+  };
   return (
     <div
       role="separator"
       aria-orientation="vertical"
+      aria-valuenow={widthRef.current}
+      aria-valuemin={PANEL_WIDTH_MIN}
+      aria-valuemax={PANEL_WIDTH_MAX}
+      aria-label={
+        side === "left" ? "outline panel width" : "inspector panel width"
+      }
+      tabIndex={0}
       onPointerDown={onPointerDown}
-      className="group/divider relative z-10 -mx-0.5 w-1 shrink-0 cursor-col-resize select-none py-2"
+      onKeyDown={onKeyDown}
+      className="group/divider relative z-10 -mx-0.5 w-1 shrink-0 cursor-col-resize select-none py-2 focus-visible:outline-none focus-visible:bg-accent/40"
     >
       <div className="h-full w-px bg-transparent transition-colors group-hover/divider:bg-accent/60" />
     </div>
@@ -929,12 +979,12 @@ function PanelDivider({
     ? modelState === "downloading"
       ? progress?.phase === "verifying"
         ? t("model.verifying")
-        : t("model.downloading", {
-            percent:
-              progress && progress.total
-                ? Math.round((progress.downloaded / progress.total) * 100)
-                : 0,
-          })
+        : progress && progress.total
+          ? t("model.downloading", {
+              percent: Math.round((progress.downloaded / progress.total) * 100),
+            })
+          : // 总量未知（服务器未回 Content-Length）时不显示误导性 0%
+            t("model.downloadingIndeterminate")
       : modelState === "loading"
         ? t("common.loading")
         : loaded

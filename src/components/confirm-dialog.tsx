@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useT } from "@/hooks/use-page-t";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 interface Props {
   open: boolean;
@@ -23,7 +24,10 @@ export function ConfirmDialog({
   const t = useT();
   const confirmLabel = confirmText ?? t("common.confirm");
   const cancelLabel = cancelText ?? t("common.cancel");
-  const btnRef = useRef<HTMLButtonElement>(null);
+  // 焦点默认落在「取消」：危险按钮自动聚焦会让顺手一回车变成不可逆操作
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialogRef, cancelRef);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -34,7 +38,6 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (!open) return;
-    btnRef.current?.focus();
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, handleKeyDown]);
@@ -49,6 +52,7 @@ export function ConfirmDialog({
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
         className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-bg-elevated p-6 shadow-xl animate-dialog"
         role="dialog"
         aria-modal="true"
@@ -60,13 +64,13 @@ export function ConfirmDialog({
         <p className="mb-4 text-sm text-text-secondary">{message}</p>
         <div className="flex justify-end gap-2">
           <button
+            ref={cancelRef}
             onClick={onCancel}
             className="rounded-lg border border-border bg-bg-elevated px-3 py-1.5 text-sm text-text-primary hover:bg-bg-hover"
           >
             {cancelLabel}
           </button>
           <button
-            ref={btnRef}
             onClick={onConfirm}
             className="rounded-lg bg-danger px-3 py-1.5 text-sm text-white hover:bg-danger/90"
           >

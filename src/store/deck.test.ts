@@ -253,17 +253,38 @@ describe("undo/redo 与历史", () => {
   });
 
   it("历史超过 50 条时截断最旧记录", () => {
-    useDeckStore.setState({ deck: makeDeck() });
+    // 用 55 个不同页各编辑一次：同页连续编辑会被历史合并（另测），
+    // 不同页的 key 不同，产生 55 条独立历史以验证截断上限
+    const many = makeDeck();
+    many.slides = Array.from({ length: 55 }, (_, i) => ({
+      id: `s${i}`,
+      layout: "content" as const,
+      title: `原始页 ${i}`,
+    }));
+    useDeckStore.setState({ deck: many });
     for (let i = 0; i < 55; i++) {
-      useDeckStore.getState().updateSlide("s1", { title: `修改 ${i}` });
+      useDeckStore.getState().updateSlide(`s${i}`, { title: `修改 ${i}` });
     }
     const past = useDeckStore.getState().past;
     expect(past.length).toBeLessThanOrEqual(50);
-    // 最旧记录被丢弃：连续 undo 后应回到第 6 次修改而非初始状态
+    // 最旧 5 条被丢弃：undo 到底应回到第 5 次修改后的状态而非初始状态
     for (let i = 0; i < 50; i++) {
       useDeckStore.getState().undo();
     }
-    expect(useDeckStore.getState().deck!.slides[0].title).toBe("修改 4");
+    expect(useDeckStore.getState().deck!.slides[4].title).toBe("修改 4");
+    expect(useDeckStore.getState().deck!.slides[5].title).toBe("原始页 5");
+  });
+
+  it("同一页的连续字段编辑在时间窗口内合并为一次撤销", () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    // 模拟检查器 debounce 落盘：一句带停顿的话产生多次快速编辑
+    useDeckStore.getState().updateSlide("s1", { title: "改" });
+    useDeckStore.getState().updateSlide("s1", { title: "改一" });
+    useDeckStore.getState().updateSlide("s1", { title: "改一半" });
+    expect(useDeckStore.getState().past.length).toBe(1);
+    // 一次撤销回到整段编辑开始前
+    useDeckStore.getState().undo();
+    expect(useDeckStore.getState().deck!.slides[0].title).toBe("第一页标题");
   });
 });
 

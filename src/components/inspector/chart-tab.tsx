@@ -96,7 +96,7 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
           onClick={() =>
             applyChart({
               type: "bar",
-              data: [{ label: "分类", value: 100 }],
+              data: [{ label: t("inspector.chartSeedLabel"), value: 100 }],
             })
           }
           className="mt-2 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-xs text-white transition-opacity hover:opacity-90"

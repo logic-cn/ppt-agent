@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useJobStore, runJob, classifyError } from "@/store/job";
+import type { JobStatus, RunningJob } from "@/services/jobs/types";
 
 describe("useJobStore", () => {
   beforeEach(() => {
@@ -165,5 +166,60 @@ describe("classifyError", () => {
   it("未知错误归为 unknown", () => {
     const r = classifyError(new Error("something weird"));
     expect(r.category).toBe("unknown");
+  });
+});
+
+describe("job 终态保护（取消后的竞态）", () => {
+  it("已取消的 job 不被随后的 succeed 覆盖", async () => {
+    const neverAborts = async (job: RunningJob) => {
+      // fn 不检查 signal，模拟忽略取消直接返回
+      job.cancel();
+      return "late-result";
+    };
+    await expect(
+      runJob({ type: "pptx.export", title: "导出" }, neverAborts),
+    ).resolves.toBe("late-result");
+    const job = useJobStore
+      .getState()
+      .jobs.find((j) => j.type === "pptx.export");
+    expect(job?.status).toBe("cancelled");
+  });
+
+  it("已取消的 job 不被随后的 fail 覆盖", async () => {
+    const throwsAfterCancel = async (job: RunningJob) => {
+      job.cancel();
+      throw new Error("连锁异常");
+    };
+    await expect(
+      runJob({ type: "pptx.export", title: "导出" }, throwsAfterCancel),
+    ).rejects.toThrow("连锁异常");
+    const job = useJobStore
+      .getState()
+      .jobs.filter((j) => j.type === "pptx.export")
+      .pop();
+    expect(job?.status).toBe("cancelled");
+  });
+
+  it("runJob 进入执行即标记 running", async () => {
+    let observed: JobStatus | undefined;
+    await runJob({ type: "deck.patch", title: "patch" }, async (job) => {
+      observed = useJobStore
+        .getState()
+        .jobs.find((j) => j.id === job.id)?.status;
+    });
+    expect(observed).toBe("running");
+  });
+
+  it("clearJob 会先中止仍在运行的 controller", async () => {
+    let aborted = false;
+    const job = useJobStore.getState().startJob({
+      type: "document.import",
+      title: "导入",
+    });
+    job.signal.addEventListener("abort", () => {
+      aborted = true;
+    });
+    useJobStore.getState().clearJob(job.id);
+    expect(aborted).toBe(true);
   });
 });

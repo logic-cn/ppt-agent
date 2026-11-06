@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, Trash2, Loader2, Cpu } from "lucide-react";
+import { Download, Trash2, Loader2, Cpu, Square } from "lucide-react";
 import { useModelStore, type ModelState } from "@/store/model";
 import { MODEL_REGISTRY, formatGB } from "@/services/model-manager";
 import type { ModelTier } from "@/services/model-manager";
@@ -68,6 +68,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
   const refresh = useModelStore((s) => s.refresh);
   const setTier = useModelStore((s) => s.setTier);
   const download = useModelStore((s) => s.download);
+  const cancelDownload = useModelStore((s) => s.cancelDownload);
   const load = useModelStore((s) => s.load);
   const unload = useModelStore((s) => s.unload);
   const remove = useModelStore((s) => s.remove);
@@ -121,7 +122,22 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
           <ModelStatusText t={t} />
         </span>
       </div>
-      {(state === "downloading" || state === "loading") && <ProgressBar />}
+      {(state === "downloading" || state === "loading") && (
+        <div className="flex items-center gap-2">
+          <ProgressBar />
+          {state === "downloading" && (
+            <button
+              type="button"
+              onClick={() => void cancelDownload()}
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-secondary transition hover:border-danger/50 hover:text-danger"
+              title={t("model.cancelDownload")}
+            >
+              <Square className="h-3 w-3" />
+              {t("model.cancelDownload")}
+            </button>
+          )}
+        </div>
+      )}
 
       {!compact && state !== "unsupported" && (
         <div>

@@ -99,12 +99,19 @@ export async function downloadModel(
         urls: def.urls,
         file_name: def.fileName,
         sha256: def.sha256,
+        expected_size_bytes: def.sizeBytes,
       },
     });
     return res;
   } finally {
     unlisten?.();
   }
+}
+
+/** 取消进行中的下载（.part 断点保留，下次续传） */
+export async function cancelModelDownload(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  await invoke("model_download_cancel");
 }
 
 export async function deleteModel(def: ModelDef): Promise<boolean> {

@@ -128,6 +128,8 @@ export const useJobStore = create<JobStoreState>((set, get) => ({
   },
 
   succeedJob: (id, message) => {
+    // 终态保护：已取消的 job 不被 succeed 覆盖（fn 忽略 abort 正常返回的竞态）
+    if (get().jobs.find((j) => j.id === id)?.status === "cancelled") return;
     set((s) => ({
       jobs: s.jobs.map((j) =>
         j.id === id
@@ -146,6 +148,8 @@ export const useJobStore = create<JobStoreState>((set, get) => ({
   },
 
   failJob: (id, error) => {
+    // 终态保护：已取消的 job 不被 fail 覆盖（取消后的连锁异常不算新失败）
+    if (get().jobs.find((j) => j.id === id)?.status === "cancelled") return;
     const { category, message } = classifyError(error);
     set((s) => ({
       jobs: s.jobs.map((j) =>
@@ -181,7 +185,12 @@ export const useJobStore = create<JobStoreState>((set, get) => ({
   },
 
   clearJob: (id) => {
-    controllers.delete(id);
+    // 仍在运行的 job 先中止再移除，避免清掉记录后异步结果继续写 deck
+    const controller = controllers.get(id);
+    if (controller) {
+      controller.abort();
+      controllers.delete(id);
+    }
     set((s) => ({
       jobs: s.jobs.filter((j) => j.id !== id),
       activeJobIds: s.activeJobIds.filter((aid) => aid !== id),
@@ -202,6 +211,9 @@ export async function runJob<T>(
   fn: (job: RunningJob) => Promise<T>,
 ): Promise<T> {
   const job = useJobStore.getState().startJob(input);
+  // 进入执行即标记 running：此前 job 全程停留在 queued，任务面板的
+  // 运行中状态与进度渲染永远不会出现
+  job.update({ status: "running" });
   try {
     const result = await fn(job);
     job.succeed();

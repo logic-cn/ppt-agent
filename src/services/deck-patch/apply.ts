@@ -9,6 +9,7 @@ import type {
   PatchWarning,
 } from "./types";
 import { DESTRUCTIVE_OPS } from "./types";
+import { t } from "@/services/i18n";
 
 function mapBulletDraft(
   b: import("./types").BulletDraft,
@@ -64,7 +65,10 @@ export function applyDeckPatches(
     hadFatal = true;
     warnings.push({
       code: "slide_not_found",
-      message: `Patch #${i + 1}: 未找到 slideId「${slideId}」，整批修改已取消`,
+      message: t("patch.warn.slideNotFound", {
+        index: i + 1,
+        slideId,
+      }),
       patchIndex: i,
       fatal: true,
     });
@@ -76,7 +80,7 @@ export function applyDeckPatches(
     if (DESTRUCTIVE_OPS.has(patch.op)) {
       warnings.push({
         code: "destructive_operation",
-        message: `Patch #${i + 1} (${patch.op}) 是高风险操作，需要用户确认`,
+        message: t("patch.warn.destructive", { index: i + 1, op: patch.op }),
         patchIndex: i,
       });
     }
@@ -86,8 +90,8 @@ export function applyDeckPatches(
         working = { ...working, title: patch.title };
         applied.push({
           op: "set_deck_title",
-          title: "修改标题",
-          description: `将标题改为「${patch.title}」`,
+          title: t("patch.setTitle", { title: patch.title }),
+          description: t("patch.applied.setTitle", { title: patch.title }),
         });
         break;
       }
@@ -100,7 +104,7 @@ export function applyDeckPatches(
           index = working.slides.length;
           warnings.push({
             code: "index_out_of_range",
-            message: `Patch #${i + 1} index 超出范围，已追加到末尾`,
+            message: t("patch.warn.indexOutOfRange", { index: i + 1 }),
             patchIndex: i,
           });
         }
@@ -111,7 +115,10 @@ export function applyDeckPatches(
           op: "insert_slide",
           slideId: slide.id,
           title: slide.title,
-          description: `在第 ${index + 1} 页后插入「${slide.title}」`,
+          description: t("patch.applied.insertSlide", {
+            position: index + 1,
+            title: slide.title,
+          }),
         });
         break;
       }
@@ -130,8 +137,11 @@ export function applyDeckPatches(
         applied.push({
           op: "delete_slide",
           slideId: patch.slideId,
-          title: "删除页面",
-          description: `删除第 ${idx + 1} 页「${title}」`,
+          title: t("patch.deleteSlide"),
+          description: t("patch.applied.deleteSlide", {
+            position: idx + 1,
+            title,
+          }),
         });
         break;
       }
@@ -153,7 +163,11 @@ export function applyDeckPatches(
           op: "move_slide",
           slideId: patch.slideId,
           title: moved.title,
-          description: `将第 ${fromIdx + 1} 页「${moved.title}」移到第 ${toIndex + 1} 页`,
+          description: t("patch.applied.moveSlide", {
+            from: fromIdx + 1,
+            to: toIndex + 1,
+            title: moved.title,
+          }),
         });
         break;
       }
@@ -189,7 +203,10 @@ export function applyDeckPatches(
           op: "update_slide",
           slideId: patch.slideId,
           title: slides[idx].title,
-          description: `修改了第 ${idx + 1} 页「${slides[idx].title}」`,
+          description: t("patch.applied.updateSlide", {
+            position: idx + 1,
+            title: slides[idx].title,
+          }),
         });
         break;
       }
@@ -207,7 +224,10 @@ export function applyDeckPatches(
           op: "replace_slide",
           slideId: patch.slideId,
           title: patch.slide.title,
-          description: `替换第 ${idx + 1} 页为「${patch.slide.title}」`,
+          description: t("patch.applied.replaceSlide", {
+            position: idx + 1,
+            title: patch.slide.title,
+          }),
         });
         break;
       }
@@ -225,8 +245,11 @@ export function applyDeckPatches(
         applied.push({
           op: "split_slide",
           slideId: patch.slideId,
-          title: "拆分页面",
-          description: `将第 ${idx + 1} 页拆分为 ${newSlides.length} 页`,
+          title: t("patch.splitSlide", { count: newSlides.length }),
+          description: t("patch.applied.splitSlide", {
+            position: idx + 1,
+            count: newSlides.length,
+          }),
         });
         break;
       }
@@ -240,7 +263,7 @@ export function applyDeckPatches(
           hadFatal = true;
           warnings.push({
             code: "slide_not_found",
-            message: `Patch #${i + 1}: 合并操作需要至少 2 个有效 slideId，整批修改已取消`,
+            message: t("patch.warn.mergeNeedsTwo", { index: i + 1 }),
             patchIndex: i,
             fatal: true,
           });
@@ -258,8 +281,14 @@ export function applyDeckPatches(
         working = { ...working, slides };
         applied.push({
           op: "merge_slides",
-          title: "合并页面",
-          description: `合并 ${patch.slideIds.length} 页为「${patch.slide.title}」`,
+          title: t("patch.mergeSlides", {
+            count: patch.slideIds.length,
+            title: patch.slide.title,
+          }),
+          description: t("patch.applied.mergeSlides", {
+            count: patch.slideIds.length,
+            title: patch.slide.title,
+          }),
         });
         break;
       }

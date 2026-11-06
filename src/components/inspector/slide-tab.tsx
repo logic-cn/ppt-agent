@@ -31,11 +31,39 @@ export function SlideTab({ slide, onUpdate }: Props) {
   const titleTimer = useRef<ReturnType<typeof setTimeout>>();
   const subtitleTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyTimer = useRef<ReturnType<typeof setTimeout>>();
+  // 本组件最后一次落盘的字段值：区分「自身 debounce 回显」与「外部改动」
+  const lastCommitted = useRef<{
+    id: string;
+    title: string;
+    subtitle: string;
+    body: string;
+  }>({
+    id: slide.id,
+    title: slide.title,
+    subtitle: slide.subtitle ?? "",
+    body: slide.body ?? "",
+  });
 
   useEffect(() => {
-    setTitleDraft(slide.title);
-    setSubtitleDraft(slide.subtitle ?? "");
-    setBodyDraft(slide.body ?? "");
+    const incoming = {
+      title: slide.title,
+      subtitle: slide.subtitle ?? "",
+      body: slide.body ?? "",
+    };
+    // 外部改动（AI patch / 重画 / 撤销）才重置草稿；自身落盘的回显
+    // 不打断输入（否则 AI patch 应用瞬间正被覆盖字段的草稿会被清掉）
+    const last = lastCommitted.current;
+    if (
+      slide.id !== last.id ||
+      incoming.title !== last.title ||
+      incoming.subtitle !== last.subtitle ||
+      incoming.body !== last.body
+    ) {
+      setTitleDraft(incoming.title);
+      setSubtitleDraft(incoming.subtitle);
+      setBodyDraft(incoming.body);
+      lastCommitted.current = { ...incoming, id: slide.id };
+    }
     // 切换页面时清掉上一页未触发的防抖定时器，避免把旧草稿写到新页
     return () => {
       if (titleTimer.current) clearTimeout(titleTimer.current);
@@ -49,7 +77,19 @@ export function SlideTab({ slide, onUpdate }: Props) {
     patch: Partial<Slide>,
   ) => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => onUpdate(patch), 300);
+    timer.current = setTimeout(() => {
+      lastCommitted.current = {
+        id: slide.id,
+        title: patch.title ?? lastCommitted.current.title,
+        subtitle:
+          patch.subtitle !== undefined
+            ? patch.subtitle
+            : lastCommitted.current.subtitle,
+        body:
+          patch.body !== undefined ? patch.body : lastCommitted.current.body,
+      };
+      onUpdate(patch);
+    }, 300);
   };
 
   return (
