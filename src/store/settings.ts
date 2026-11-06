@@ -174,10 +174,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const settings = {
         ...s.settings,
         providers,
-        // 删除的正好是激活 provider 时回退到内置默认
+        // 删除的正好是激活 provider 时回退到默认的本地模型
+        // （DeepSeek 等远程服务通常未配置 Key，回退过去会直接导致生成失败）
         activeProvider:
           s.settings.activeProvider === id
-            ? "deepseek"
+            ? "local"
             : s.settings.activeProvider,
       };
       void debouncedSave(settings);

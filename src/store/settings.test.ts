@@ -47,7 +47,7 @@ describe("useSettingsStore 自定义模型", () => {
     expect(cfg.model).toBe("");
   });
 
-  it("removeCustomProvider 删除并回退激活 provider", () => {
+  it("removeCustomProvider 删除并回退到默认本地模型", () => {
     const store = useSettingsStore.getState();
     const id = store.addCustomProvider();
     useSettingsStore.setState((s) => ({
@@ -56,6 +56,7 @@ describe("useSettingsStore 自定义模型", () => {
     useSettingsStore.getState().removeCustomProvider(id);
     const s = useSettingsStore.getState().settings;
     expect(s.providers[id]).toBeUndefined();
-    expect(s.activeProvider).toBe("deepseek");
+    // 回退到默认本地模型，避免切到通常没有 API Key 的远程服务
+    expect(s.activeProvider).toBe("local");
   });
 });
