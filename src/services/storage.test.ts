@@ -252,3 +252,75 @@ describe("deck 列表索引对账自愈", () => {
     expect(isUntitledDeck({ title: "数据分析报告" })).toBe(false);
   });
 });
+
+describe("图片/研究密钥存储（Pexels/Tavily 不落盘）", () => {
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    resetSecretStore();
+  });
+
+  it("saveSettings 落盘的 settings.json 不含 pexels/tavily key，密钥进 SecretStore", async () => {
+    const s = makeSettings("");
+    s.pexelsApiKey = "pxl-secret";
+    s.tavilyApiKey = "tvl-secret";
+    await saveSettings(s);
+
+    const raw = localStorage.getItem("ppt-agent-data/settings.json");
+    expect(raw).not.toBeNull();
+    expect(raw!).not.toContain("pxl-secret");
+    expect(raw!).not.toContain("tvl-secret");
+    const persisted = JSON.parse(raw!) as AppSettings;
+    expect(persisted.pexelsApiKey).toBe("");
+    expect(persisted.tavilyApiKey).toBe("");
+
+    const store = getSecretStore();
+    expect(await store.get(secretKey("image", "pexels"))).toBe("pxl-secret");
+    expect(await store.get(secretKey("research", "tavily"))).toBe("tvl-secret");
+  });
+
+  it("loadSettings 从 SecretStore 合并回 pexels/tavily key", async () => {
+    const s = makeSettings("");
+    s.pexelsApiKey = "pxl-2";
+    s.tavilyApiKey = "tvl-2";
+    await saveSettings(s);
+    const loaded = await loadSettings();
+    expect(loaded!.pexelsApiKey).toBe("pxl-2");
+    expect(loaded!.tavilyApiKey).toBe("tvl-2");
+  });
+
+  it("清空 pexels/tavily key 后 SecretStore 残留被清除", async () => {
+    const s = makeSettings("");
+    s.pexelsApiKey = "pxl-3";
+    s.tavilyApiKey = "tvl-3";
+    await saveSettings(s);
+    const cleared = makeSettings("");
+    await saveSettings(cleared);
+    const store = getSecretStore();
+    expect(await store.get(secretKey("image", "pexels"))).toBeNull();
+    expect(await store.get(secretKey("research", "tavily"))).toBeNull();
+  });
+
+  it("迁移：旧版明文 settings.json 的 pexels/tavily key 被迁入并从磁盘剥离", async () => {
+    const legacy = makeSettings("");
+    legacy.pexelsApiKey = "pxl-legacy";
+    legacy.tavilyApiKey = "tvl-legacy";
+    localStorage.setItem(
+      "ppt-agent-data/settings.json",
+      JSON.stringify(legacy),
+    );
+
+    const loaded = await loadSettings();
+    expect(loaded!.pexelsApiKey).toBe("pxl-legacy");
+    expect(loaded!.tavilyApiKey).toBe("tvl-legacy");
+    expect(await getSecretStore().get(secretKey("image", "pexels"))).toBe(
+      "pxl-legacy",
+    );
+    expect(await getSecretStore().get(secretKey("research", "tavily"))).toBe(
+      "tvl-legacy",
+    );
+
+    const raw = localStorage.getItem("ppt-agent-data/settings.json");
+    expect(raw).not.toContain("pxl-legacy");
+    expect(raw).not.toContain("tvl-legacy");
+  });
+});

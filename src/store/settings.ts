@@ -19,7 +19,17 @@ async function flushSave() {
   if (!pendingSettings) return;
   const toSave = pendingSettings;
   pendingSettings = null;
-  saveInFlight = saveSettings(toSave).catch(console.error);
+  saveInFlight = saveSettings(toSave)
+    .then((report) => {
+      // keychain 写失败必须让用户看见（否则密钥既没进安全存储也没进
+      // settings.json，重启后静默消失），不再只留 console.warn
+      if (report.keychainError) {
+        useSettingsStore.setState({
+          secretWarning: report.keychainError,
+        });
+      }
+    })
+    .catch(console.error);
   await saveInFlight;
   saveInFlight = null;
 }
@@ -77,6 +87,9 @@ function mergeBuiltinPresets(settings: AppSettings): AppSettings {
 interface SettingsStore {
   settings: AppSettings;
   loaded: boolean;
+  /** 密钥存储（keychain）写失败提示；用户可见，设置页展示后可关闭 */
+  secretWarning: string | null;
+  clearSecretWarning: () => void;
   load: () => Promise<void>;
   setActiveProvider: (id: LLMProviderId) => void;
   updateProvider: (
@@ -95,6 +108,8 @@ interface SettingsStore {
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: defaultSettings(),
   loaded: false,
+  secretWarning: null,
+  clearSecretWarning: () => set({ secretWarning: null }),
 
   load: async () => {
     const loaded = await loadSettings();
@@ -175,20 +190,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setResearch: (patch) => {
-    set((s) => ({
-      settings: {
+    set((s) => {
+      const settings = {
         ...s.settings,
         researchEnabled: patch.enabled ?? s.settings.researchEnabled,
         tavilyApiKey: patch.apiKey ?? s.settings.tavilyApiKey,
-      },
-      dirty: true,
-    }));
+      };
+      void debouncedSave(settings);
+      return { settings };
+    });
   },
   setPexelsApiKey: (key) => {
-    set((s) => ({
-      settings: { ...s.settings, pexelsApiKey: key },
-      dirty: true,
-    }));
+    set((s) => {
+      const settings = { ...s.settings, pexelsApiKey: key };
+      void debouncedSave(settings);
+      return { settings };
+    });
   },
 
   setLang: (lang) => {

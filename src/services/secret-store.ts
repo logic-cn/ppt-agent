@@ -5,7 +5,7 @@
  * 业务层只依赖 SecretStore 接口，不要在 Settings 页面直接调用 Tauri API。
  */
 
-export type SecretScope = "provider" | "image";
+export type SecretScope = "provider" | "image" | "research";
 
 export interface SecretStore {
   /** 是否为系统安全存储（keychain）；localStorage 降级为 false */

@@ -72,10 +72,12 @@ async function joinPath(...segments: string[]): Promise<string> {
 
 // ---- 公共 API ----
 
-/** 剥离所有 provider 的 apiKey（密钥不落盘） */
+/** 剥离所有 provider 的 apiKey 与图片/研究密钥（密钥不落盘） */
 function stripApiKeys(settings: AppSettings): AppSettings {
   const persisted: AppSettings = {
     ...settings,
+    pexelsApiKey: "",
+    tavilyApiKey: "",
     providers: {} as AppSettings["providers"],
   };
   for (const id of Object.keys(settings.providers) as string[]) {
@@ -85,9 +87,19 @@ function stripApiKeys(settings: AppSettings): AppSettings {
   return persisted;
 }
 
+/** 非 provider 的密钥字段：与 SecretStore 槽位的映射（密钥不落盘） */
+const EXTRA_SECRET_FIELDS: Array<{
+  field: "pexelsApiKey" | "tavilyApiKey";
+  scope: "image" | "research";
+  id: string;
+}> = [
+  { field: "pexelsApiKey", scope: "image", id: "pexels" },
+  { field: "tavilyApiKey", scope: "research", id: "tavily" },
+];
+
 /**
- * 从 SecretStore 读取 provider/image 的 apiKey 并合并回内存 settings；
- * 旧版明文存于 settings.json 的 apiKey 同时迁移进 SecretStore，
+ * 从 SecretStore 读取 provider/image/research 的 apiKey 并合并回内存 settings；
+ * 旧版明文存于 settings.json 的密钥同时迁移进 SecretStore，
  * 返回是否有明文被迁移（迁移后应立即剥离重写落盘，避免明文滞留磁盘）。
  */
 async function hydrateSecrets(settings: AppSettings): Promise<boolean> {
@@ -110,6 +122,24 @@ async function hydrateSecrets(settings: AppSettings): Promise<boolean> {
         if (stored) cfg.apiKey = stored;
       } catch (e) {
         console.warn(`读取 ${id} apiKey 失败：`, e);
+      }
+    }
+  }
+  for (const { field, scope, id } of EXTRA_SECRET_FIELDS) {
+    const value = settings[field];
+    if (value) {
+      try {
+        await store.set(secretKey(scope, id), value);
+        migrated = true;
+      } catch (e) {
+        console.warn(`迁移 ${field} 到密钥存储失败：`, e);
+      }
+    } else {
+      try {
+        const stored = await store.get(secretKey(scope, id));
+        if (stored) settings[field] = stored;
+      } catch (e) {
+        console.warn(`读取 ${field} 失败：`, e);
       }
     }
   }
@@ -202,9 +232,17 @@ export async function loadSettings(): Promise<AppSettings | null> {
   }
 }
 
-export async function saveSettings(settings: AppSettings): Promise<void> {
+export interface SaveSettingsReport {
+  /** 首个密钥存储写失败的描述；null 表示密钥全部写成功或本就为空 */
+  keychainError: string | null;
+}
+
+export async function saveSettings(
+  settings: AppSettings,
+): Promise<SaveSettingsReport> {
   const store = getSecretStore();
   const dir = await getDataDir();
+  let keychainError: string | null = null;
 
   // 剥离 apiKey：非敏感配置落盘，密钥单独进 SecretStore（空值则清除残留）
   for (const id of Object.keys(settings.providers) as string[]) {
@@ -217,12 +255,29 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       }
     } catch (e) {
       console.warn(`保存 ${id} apiKey 到密钥存储失败：`, e);
+      keychainError ??= String(e);
+    }
+  }
+
+  // 图片/研究密钥同样只进 SecretStore，不随 settings.json 落盘
+  for (const { field, scope, id } of EXTRA_SECRET_FIELDS) {
+    const value = settings[field];
+    try {
+      if (value) {
+        await store.set(secretKey(scope, id), value);
+      } else {
+        await store.delete(secretKey(scope, id));
+      }
+    } catch (e) {
+      console.warn(`保存 ${field} 到密钥存储失败：`, e);
+      keychainError ??= String(e);
     }
   }
 
   const persisted = stripApiKeys(settings);
   const path = await joinPath(dir, "settings.json");
   await writeText(path, JSON.stringify(persisted, null, 2));
+  return { keychainError };
 }
 
 export async function loadDeck(id: string): Promise<Deck | null> {
