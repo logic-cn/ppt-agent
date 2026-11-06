@@ -8,6 +8,9 @@ import {
 } from "@/engine/svg/sync-chart";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/services/i18n";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { X } from "lucide-react";
 
 const CHART_TYPES: { value: ChartType; label: TranslationKey }[] = [
   { value: "bar", label: "inspector.chartBar" },
@@ -112,17 +115,19 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
     return (
       <div className="p-3 text-center text-sm text-text-muted">
         {t("inspector.chartEmpty")}
-        <button
+        <Button
+          size="xs"
+          variant="primary"
           onClick={() =>
             applyChart({
               type: "bar",
               data: [{ label: t("inspector.chartSeedLabel"), value: 100 }],
             })
           }
-          className="mt-2 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-xs text-on-accent transition-opacity hover:opacity-90"
+          className="mt-2 bg-gradient-to-r from-accent to-accent-hover hover:opacity-90"
         >
           {t("inspector.chartAdd")}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -196,24 +201,27 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
                 }
                 className="w-20 rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
               />
-              <button
+              <IconButton
+                label={t("inspector.removeChartRow")}
                 onClick={() => removeRow(i)}
-                className="rounded p-1 text-text-muted hover:text-danger"
-              >
-                ✕
-              </button>
+                variant="danger"
+                icon={<X className="h-3.5 w-3.5" />}
+                className="rounded p-1"
+              />
             </div>
           ))}
         </div>
       </div>
 
       {chart.data.length > 0 && (
-        <button
+        <Button
+          size="xs"
+          variant="danger-outline"
           onClick={() => applyChart(undefined)}
-          className="w-full rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
+          className="w-full"
         >
           {t("inspector.chartDelete")}
-        </button>
+        </Button>
       )}
     </div>
   );

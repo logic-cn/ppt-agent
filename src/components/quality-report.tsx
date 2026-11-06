@@ -4,6 +4,8 @@ import { qualityScore } from "@/services/quality";
 import { localizeFinding } from "@/services/quality/message-i18n";
 import { useT } from "@/hooks/use-page-t";
 import { useSettingsStore } from "@/store/settings";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 
 interface QualityReportProps {
   findings: QualityFinding[];
@@ -72,13 +74,11 @@ export function QualityReport({
           </div>
         </div>
         {onDismiss && (
-          <button
+          <IconButton
+            label={t("common.close")}
             onClick={onDismiss}
-            className="rounded p-0.5 text-text-muted transition-colors hover:bg-bg-hover hover:text-text-secondary"
-            title={t("common.close")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            icon={<X className="h-3.5 w-3.5" />}
+          />
         )}
       </div>
 
@@ -99,29 +99,33 @@ export function QualityReport({
       </ul>
 
       {onVisualReview && (
-        <button
+        <Button
+          size="xs"
+          variant="outline"
           onClick={onVisualReview}
           disabled={visualReviewing || fixing}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+          className="mt-3 w-full font-medium"
         >
           <Eye className="h-3.5 w-3.5" />
           {visualReviewing
             ? t("quality.visualReviewing")
             : t("quality.visualReview")}
-        </button>
+        </Button>
       )}
 
       {onAutoFix && (
-        <button
+        <Button
+          size="xs"
+          variant="ai"
           onClick={onAutoFix}
           disabled={fixing || autoFixableCount === 0}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1.5 text-xs font-medium text-on-ai transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
+          className="mt-3 w-full bg-gradient-to-r from-ai to-ai-hover font-medium hover:opacity-90"
         >
           <Wand2 className="h-3.5 w-3.5" />
           {fixing
             ? t("quality.fixing")
             : t("quality.autoFix", { count: autoFixableCount })}
-        </button>
+        </Button>
       )}
     </div>
   );

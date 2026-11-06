@@ -116,13 +116,11 @@ export function SettingsDialog({ open, onClose }: Props) {
               {t("settings.secretStoreWarning")}{" "}
               <span className="text-xs text-text-muted">({secretWarning})</span>
             </span>
-            <button
+            <IconButton
+              label={t("common.close")}
               onClick={clearSecretWarning}
-              className="shrink-0 rounded p-0.5 text-text-muted hover:text-text-primary"
-              aria-label={t("common.close")}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+              icon={<X className="h-3.5 w-3.5" />}
+            />
           </div>
         )}
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -519,14 +517,15 @@ function ModelPanel({
               })}
 
               {/* 添加自定义模型 */}
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => addCustomProvider()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-secondary transition hover:border-accent/50 hover:text-text-primary"
+                className="w-full justify-center rounded-xl border-dashed py-3"
               >
                 <Plus className="h-4 w-4" />
                 {t("settings.addCustomModel")}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -656,23 +655,23 @@ function ProviderCard({
             {t("settings.inUse")}
           </span>
         ) : (
-          <button
-            type="button"
+          <Button
+            size="xs"
+            variant="outline"
             onClick={() => setActiveProvider(id)}
-            className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-text-secondary transition hover:border-accent/50 hover:text-text-primary"
+            className="rounded-full"
           >
             {t("settings.useModel")}
-          </button>
+          </Button>
         )}
         {isCustom && (
-          <button
-            type="button"
-            aria-label={t("settings.removeCustomModel")}
+          <IconButton
+            label={t("settings.removeCustomModel")}
             onClick={() => setConfirmRemove(true)}
-            className="shrink-0 rounded-md p-1.5 text-text-secondary transition hover:bg-danger/10 hover:text-danger"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+            variant="danger"
+            icon={<Trash2 className="h-4 w-4" />}
+            className="rounded-md p-1.5"
+          />
         )}
       </div>
       {confirmRemove && isCustom && (
@@ -681,20 +680,20 @@ function ProviderCard({
             {t("settings.removeCustomConfirm")}
           </span>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
+            <Button
+              size="xs"
+              variant="danger"
               onClick={() => removeCustomProvider(id as CustomProviderId)}
-              className="rounded bg-danger px-2 py-0.5 text-xs text-on-danger transition hover:bg-danger/90"
             >
               {t("common.confirm")}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
               onClick={() => setConfirmRemove(false)}
-              className="rounded px-1.5 py-0.5 text-xs text-text-muted transition hover:text-text-primary"
             >
               {t("common.cancel")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { DEFAULT_DESIGN } from "@/types/design";
 import { SlideThumbnail } from "@/engine/preview";
 import { useT } from "@/hooks/use-page-t";
 import { IconButton } from "@/components/ui/icon-button";
+import { Button } from "@/components/ui/button";
 import type { TranslationKey } from "@/services/i18n";
 
 interface Props {
@@ -227,24 +228,26 @@ export const SortableSlideItem = memo(function SortableSlideItem({
               {t("outline.deleteSlideConfirm")}
             </span>
             <div className="flex shrink-0 items-center gap-1">
-              <button
+              <Button
+                size="xs"
+                variant="danger"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeSlide(slide.id);
                 }}
-                className="rounded bg-danger px-2 py-0.5 text-[11px] text-on-danger hover:bg-danger/90"
               >
                 {t("common.confirm")}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
                 onClick={(e) => {
                   e.stopPropagation();
                   setConfirmDelete(false);
                 }}
-                className="rounded px-1.5 py-0.5 text-[11px] text-text-muted hover:text-text-primary"
               >
                 {t("common.cancel")}
-              </button>
+              </Button>
             </div>
           </div>
         )}

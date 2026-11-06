@@ -17,6 +17,7 @@ import type { Slide } from "@/types/deck";
 import { Plus } from "lucide-react";
 import { SortableSlideItem } from "./sortable-slide-item";
 import { useT } from "@/hooks/use-page-t";
+import { IconButton } from "@/components/ui/icon-button";
 
 interface OutlineEditorProps {
   onSelectSlide?: (index: number) => void;
@@ -92,13 +93,12 @@ export function OutlineEditor({
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-text-muted">
         {t("outline.title")}
-        <button
+        <IconButton
+          label={t("outline.addSlide")}
           onClick={addSlide}
-          className="rounded-md p-1.5 hover:bg-bg-hover transition-colors"
-          title={t("outline.addSlide")}
-        >
-          <Plus className="h-3.5 w-3.5 text-text-secondary" />
-        </button>
+          icon={<Plus className="h-3.5 w-3.5" />}
+          variant="ghost"
+        />
       </div>
 
       <div className="flex-1 overflow-auto px-2 pb-3">

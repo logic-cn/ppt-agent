@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
 import { buildSpecLock } from "@/design/spec-lock";
@@ -14,6 +14,7 @@ import { ChartTab } from "./chart-tab";
 import { ImageTab } from "./image-tab";
 import { NotesTab } from "./notes-tab";
 import { useT } from "@/hooks/use-page-t";
+import { Button } from "@/components/ui/button";
 
 type Tab = "ai" | "slide" | "chart" | "image" | "notes";
 
@@ -207,37 +208,31 @@ export function InspectorPanel({
         {activeTab === "slide" && slide ? (
           <div className="space-y-2">
             <div className="flex gap-2">
-              <button
+              <Button
+                size="xs"
+                variant="primary"
                 onClick={() => void handleGenerateContent()}
                 disabled={generating || generatingAll}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+                loading={generating}
+                className="flex-1"
               >
-                {generating ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
-                    {t("common.generating")}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />{" "}
-                    {t("inspector.generatePage")}
-                  </>
-                )}
-              </button>
-              <button
+                {!generating && <Sparkles className="h-3.5 w-3.5" />}
+                {generating
+                  ? t("common.generating")
+                  : t("inspector.generatePage")}
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
                 onClick={() => void handleGenerateAll()}
                 disabled={generating || generatingAll}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-hover disabled:opacity-50"
+                loading={generatingAll}
+                className="flex-1"
               >
-                {generatingAll ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
-                    {t("inspector.filling")}
-                  </>
-                ) : (
-                  t("inspector.fillEmptyPages")
-                )}
-              </button>
+                {generatingAll
+                  ? t("inspector.filling")
+                  : t("inspector.fillEmptyPages")}
+              </Button>
             </div>
             <SlideTab slide={slide} onUpdate={handleUpdate} />
           </div>

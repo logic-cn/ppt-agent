@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Search, Upload, Loader2 } from "lucide-react";
+import { Trash2, Search, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Slide, ImageSpec } from "@/types/deck";
 import {
   searchWebImages,
@@ -105,14 +106,15 @@ function WebImageSearchPanel({
           aria-label={t("inspector.imageSearchPlaceholder")}
           className="flex-1 rounded-lg border border-border bg-bg-elevated px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
         />
-        <button
+        <Button
+          size="xs"
+          variant="outline"
           onClick={() => void handleSearch()}
           disabled={searching || !query.trim()}
-          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
         >
           <Search className="h-3 w-3" />
           {t("inspector.imageSearch")}
-        </button>
+        </Button>
       </div>
 
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -362,15 +364,16 @@ export function ImageTab({ slide, onUpdate }: Props) {
             aria-label={t("inspector.imageUrl")}
             className="flex-1 rounded-lg border border-border bg-bg-elevated px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
           />
-          <button
+          <Button
+            size="xs"
+            variant="outline"
             onClick={() => void handleApplyUrl()}
             disabled={busy !== null || !urlDraft.trim()}
-            className="rounded-lg border border-border px-2 py-1.5 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
           >
             {busy === "url"
               ? t("inspector.imageApplying")
               : t("inspector.imageUrlApply")}
-          </button>
+          </Button>
         </div>
         <p className="text-[10px] text-text-muted">
           {t("inspector.imageUrlHint")}
@@ -387,23 +390,19 @@ export function ImageTab({ slide, onUpdate }: Props) {
             if (file) void handleUpload(file);
           }}
         />
-        <button
+        <Button
+          size="xs"
+          variant="outline"
           onClick={() => uploadRef.current?.click()}
           disabled={busy !== null}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-40"
+          loading={busy === "upload"}
+          className="w-full border-dashed py-2"
         >
-          {busy === "upload" ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("inspector.imageUploading")}
-            </>
-          ) : (
-            <>
-              <Upload className="h-3.5 w-3.5" />
-              {t("inspector.imageUpload")}
-            </>
-          )}
-        </button>
+          {busy !== "upload" && <Upload className="h-3.5 w-3.5" />}
+          {busy === "upload"
+            ? t("inspector.imageUploading")
+            : t("inspector.imageUpload")}
+        </Button>
       </div>
 
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -421,27 +420,27 @@ export function ImageTab({ slide, onUpdate }: Props) {
             <span className="text-xs text-danger">
               {t("inspector.imageDeleteConfirm")}
             </span>
-            <button
-              onClick={handleDelete}
-              className="rounded-lg bg-danger px-3 py-1.5 text-xs text-on-danger hover:bg-danger/90"
-            >
+            <Button size="xs" variant="danger" onClick={handleDelete}>
               {t("common.confirm")}
-            </button>
-            <button
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
               onClick={() => setConfirmDelete(false)}
-              className="text-xs text-text-muted hover:text-text-primary"
             >
               {t("common.cancel")}
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
+          <Button
+            size="xs"
+            variant="danger-outline"
             onClick={() => setConfirmDelete(true)}
-            className="flex w-full items-center justify-center gap-1 rounded-lg border border-danger/20 px-3 py-1.5 text-xs text-danger hover:bg-danger/5"
+            className="w-full"
           >
             <Trash2 className="h-3 w-3" />
             {t("inspector.imageDelete")}
-          </button>
+          </Button>
         ))}
     </div>
   );

@@ -47,6 +47,17 @@ describe("ChartTab", () => {
     useSettingsStore.getState().setLang("zh");
   });
 
+  it("数据行删除按钮具备可访问名称", () => {
+    render(
+      <ChartTab
+        slide={makeSlide(svgWithChart)}
+        specLock={spec}
+        onUpdate={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "删除数据行" })).toBeTruthy();
+  });
+
   it("修改图表标题时同步更新 SVG 并清除过期标记", async () => {
     const onUpdate = vi.fn();
     render(

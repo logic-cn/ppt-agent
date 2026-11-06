@@ -461,6 +461,7 @@ export const en = {
   "inspector.chartAddRow": "+ Add Row",
   "inspector.chartLabel": "Label",
   "inspector.chartDelete": "Delete Chart",
+  "inspector.removeChartRow": "Remove data row",
   "inspector.chartNeedsRedraw":
     "This page has no chart area. Changes are saved; click “Sync page” below the preview to render the chart.",
   "inspector.imageFull": "Full",

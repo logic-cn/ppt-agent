@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDeckStore } from "@/store/deck";
 import { useToastStore } from "@/store/toast";
 import { useT } from "@/hooks/use-page-t";
+import { Button } from "@/components/ui/button";
 
 interface SlideRedrawButtonProps {
   slideId: string;
@@ -44,21 +45,17 @@ export function SlideRedrawButton({
   };
 
   return (
-    <button
-      type="button"
+    <Button
       onClick={handleClick}
       disabled={loading}
-      className={`rounded-md px-3 py-1 text-sm disabled:opacity-50 ${
-        stale
-          ? "bg-accent text-on-accent hover:bg-accent-hover"
-          : "text-text-secondary hover:bg-bg-hover"
-      } ${className ?? ""}`}
+      variant={stale ? "primary" : "ghost"}
+      className={`rounded-md px-3 py-1 text-sm ${className ?? ""}`}
     >
       {loading
         ? t("redraw.redrawing")
         : stale
           ? t("redraw.sync")
           : t("redraw.page")}
-    </button>
+    </Button>
   );
 }

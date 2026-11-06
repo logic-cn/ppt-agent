@@ -5,6 +5,7 @@ import { MODEL_REGISTRY, formatGB } from "@/services/model-manager";
 import type { ModelTier } from "@/services/model-manager";
 import { useT } from "@/hooks/use-page-t";
 import type { TranslationKey } from "@/locales/en";
+import { Button } from "@/components/ui/button";
 
 const STATUS_KEY: Record<ModelState, TranslationKey | null> = {
   unknown: null,
@@ -54,9 +55,6 @@ function ProgressBar() {
   );
 }
 
-const btnCls =
-  "rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary transition hover:border-accent/50 hover:text-text-primary";
-
 /**
  * 本地模型管理区块：档位选择 + 状态 + 下载/加载/卸载/删除。
  * 嵌入设置页 provider 卡片与首页生成入口卡片两处复用。
@@ -85,33 +83,25 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
   const deleteControl = confirmDelete ? (
     <span className="flex items-center gap-1.5 text-xs">
       <span className="text-danger">{t("model.deleteConfirm")}</span>
-      <button
-        type="button"
+      <Button
+        size="xs"
+        variant="danger"
         onClick={() => {
           setConfirmDelete(false);
           void remove();
         }}
-        className="rounded bg-danger px-2 py-0.5 text-on-danger transition hover:bg-danger/90"
       >
         {t("common.confirm")}
-      </button>
-      <button
-        type="button"
-        onClick={() => setConfirmDelete(false)}
-        className="rounded px-1.5 py-0.5 text-text-muted transition hover:text-text-primary"
-      >
+      </Button>
+      <Button size="xs" variant="ghost" onClick={() => setConfirmDelete(false)}>
         {t("common.cancel")}
-      </button>
+      </Button>
     </span>
   ) : (
-    <button
-      type="button"
-      onClick={() => setConfirmDelete(true)}
-      className={`flex items-center gap-1 ${btnCls}`}
-    >
+    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(true)}>
       <Trash2 className="h-4 w-4" />
       {t("model.delete")}
-    </button>
+    </Button>
   );
 
   return (
@@ -126,15 +116,15 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
         <div className="flex items-center gap-2">
           <ProgressBar />
           {state === "downloading" && (
-            <button
-              type="button"
+            <Button
+              size="xs"
+              variant="outline-danger"
               onClick={() => void cancelDownload()}
-              className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-secondary transition hover:border-danger/50 hover:text-danger"
               title={t("model.cancelDownload")}
             >
               <Square className="h-3 w-3" />
               {t("model.cancelDownload")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -168,51 +158,50 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
 
       <div className="flex flex-wrap items-center gap-2">
         {state === "absent" && (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="primary"
             onClick={() => void download()}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
+            className="font-normal"
           >
             <Download className="h-4 w-4" />
             {t("model.download")}
             <span className="text-xs opacity-75">
               {formatGB(def.sizeBytes)}
             </span>
-          </button>
+          </Button>
         )}
         {state === "downloaded" && (
           <>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="primary"
               onClick={() => void load()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
+              className="font-normal"
             >
               {t("model.load")}
-            </button>
+            </Button>
             {deleteControl}
           </>
         )}
         {state === "loaded" && (
           <>
-            <button
-              type="button"
-              onClick={() => void unload()}
-              className={btnCls}
-            >
+            <Button size="sm" variant="outline" onClick={() => void unload()}>
               {t("model.unload")}
-            </button>
+            </Button>
             {deleteControl}
           </>
         )}
         {state === "error" && (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="primary"
             onClick={() => void download()}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
+            className="font-normal"
           >
             <Download className="h-4 w-4" />
             {t("model.download")}
-          </button>
+          </Button>
         )}
         {busy && <Loader2 className="h-4 w-4 animate-spin text-accent" />}
       </div>

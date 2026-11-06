@@ -12,6 +12,7 @@ import { SvgViewer } from "@/components/SvgViewer";
 import { SlideRedrawButton } from "@/components/slide-redraw";
 import { SvgEditorCanvas } from "./svg-editor-canvas";
 import { Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   deck: Deck;
@@ -228,23 +229,19 @@ export const SlidePreview = memo(function SlidePreview({
 
       {/* 底部导航 */}
       <div className="flex items-center justify-center gap-3 border-t border-border bg-bg-surface px-4 py-2">
-        <button
-          onClick={goPrev}
-          disabled={currentIndex === 0}
-          className="rounded-md px-3 py-1 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
-        >
+        <Button variant="ghost" onClick={goPrev} disabled={currentIndex === 0}>
           {t("preview.prevPage")}
-        </button>
+        </Button>
         <span className="min-w-[60px] text-center text-sm text-text-muted">
           {currentIndex + 1} / {slides.length}
         </span>
-        <button
+        <Button
+          variant="ghost"
           onClick={goNext}
           disabled={currentIndex === slides.length - 1}
-          className="rounded-md px-3 py-1 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
         >
           {t("preview.nextPage")}
-        </button>
+        </Button>
         {currentSlide.svg && (
           <SlideRedrawButton
             slideId={currentSlide.id}

@@ -435,6 +435,7 @@ export const zh: Record<TranslationKey, string> = {
   "inspector.chartAddRow": "+ 新增行",
   "inspector.chartLabel": "标签",
   "inspector.chartDelete": "删除图表",
+  "inspector.removeChartRow": "删除数据行",
   "inspector.chartNeedsRedraw":
     "当前页没有图表区域。修改已保存，请点击预览下方的「重画同步」让图表上屏。",
   "inspector.imageFull": "全幅",

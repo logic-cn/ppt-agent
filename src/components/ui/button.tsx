@@ -2,20 +2,35 @@ import { forwardRef } from "react";
 import type { ButtonHTMLAttributes } from "react";
 import { Loader2 } from "lucide-react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai";
-type ButtonSize = "sm" | "md";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "outline-danger"
+  | "danger"
+  | "danger-outline"
+  | "ghost"
+  | "ai";
+type ButtonSize = "xs" | "sm" | "md";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-accent text-on-accent hover:bg-accent-hover shadow-sm shadow-accent/20",
   secondary:
     "border border-border-strong bg-bg-elevated text-text-primary hover:bg-bg-hover",
-  ghost: "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+  // 透明底描边按钮：用于检查器内的次级操作
+  outline:
+    "border border-border text-text-secondary hover:border-accent hover:text-accent",
+  "outline-danger":
+    "border border-border text-text-secondary hover:border-danger/50 hover:text-danger",
   danger: "bg-danger text-on-danger hover:bg-danger/90",
+  "danger-outline": "border border-danger/30 text-danger hover:bg-danger/10",
+  ghost: "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
   ai: "bg-ai text-on-ai hover:bg-ai-hover shadow-sm shadow-ai/20",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
+  xs: "gap-1.5 px-3 py-1.5 text-xs",
   sm: "gap-1.5 px-3 py-1.5 text-sm",
   md: "gap-2 px-4 py-2 text-sm",
 };
