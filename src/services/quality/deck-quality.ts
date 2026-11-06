@@ -40,6 +40,11 @@ export interface QualityCheckOptions {
   sourceText?: string;
   /** 跳过 SVG 层校验（纯大纲态/首屏门等无设计真相 SVG 或不宜阻断的场景） */
   skipSvgChecks?: boolean;
+  /**
+   * 手动 deck：首屏非封面 / 末页非结尾降级为 soft 提示，不阻断导出。
+   * 默认 false，AI 生成与模板流程仍按 hard 拦截。
+   */
+  relaxedStructure?: boolean;
 }
 
 /** 模板可声明的质量规则名 */
@@ -64,14 +69,17 @@ const GENERIC_TITLES = new Set([
   "前言",
 ]);
 
-function checkMissingCover(deck: Deck): QualityFinding[] {
+function checkMissingCover(
+  deck: Deck,
+  severity: Severity = "hard",
+): QualityFinding[] {
   if (deck.slides.length === 0) return [];
   const first = deck.slides[0];
   if (first.layout !== "cover" || !first.title.trim()) {
     return [
       {
         rule: "require_cover",
-        severity: "hard",
+        severity,
         slideId: first.id,
         message: "第一页不是封面布局或标题为空",
         code: "deck.missingCover",
@@ -82,14 +90,17 @@ function checkMissingCover(deck: Deck): QualityFinding[] {
   return [];
 }
 
-function checkMissingClosing(deck: Deck): QualityFinding[] {
+function checkMissingClosing(
+  deck: Deck,
+  severity: Severity = "hard",
+): QualityFinding[] {
   if (deck.slides.length === 0) return [];
   const last = deck.slides[deck.slides.length - 1];
   if (last.layout !== "closing") {
     return [
       {
         rule: "require_closing",
-        severity: "hard",
+        severity,
         slideId: last.id,
         message: "最后一页不是结尾布局",
         code: "deck.missingClosing",
@@ -466,8 +477,12 @@ export function checkDeckQuality(
 ): QualityFinding[] {
   const findings: QualityFinding[] = [];
 
-  findings.push(...checkMissingCover(deck));
-  findings.push(...checkMissingClosing(deck));
+  // 手动 deck 的结构缺失只做提示；AI/模板流程保持 hard
+  const structureSeverity: Severity = options?.relaxedStructure
+    ? "soft"
+    : "hard";
+  findings.push(...checkMissingCover(deck, structureSeverity));
+  findings.push(...checkMissingClosing(deck, structureSeverity));
   findings.push(...checkDuplicateTitles(deck));
   findings.push(...checkTooManyBullets(deck));
   findings.push(...checkEmptyChart(deck));

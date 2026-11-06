@@ -432,6 +432,60 @@ describe("Editor 顶栏可访问性与窄屏溢出菜单", () => {
   });
 });
 
+describe("Editor 导出硬门禁分级", () => {
+  it("手动 deck 仅有首尾结构软提示时允许导出并说明缺失项", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    vi.mocked(checkDeckQuality).mockReturnValue([
+      {
+        rule: "require_cover",
+        severity: "soft",
+        code: "deck.missingCover",
+        message: "第一页不是封面布局或标题为空",
+        autoFixable: false,
+      },
+      {
+        rule: "require_closing",
+        severity: "soft",
+        code: "deck.missingClosing",
+        message: "最后一页不是结尾布局",
+        autoFixable: false,
+      },
+    ]);
+    vi.mocked(hasHardError).mockReturnValue(false);
+
+    renderEditor();
+    const exportBtn = await screen.findByRole("button", { name: /导出 PPT/ });
+    expect(exportBtn.hasAttribute("disabled")).toBe(false);
+    // 软提示直接说明缺失项，而不是只给「质量未达标」
+    expect(
+      screen.getByTitle(
+        "结构提示：第一页不是封面布局或标题为空；最后一页不是结尾布局（仍可导出）",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("模板/AI 流程存在 hard 结构问题时仍阻断导出", async () => {
+    useDeckStore.setState({ deck: makeDeck() });
+    useQualityStore.setState({ pendingRules: ["require_cover"] });
+    vi.mocked(checkDeckQuality).mockReturnValue([
+      {
+        rule: "require_cover",
+        severity: "hard",
+        code: "deck.missingCover",
+        message: "第一页不是封面布局或标题为空",
+        autoFixable: false,
+      },
+    ]);
+    vi.mocked(hasHardError).mockReturnValue(true);
+
+    renderEditor();
+    const exportBtn = await screen.findByRole("button", { name: /导出 PPT/ });
+    expect(exportBtn.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("质量未达标")).toBeTruthy();
+    expect(screen.queryByTitle(/结构提示/)).toBeNull();
+  });
+});
+
 describe("Editor 加载", () => {
   it("deck 未加载时展示空态而非报错", async () => {
     renderEditor();

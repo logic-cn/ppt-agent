@@ -234,6 +234,7 @@ export const en = {
   "editor.qualityBlockExport":
     "Serious quality issues exist. Fix them before exporting.",
   "editor.qualityNotMet": "Quality not met",
+  "editor.structureHint": "Structure hint: {issues} (export allowed)",
   "editor.taskList": "Task list",
   "editor.clearCompleted": "Clear completed",
   "editor.statusRunning": "In progress",

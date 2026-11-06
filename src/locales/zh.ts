@@ -219,6 +219,7 @@ export const zh: Record<TranslationKey, string> = {
   "editor.present": "演示",
   "editor.qualityBlockExport": "存在严重质量问题，请先修复后再导出",
   "editor.qualityNotMet": "质量未达标",
+  "editor.structureHint": "结构提示：{issues}（仍可导出）",
   "editor.taskList": "任务列表",
   "editor.clearCompleted": "清除已完成",
   "editor.statusRunning": "进行中",

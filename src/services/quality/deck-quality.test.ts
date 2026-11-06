@@ -35,6 +35,24 @@ describe("checkDeckQuality 分级", () => {
     expect(hasHardError(findings)).toBe(true);
   });
 
+  it("手动 deck 放宽结构校验：首尾缺失降级为 soft 且不阻断", () => {
+    const deck = createMockDeck({
+      slides: [
+        { id: "s1", layout: "content", title: "第一页" },
+        { id: "s2", layout: "content", title: "最后一页" },
+      ],
+    });
+    const findings = checkDeckQuality(deck, { relaxedStructure: true });
+    const cover = findings.find((f) => f.rule === "require_cover");
+    const closing = findings.find((f) => f.rule === "require_closing");
+    expect(cover!.severity).toBe("soft");
+    expect(closing!.severity).toBe("soft");
+    // 提示文案与 code 保持可定位
+    expect(cover!.code).toBe("deck.missingCover");
+    expect(closing!.code).toBe("deck.missingClosing");
+    expect(hasHardError(findings)).toBe(false);
+  });
+
   it("内容页 8 条要点 → soft 且 autoFixable", () => {
     const deck = createMockDeck({
       slides: [

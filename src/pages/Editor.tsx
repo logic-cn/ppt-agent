@@ -15,6 +15,7 @@ import {
   RefreshCw,
   FileJson,
   MoreHorizontal,
+  AlertTriangle,
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useDeckStore } from "@/store/deck";
@@ -45,6 +46,7 @@ import { useCustomPalettes } from "@/store/custom-palettes";
 import { DesignPanel } from "@/components/design";
 import { useQualityStore } from "@/store/quality";
 import { checkDeckQuality, hasHardError } from "@/services/quality";
+import { localizeFinding } from "@/services/quality/message-i18n";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PresentationMode } from "@/components/presentation-mode";
 import { resolveTheme } from "@/themes";
@@ -101,16 +103,39 @@ export default function Editor() {
   const titleRef = useRef<HTMLInputElement>(null);
   const qualityReport = useQualityStore((s) => s.report);
   const pendingRules = useQualityStore((s) => s.pendingRules);
-  // 导出前质量门：实时对当前 deck 跑 checkDeckQuality，存在 hard 即阻断导出。
-  // 同时保留模板流程写入的 report 结果（含模板专属规则），两者取并集。
+  const lang = useSettingsStore((s) => s.settings.lang);
+  // 手动新建/手动编辑的 deck（无模板规则、无生成报告）放宽首尾结构校验；
+  // AI 生成与模板流程仍走 hard 门禁
+  const relaxedStructure = pendingRules === null && qualityReport === null;
+  const liveFindings = useMemo(
+    () =>
+      deck
+        ? checkDeckQuality(deck, {
+            rules: pendingRules ?? undefined,
+            relaxedStructure,
+          })
+        : [],
+    [deck, pendingRules, relaxedStructure],
+  );
+  // 导出前质量门：存在 hard 即阻断导出；生成报告与实时检查取并集
   const hasHard = useMemo(() => {
-    if (!deck) return false;
-    const liveHard = hasHardError(
-      checkDeckQuality(deck, { rules: pendingRules ?? undefined }),
-    );
+    const liveHard = hasHardError(liveFindings);
     const reportHard = qualityReport ? hasHardError(qualityReport) : false;
     return liveHard || reportHard;
-  }, [deck, pendingRules, qualityReport]);
+  }, [liveFindings, qualityReport]);
+  // 手动 deck 的结构缺失项：以软提示展示缺失内容，但不阻断导出
+  const structureHints = useMemo(
+    () =>
+      relaxedStructure
+        ? liveFindings.filter(
+            (f) => f.rule === "require_cover" || f.rule === "require_closing",
+          )
+        : [],
+    [relaxedStructure, liveFindings],
+  );
+  const structureHintText = structureHints
+    .map((f) => localizeFinding(f, lang))
+    .join(lang === "zh" ? "；" : "; ");
 
   // 设计面板与溢出菜单：Escape 关闭，并把焦点归还给触发按钮
   useEffect(() => {
@@ -736,6 +761,18 @@ export default function Editor() {
             )}
             {exporting ? t("common.exporting") : t("common.exportPpt")}
           </Button>
+          {!hasHard && structureHints.length > 0 && (
+            <span
+              className="hidden max-w-[260px] shrink-0 items-center gap-1 truncate rounded-md bg-warning/10 px-2 py-1 text-xs text-warning lg:inline-flex"
+              title={t("editor.structureHint", { issues: structureHintText })}
+            >
+              <AlertTriangle
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="truncate">{structureHintText}</span>
+            </span>
+          )}
           {hasHard && (
             <button
               onClick={() => {
