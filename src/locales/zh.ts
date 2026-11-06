@@ -31,6 +31,8 @@ export const zh: Record<TranslationKey, string> = {
   "common.redrawSync": "重画同步",
   "editor.pageOf": "第 {n} / {total} 页",
 
+  "settings.secretStoreWarning":
+    "密钥写入系统安全存储失败，本次输入的密钥可能未被保存。请重试或检查系统钥匙串权限：",
   "settings.general": "通用",
   "settings.themeLight": "浅色",
   "settings.themeDark": "深色",
@@ -64,7 +66,9 @@ export const zh: Record<TranslationKey, string> = {
   "model.tierStandard": "MiniCPM5-2B · 推荐（约 1.46 GB，需 8GB 内存）",
   "model.tierLight": "MiniCPM5-1B · 极速（约 0.64 GB，适合低配机器）",
   "model.absent": "未下载",
+  "model.cancelDownload": "停止下载",
   "model.downloading": "下载中… {percent}%",
+  "model.downloadingIndeterminate": "下载中…",
   "model.verifying": "校验完整性…",
   "model.downloaded": "已下载，未加载",
   "model.loading": "正在加载进内存…",
@@ -409,6 +413,7 @@ export const zh: Record<TranslationKey, string> = {
   "inspector.chartPie": "饼图",
   "inspector.chartLine": "折线图",
   "inspector.chartDoughnut": "环形图",
+  "inspector.chartSeedLabel": "分类",
   "inspector.chartEmpty": "当前页面没有图表。",
   "inspector.chartAdd": "添加图表",
   "inspector.chartType": "图表类型",
@@ -486,6 +491,10 @@ export const zh: Record<TranslationKey, string> = {
     "viewBox 必须为 “{required}”，实际 “{actual}”",
   "quality.svg.contractForbiddenElement": "禁止的 SVG 元素 <{name}>",
   "quality.svg.contractUnsupportedElement": "不支持的 SVG 元素 <{name}>",
+  "quality.svg.contractUnsupportedAttribute":
+    "不支持的属性 {attr}（导出不支持裁剪/蒙版/滤镜，请改用几何形状表达）",
+  "quality.svg.chartInvalidValue": "图表数据非法：value 必须是有限数值",
+  "quality.svg.chartNegativeValue": "饼/环图数据含负值，无法用扇区表达",
   "quality.svg.contractExternalRef": "禁止外部引用资源: {attr}=“{url}”",
   "quality.svg.textOutOfBounds":
     "text 越界：x={x}, y={y}, 估算宽度={width} 超出画布宽度 {canvasW}",
@@ -653,4 +662,64 @@ export const zh: Record<TranslationKey, string> = {
   "palette.mono-noir": "单色黑白",
   "palette.teal-deep": "深海青",
   "palette.sunset-warm": "落日暖金",
+
+  // ---- Deck Patch 摘要与执行报告（services 层用户可见文案）----
+  "patch.setTitle": "修改标题为「{title}」",
+  "patch.insertSlide": "插入新页「{title}」（位置: {position}）",
+  "patch.deleteSlide": "删除页面",
+  "patch.moveSlide": "移动页面到第 {position} 位",
+  "patch.updateSlide": "修改页面",
+  "patch.replaceSlide": "替换页面为「{title}」",
+  "patch.splitSlide": "拆分为 {count} 页",
+  "patch.mergeSlides": "合并 {count} 页为「{title}」",
+  "patch.changesInsert": "新增 {count} 页",
+  "patch.changesDelete": "删除 {count} 页",
+  "patch.changesMove": "移动 {count} 页",
+  "patch.changesUpdate": "修改 {count} 页",
+  "patch.changesSplit": "拆分 {count} 处",
+  "patch.changesMerge": "合并 {count} 处",
+  "patch.operationsCount": "{count} 个操作",
+  "chat.patchStaleBlock":
+    "⚠️ 生成该建议后项目已被手动修改。为避免覆盖你的编辑，这批包含整页覆盖的建议已停止应用；请重新发送修改需求。",
+  "patch.noChanges": "没有修改。",
+  "patch.applied.setTitle": "将标题改为「{title}」",
+  "patch.applied.insertSlide": "在第 {position} 页后插入「{title}」",
+  "patch.applied.deleteSlideTitle": "删除页面",
+  "patch.applied.deleteSlide": "删除第 {position} 页「{title}」",
+  "patch.applied.moveSlide": "将第 {from} 页「{title}」移到第 {to} 页",
+  "patch.applied.updateSlide": "修改了第 {position} 页「{title}」",
+  "patch.applied.replaceSlide": "替换第 {position} 页为「{title}」",
+  "patch.applied.splitSlide": "将第 {position} 页拆分为 {count} 页",
+  "patch.applied.mergeSlides": "合并 {count} 页为「{title}」",
+  "patch.warn.slideNotFound":
+    "Patch #{index}: 未找到 slideId「{slideId}」，整批修改已取消",
+  "patch.warn.destructive": "Patch #{index} ({op}) 是高风险操作，需要用户确认",
+  "patch.warn.indexOutOfRange": "Patch #{index} index 超出范围，已追加到末尾",
+  "patch.warn.mergeNeedsTwo":
+    "Patch #{index}: 合并操作需要至少 2 个有效 slideId，整批修改已取消",
+
+  // ---- 通用生成文案（deck 回退标题 / 重画意图 / 超时）----
+  "gen.fallbackPageTitle": "{deckTitle}（第 {page} 页）",
+  "gen.redrawIntent": "重画该页内容",
+  "gen.pageTimeout": "第 {page} 页生成超时（{seconds} 秒），已跳过",
+
+  // ---- 导入器用户可见文案 ----
+  "import.warnUnsupportedProtocol": "不支持的协议: {protocol}",
+  "import.warnPrivateAddress": "不支持内网地址",
+  "import.warnFetchFailed": "获取 URL 失败 ({status})",
+  "import.warnAntiCrawl":
+    "该网页启用了安全验证/反爬机制，无法自动抓取。请手动复制正文内容后粘贴导入。",
+  "import.warnPdfTooLarge": "PDF 文件过大（{size} MB），超过 {limit} MB 上限",
+  "import.warnDocxTooLarge": "Word 文件过大（{size} MB），超过 {limit} MB 上限",
+  "import.warnScannedPdf": "第 1 页未抽取到文本，可能是扫描件（仅图片）",
+  "import.warnNoSections": "未识别出章节结构，将按全文生成",
+
+  // ---- LLM 适配层错误 ----
+  "llm.requestFailed": "LLM API 调用失败 ({status}): {detail}",
+  "llm.streamFailed": "LLM 流式调用失败 ({status}): {detail}",
+  "llm.truncated":
+    "模型「{model}」的输出因达到 max_tokens 上限被截断（finish_reason=length）。请在设置中调大最大输出 tokens，或降低信息密度/减少页数后重试。",
+  "llm.noApiKey": "Provider「{label}」未配置 API Key，请前往设置页填写。",
+  "llm.retryFailed": "LLM 调用重试失败",
+  "llm.streamRetryFailed": "LLM 流式调用重试失败",
 };

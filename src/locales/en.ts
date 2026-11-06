@@ -29,6 +29,8 @@ export const en = {
   "common.redrawSync": "Redraw Sync",
   "editor.pageOf": "Page {n} of {total}",
 
+  "settings.secretStoreWarning":
+    "Failed to write the key to secure storage. The key you just entered may not have been saved. Please retry or check keychain permissions:",
   "settings.general": "General",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
@@ -62,7 +64,9 @@ export const en = {
   "model.tierStandard": "MiniCPM5-2B · Recommended (~1.46 GB, needs 8 GB RAM)",
   "model.tierLight": "MiniCPM5-1B · Fast (~0.64 GB, for low-end machines)",
   "model.absent": "Not downloaded",
+  "model.cancelDownload": "Stop download",
   "model.downloading": "Downloading… {percent}%",
+  "model.downloadingIndeterminate": "Downloading…",
   "model.verifying": "Verifying integrity…",
   "model.downloaded": "Downloaded, not loaded",
   "model.loading": "Loading into memory…",
@@ -435,6 +439,7 @@ export const en = {
   "inspector.chartPie": "Pie Chart",
   "inspector.chartLine": "Line Chart",
   "inspector.chartDoughnut": "Doughnut Chart",
+  "inspector.chartSeedLabel": "Category",
   "inspector.chartEmpty": "This page has no chart.",
   "inspector.chartAdd": "Add Chart",
   "inspector.chartType": "Chart Type",
@@ -515,6 +520,12 @@ export const en = {
     "viewBox must be “{required}”, got “{actual}”",
   "quality.svg.contractForbiddenElement": "Forbidden SVG element <{name}>",
   "quality.svg.contractUnsupportedElement": "Unsupported SVG element <{name}>",
+  "quality.svg.contractUnsupportedAttribute":
+    "Unsupported attribute {attr} (clip/mask/filter are not exported; use geometry instead)",
+  "quality.svg.chartInvalidValue":
+    "Invalid chart data: value must be a finite number",
+  "quality.svg.chartNegativeValue":
+    "Pie/doughnut chart data contains negative values",
   "quality.svg.contractExternalRef":
     "External resource reference is not allowed: {attr}=“{url}”",
   "quality.svg.textOutOfBounds":
@@ -691,6 +702,73 @@ export const en = {
   "palette.mono-noir": "Mono Noir",
   "palette.teal-deep": "Deep Teal",
   "palette.sunset-warm": "Sunset Warm",
+
+  // ---- Deck Patch summaries & apply reports (services-layer user-facing strings) ----
+  "patch.setTitle": "Set title to “{title}”",
+  "patch.insertSlide": "Insert new slide “{title}” (position: {position})",
+  "patch.deleteSlide": "Delete slide",
+  "patch.moveSlide": "Move slide to position {position}",
+  "patch.updateSlide": "Update slide",
+  "patch.replaceSlide": "Replace slide with “{title}”",
+  "patch.splitSlide": "Split into {count} slides",
+  "patch.mergeSlides": "Merge {count} slides into “{title}”",
+  "patch.changesInsert": "{count} inserted",
+  "patch.changesDelete": "{count} deleted",
+  "patch.changesMove": "{count} moved",
+  "patch.changesUpdate": "{count} updated",
+  "patch.changesSplit": "{count} splits",
+  "patch.changesMerge": "{count} merges",
+  "patch.operationsCount": "{count} operations",
+  "chat.patchStaleBlock":
+    "The project has been edited since this suggestion was generated. To protect your edits, this batch (which overwrites whole slides) was not applied; please send the request again.",
+  "patch.noChanges": "No changes.",
+  "patch.applied.setTitle": "Title changed to “{title}”",
+  "patch.applied.insertSlide": "Inserted “{title}” after slide {position}",
+  "patch.applied.deleteSlideTitle": "Delete slide",
+  "patch.applied.deleteSlide": "Deleted slide {position} “{title}”",
+  "patch.applied.moveSlide": "Moved “{title}” from slide {from} to slide {to}",
+  "patch.applied.updateSlide": "Updated slide {position} “{title}”",
+  "patch.applied.replaceSlide": "Replaced slide {position} with “{title}”",
+  "patch.applied.splitSlide": "Split slide {position} into {count} slides",
+  "patch.applied.mergeSlides": "Merged {count} slides into “{title}”",
+  "patch.warn.slideNotFound":
+    "Patch #{index}: slideId “{slideId}” not found, the whole batch was cancelled",
+  "patch.warn.destructive":
+    "Patch #{index} ({op}) is a destructive operation and requires user confirmation",
+  "patch.warn.indexOutOfRange":
+    "Patch #{index} index out of range, appended to the end",
+  "patch.warn.mergeNeedsTwo":
+    "Patch #{index}: merge requires at least 2 valid slideIds, the whole batch was cancelled",
+
+  // ---- Generic generation strings (deck fallback title / redraw intent / timeout) ----
+  "gen.fallbackPageTitle": "{deckTitle} (Page {page})",
+  "gen.redrawIntent": "Redraw this page",
+  "gen.pageTimeout": "Page {page} generation timed out ({seconds}s), skipped",
+
+  // ---- Importer user-facing strings ----
+  "import.warnUnsupportedProtocol": "Unsupported protocol: {protocol}",
+  "import.warnPrivateAddress": "Private network addresses are not allowed",
+  "import.warnFetchFailed": "Failed to fetch URL ({status})",
+  "import.warnAntiCrawl":
+    "This page is protected by anti-crawl verification and cannot be fetched. Please copy the content manually and paste it to import.",
+  "import.warnPdfTooLarge":
+    "PDF file too large ({size} MB), over the {limit} MB limit",
+  "import.warnDocxTooLarge":
+    "Word file too large ({size} MB), over the {limit} MB limit",
+  "import.warnScannedPdf":
+    "No text extracted from page 1; it may be a scanned document (images only)",
+  "import.warnNoSections":
+    "No section structure detected; the full text will be used",
+
+  // ---- LLM adapter errors ----
+  "llm.requestFailed": "LLM API request failed ({status}): {detail}",
+  "llm.streamFailed": "LLM streaming request failed ({status}): {detail}",
+  "llm.truncated":
+    "Output of model “{model}” was truncated at the max_tokens limit (finish_reason=length). Increase the max output tokens in Settings, or lower the information density / page count and retry.",
+  "llm.noApiKey":
+    "Provider “{label}” has no API key configured. Please set it in Settings.",
+  "llm.retryFailed": "LLM request failed after retries",
+  "llm.streamRetryFailed": "LLM streaming request failed after retries",
 } as const;
 
 export type TranslationKey = keyof typeof en;
