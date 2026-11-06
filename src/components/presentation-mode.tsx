@@ -58,31 +58,31 @@ export function PresentationMode({
     [slideCount],
   );
 
-  // 键盘事件
+  // 键盘事件：放映是模态层，必须在捕获阶段独占按键。
+  // 否则底层预览的 window 冒泡监听会先翻页并触发父组件重渲染，
+  // 导致本监听在派发途中被清理/重挂，本次按键直接丢失（方向键失效）。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      let handled = true;
       if (e.key === "Escape") {
         onExit();
-        return;
-      }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        e.preventDefault();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         goPrev();
-        return;
-      }
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-        e.preventDefault();
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
         goNext();
-        return;
-      }
-      if (e.key === "n" || e.key === "N") {
+      } else if (e.key === "n" || e.key === "N") {
         setShowNotes((v) => !v);
-        return;
+      } else {
+        handled = false;
+      }
+      if (handled) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onExit, goPrev, goNext]); // 鼠标移动时显示操作栏，3s 后自动隐藏
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onExit, goPrev, goNext]);
   useEffect(() => {
     const onMove = () => {
       setShowBar(true);
