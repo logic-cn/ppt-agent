@@ -28,6 +28,8 @@ import { LocalModelSection } from "./LocalModelSection";
 import type { Lang, ThemeMode } from "@/types/preferences";
 import { useT } from "@/hooks/use-page-t";
 import { useDialogFocus } from "@/hooks/use-dialog-focus";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 
 const THEME_OPTIONS: {
   value: ThemeMode;
@@ -102,7 +104,7 @@ export function SettingsDialog({ open, onClose }: Props) {
     >
       <div
         ref={dialogRef}
-        className="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
+        className="mx-4 flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         {secretWarning && (
@@ -127,13 +129,11 @@ export function SettingsDialog({ open, onClose }: Props) {
           <h2 id="settings-dialog-title" className="text-base font-semibold">
             {t("common.settings")}
           </h2>
-          <button
+          <IconButton
+            label={t("common.close")}
             onClick={onClose}
-            className="rounded-md p-1.5 text-text-muted transition hover:bg-bg-hover hover:text-text-primary"
-            aria-label={t("common.close")}
-          >
-            <X className="h-4 w-4" />
-          </button>
+            icon={<X className="h-4 w-4" />}
+          />
         </header>
 
         <div className="flex min-h-0 flex-1">
@@ -228,7 +228,7 @@ function GeneralPanel({
                     className={[
                       "rounded-md px-3 py-1.5 text-sm transition",
                       selected
-                        ? "bg-accent text-white"
+                        ? "bg-accent text-on-accent"
                         : "bg-bg-surface text-text-secondary hover:bg-bg-hover hover:text-text-primary",
                     ].join(" ")}
                   >
@@ -255,7 +255,7 @@ function GeneralPanel({
                     className={[
                       "rounded-md px-3 py-1.5 text-sm transition",
                       selected
-                        ? "bg-accent text-white"
+                        ? "bg-accent text-on-accent"
                         : "bg-bg-surface text-text-secondary hover:bg-bg-hover hover:text-text-primary",
                     ].join(" ")}
                   >
@@ -398,27 +398,30 @@ function AboutUpdateSection({ t }: { t: ReturnType<typeof useT> }) {
         )}
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="md"
             onClick={() => void onCheck()}
+            loading={state.kind === "checking"}
             disabled={busy}
-            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm text-white transition hover:opacity-90 disabled:opacity-50"
           >
-            <RefreshCw
-              className={`h-4 w-4 ${state.kind === "checking" ? "animate-spin" : ""}`}
-            />
+            {state.kind !== "checking" && (
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            )}
             {t("settings.checkUpdate")}
-          </button>
+          </Button>
           {state.kind === "available" && (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => void onInstall()}
               disabled={busy}
-              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-text-secondary transition hover:border-accent/50 hover:text-text-primary disabled:opacity-50"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4" aria-hidden="true" />
               {t("settings.installUpdate")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -467,7 +470,7 @@ function ModelPanel({
         <div className="space-y-5 p-5">
           {/* 当前默认模型：一眼可见 */}
           <div className="flex items-center gap-3 rounded-xl bg-accent-soft/40 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-on-accent">
               <Key className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -649,7 +652,7 @@ function ProviderCard({
           </button>
         )}
         {isActive ? (
-          <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs text-white">
+          <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs text-on-accent">
             {t("settings.inUse")}
           </span>
         ) : (
@@ -681,7 +684,7 @@ function ProviderCard({
             <button
               type="button"
               onClick={() => removeCustomProvider(id as CustomProviderId)}
-              className="rounded bg-danger px-2 py-0.5 text-xs text-white transition hover:bg-danger/90"
+              className="rounded bg-danger px-2 py-0.5 text-xs text-on-danger transition hover:bg-danger/90"
             >
               {t("common.confirm")}
             </button>

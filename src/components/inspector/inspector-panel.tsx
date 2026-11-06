@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { Deck, Slide } from "@/types/deck";
 import { DEFAULT_DESIGN } from "@/types/design";
@@ -35,6 +35,8 @@ export function InspectorPanel({
   onTabChange,
 }: Props) {
   const t = useT();
+  // useId 保证同页多个检查器实例时 tab / panel 的 id 不冲突
+  const tabIdPrefix = useId();
   const [internalTab, setInternalTab] = useState<Tab>("ai");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = (tab: Tab) => {
@@ -148,15 +150,39 @@ export function InspectorPanel({
     { key: "notes", label: t("inspector.tabNotes") },
   ];
 
+  // ARIA Tabs：左右方向键循环切换，Home/End 跳首尾，焦点跟随选中
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const current = tabs.findIndex((tab) => tab.key === activeTab);
+    let next = current;
+    if (e.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+    else if (e.key === "ArrowRight") next = (current + 1) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else next = tabs.length - 1;
+    setActiveTab(tabs[next].key);
+    // 配合 roving tabindex：整组 Tab 只占一个停留点，焦点随选中移动
+    e.currentTarget
+      .querySelectorAll<HTMLElement>('[role="tab"]')
+      [next]?.focus();
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Tab 切换 */}
-      <div className="flex border-b border-border" role="tablist">
+      <div
+        className="flex border-b border-border"
+        role="tablist"
+        onKeyDown={handleTabKeyDown}
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            id={`${tabIdPrefix}-tab-${tab.key}`}
             role="tab"
             aria-selected={activeTab === tab.key}
+            aria-controls={`${tabIdPrefix}-panel-${tab.key}`}
+            tabIndex={activeTab === tab.key ? 0 : -1}
             onClick={() => setActiveTab(tab.key)}
             className={`shrink-0 whitespace-nowrap px-2.5 py-2.5 text-xs font-medium transition-colors ${
               activeTab === tab.key
@@ -170,7 +196,12 @@ export function InspectorPanel({
       </div>
 
       {/* 内容 */}
-      <div className="flex-1 overflow-auto px-3 py-3">
+      <div
+        id={`${tabIdPrefix}-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`${tabIdPrefix}-tab-${activeTab}`}
+        className="flex-1 overflow-auto px-3 py-3"
+      >
         {activeTab === "ai" && <ChatPanel />}
 
         {activeTab === "slide" && slide ? (
@@ -179,7 +210,7 @@ export function InspectorPanel({
               <button
                 onClick={() => void handleGenerateContent()}
                 disabled={generating || generatingAll}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
               >
                 {generating ? (
                   <>

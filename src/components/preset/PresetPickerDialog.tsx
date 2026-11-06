@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
+import { X, Sparkles, ArrowLeft } from "lucide-react";
 import { PresetLibrary } from "./PresetLibrary";
 import { buildDeckSvgs } from "@/engine/svg/pipeline";
 import { buildTemplateGenerationContext } from "@/presets/template-context";
@@ -9,6 +9,9 @@ import { useSettingsStore } from "@/store/settings";
 import type { DeckPreset } from "@/types/preset";
 import type { Deck, Slide } from "@/types/deck";
 import { useT } from "@/hooks/use-page-t";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 
 interface Props {
   open: boolean;
@@ -28,6 +31,9 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // 焦点进入弹窗并困在其中，关闭后归还触发元素
+  useDialogFocus(open, dialogRef, dialogRef);
 
   useEffect(() => {
     return () => {
@@ -124,20 +130,20 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
       onClick={closeSafely}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="mx-4 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl outline-none animate-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 id="preset-picker-title" className="text-base font-semibold">
             {preset ? t("preset.enterTopic") : t("preset.library")}
           </h2>
-          <button
+          <IconButton
+            label={t("common.close")}
             onClick={closeSafely}
-            className="rounded-md p-1.5 text-text-muted transition hover:bg-bg-hover hover:text-text-primary"
-            aria-label={t("common.close")}
-          >
-            <X className="h-4 w-4" />
-          </button>
+            icon={<X className="h-4 w-4" />}
+          />
         </div>
         <div className="overflow-y-auto p-5">
           {!preset ? (
@@ -181,23 +187,21 @@ export function PresetPickerDialog({ open, onClose, onGenerate }: Props) {
                 className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
               />
               {error && <p className="text-xs text-danger">{error}</p>}
-              <button
+              <Button
+                variant="ai"
+                size="md"
+                className="w-full"
+                loading={generating}
                 onClick={handleGenerate}
-                disabled={!topic.trim() || generating}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                disabled={!topic.trim()}
               >
-                {generating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                    {t("common.generating")}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />{" "}
-                    {t("preset.generateOutline")}
-                  </>
+                {!generating && (
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
                 )}
-              </button>
+                {generating
+                  ? t("common.generating")
+                  : t("preset.generateOutline")}
+              </Button>
             </div>
           )}
         </div>
