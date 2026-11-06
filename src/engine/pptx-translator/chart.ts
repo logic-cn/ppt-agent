@@ -1,4 +1,5 @@
 import type PptxGenJS from "pptxgenjs";
+import { DEFAULT_CHART_COLORS } from "../chart-colors";
 import type { SpecLock } from "@/design/spec-lock";
 import { setCanvasScope } from "./elements";
 
@@ -25,17 +26,8 @@ const VALID_CHART_TYPES: PptxGenJS.CHART_NAME[] = [
   "radar",
 ];
 
-// 默认调色板：无 specLock 注入时使用的若干展示色（不含背景/文本类色）。
-const DEFAULT_PALETTE = [
-  "#2563EB",
-  "#FACC15",
-  "#22D3EE",
-  "#8B5CF6",
-  "#EA580C",
-  "#10B981",
-  "#EF4444",
-  "#0EA5E9",
-];
+// 默认调色板：无 specLock 注入时的展示色（单一事实源 engine/chart-colors）
+const DEFAULT_PALETTE = [...DEFAULT_CHART_COLORS];
 
 let SVG_W = 1280;
 let SVG_H = 720;
@@ -100,9 +92,12 @@ export function translateChart(
     return console.warn("[chart] data-chart-data 为空数组，已跳过该图表");
 
   const { dx, dy } = parseTranslate(gEl);
-  // 坐标优先取 x/y 属性，缺省时回退到 transform 的平移偏移，再回退默认区域。
-  const x = numAttr(gEl, "x", dx) || 100;
-  const y = numAttr(gEl, "y", dy) || 100;
+  // 坐标优先取 x/y 属性，缺省（null）时回退 transform 平移偏移，再回退默认区域；
+  // 显式 x="0"/y="0" 是合法坐标，不能用 ||（falsy 会被误换成默认值）
+  const xAttr = numAttr(gEl, "x", Number.NaN);
+  const yAttr = numAttr(gEl, "y", Number.NaN);
+  const x = Number.isNaN(xAttr) ? (dx !== 0 ? dx : 100) : xAttr;
+  const y = Number.isNaN(yAttr) ? (dy !== 0 ? dy : 100) : yAttr;
   const w = numAttr(gEl, "width", 1080);
   const h = numAttr(gEl, "height", 520);
 
@@ -126,9 +121,13 @@ export function translateChart(
         ].filter(Boolean)
       : DEFAULT_PALETTE;
   const effectivePalette = palette.length > 0 ? palette : DEFAULT_PALETTE;
-  const chartColors = points.map(
-    (_, i) => effectivePalette[i % effectivePalette.length],
-  );
+  // pptxgenjs 只对 pie/doughnut 逐点取色；bar/line 传逐点色会让整条系列
+  // 只用第一个颜色之外的色值不可控（预览多色、导出单色的不一致来源之一）。
+  // 逐点着色仅用于饼/环，其余类型整系列取首个主色。
+  const chartColors =
+    type === "pie" || type === "doughnut"
+      ? points.map((_, i) => effectivePalette[i % effectivePalette.length])
+      : [effectivePalette[0]];
 
   // 可选图表标题：SVG 生成端用 data-chart-title 标注
   const chartTitle = gEl.getAttribute("data-chart-title") ?? undefined;

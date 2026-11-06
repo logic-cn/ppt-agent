@@ -1,4 +1,5 @@
 import type { ChartSpec } from "@/types/deck";
+import { DEFAULT_CHART_COLORS } from "../chart-colors";
 import type { SpecLock } from "@/design/spec-lock";
 
 interface Box {
@@ -25,7 +26,8 @@ export interface RemoveChartResult {
   removed: boolean;
 }
 
-const DEFAULT_PALETTE = ["#2563EB", "#FACC15", "#22D3EE", "#8B5CF6", "#EA580C"];
+// 与导出端同源：预览手绘柱条与原生图表颜色一致
+const DEFAULT_PALETTE: string[] = [...DEFAULT_CHART_COLORS];
 
 function escapeXml(value: string): string {
   return value

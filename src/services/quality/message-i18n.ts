@@ -20,6 +20,8 @@ export const QUALITY_MESSAGE_KEYS: Record<string, TranslationKey> = {
   "svg.contractBadViewBox": "quality.svg.contractBadViewBox",
   "svg.contractForbiddenElement": "quality.svg.contractForbiddenElement",
   "svg.contractUnsupportedElement": "quality.svg.contractUnsupportedElement",
+  "svg.contractUnsupportedAttribute":
+    "quality.svg.contractUnsupportedAttribute",
   "svg.contractExternalRef": "quality.svg.contractExternalRef",
   // ---- 几何与文本 ----
   "svg.textOutOfBounds": "quality.svg.textOutOfBounds",
@@ -39,6 +41,8 @@ export const QUALITY_MESSAGE_KEYS: Record<string, TranslationKey> = {
   "svg.chartMissingData": "quality.svg.chartMissingData",
   "svg.chartInvalidJson": "quality.svg.chartInvalidJson",
   "svg.chartEmptyData": "quality.svg.chartEmptyData",
+  "svg.chartInvalidValue": "quality.svg.chartInvalidValue",
+  "svg.chartNegativeValue": "quality.svg.chartNegativeValue",
   "svg.chartMissingMarker": "quality.svg.chartMissingMarker",
   "svg.chartBarCountMismatch": "quality.svg.chartBarCountMismatch",
   "svg.chartBarRatioMismatch": "quality.svg.chartBarRatioMismatch",

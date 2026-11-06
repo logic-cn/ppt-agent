@@ -5,6 +5,9 @@
  * 模型拿到的「每行可容纳 N 字」与导出时的换行计算同源，页面就不会溢出。
  */
 
+/** SVG 文本缺省字号（px）：生成端提示词、校验器与导出端同口径 */
+export const DEFAULT_FONT_PX = 16;
+
 /** CJK（含全角标点）判定：0x2e80 以上按全角一个字号宽（与历史口径一致） */
 export function isCjkChar(ch: string): boolean {
   return ch.charCodeAt(0) > 0x2e80;

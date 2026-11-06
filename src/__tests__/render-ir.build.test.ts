@@ -171,3 +171,65 @@ describe("validateRenderSlides", () => {
     expect(warnings.some((w) => w.code === "missing_image_url")).toBe(true);
   });
 });
+
+describe("无 visual 区布局的图表渲染（UI 测试回归）", () => {
+  it("正文布局带图表：图表落到下半区默认矩形，正文收窄不重叠", () => {
+    const deck = {
+      id: "test",
+      version: 2,
+      title: "测试",
+      design: {} as Deck["design"],
+      slides: [
+        makeSlide({
+          layout: "content",
+          body: "正文文字",
+          chart: {
+            type: "bar",
+            title: "季度营收",
+            data: [
+              { label: "Q1", value: 100 },
+              { label: "Q2", value: 140 },
+            ],
+          },
+        }),
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as unknown as Deck;
+
+    const [rs] = buildRenderSlides(deck, mockTheme());
+    const chartNode = rs.nodes.find((n) => n.type === "chart");
+    expect(chartNode).toBeDefined();
+    // 图表不使用默认 visual（content 布局没有 visual），落到下半区
+    expect(chartNode!.rect.y).toBeGreaterThanOrEqual(0.4);
+    // 正文收窄：底边不超过图表上缘
+    const bodyNode = rs.nodes.find((n) => n.id === "slide-body");
+    expect(bodyNode).toBeDefined();
+    expect(bodyNode!.rect.y + bodyNode!.rect.h).toBeLessThanOrEqual(0.46);
+  });
+
+  it("chart 布局仍使用布局自带的 visual 区（行为不变）", () => {
+    const deck = {
+      id: "test",
+      version: 2,
+      title: "测试",
+      design: {} as Deck["design"],
+      slides: [
+        makeSlide({
+          layout: "chart",
+          chart: {
+            type: "bar",
+            data: [{ label: "A", value: 1 }],
+          },
+        }),
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as unknown as Deck;
+
+    const [rs] = buildRenderSlides(deck, mockTheme());
+    const chartNode = rs.nodes.find((n) => n.type === "chart");
+    expect(chartNode).toBeDefined();
+    expect(chartNode!.rect).toEqual({ x: 0.1, y: 0.22, w: 0.8, h: 0.68 });
+  });
+});

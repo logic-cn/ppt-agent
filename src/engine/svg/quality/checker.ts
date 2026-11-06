@@ -40,7 +40,11 @@ function num(attr: string | undefined): number | undefined {
 }
 
 function attr(part: string, name: string): string | undefined {
-  const m = part.match(new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, "i"));
+  // 名称前不能是字母或连字符：否则 "x" 会命中 rx=/data-x=、"width" 命中
+  // stroke-width=、"y" 命中 ry=，几何检查据此拿到错误尺寸喂进重画环
+  const m = part.match(
+    new RegExp(`(?<![a-zA-Z-])${name}\\s*=\\s*["']([^"']*)["']`, "i"),
+  );
   return m ? m[1] : undefined;
 }
 
@@ -168,7 +172,18 @@ export function checkSvg(svg: string, specLock: SpecLock): SvgIssue[] {
       const tspans = (rawContent.match(/<tspan/gi) ?? []).length;
       const lineCount = Math.max(tspans + 1, 1);
       const estHeight = lineCount * fontSize * 1.2;
-      if (x < 0 || y < 0 || x + estWidth > canvasW) {
+      // text-anchor 决定 x 是锚点而非左缘：middle/end 需先换算实际左缘再判界，
+      // 与 collectTextBoxes 同口径（否则居中长标题被误判越界，且该 error
+      // 在导出门是 hard 级，页面视觉正常也会锁死整份 deck 导出）
+      const anchor = attr(full, "text-anchor");
+      const left =
+        anchor === "middle"
+          ? x - estWidth / 2
+          : anchor === "end"
+            ? x - estWidth
+            : x;
+      const right = left + estWidth;
+      if (left < 0 || y < 0 || right > canvasW) {
         issues.push({
           severity: "error",
           message: `text 越界：x=${x}, y=${y}, 估算宽度=${estWidth.toFixed(0)} 超出画布宽度 ${canvasW}`,
@@ -296,6 +311,37 @@ export function checkChartData(svg: string): SvgIssue[] {
         severity: "error",
         message: `图表数据为空：data-chart-data 需为包含 label/value 的非空数组（${type} 图将无法导出）`,
         code: "svg.chartEmptyData",
+        params: { type },
+        location: "g",
+      });
+      continue;
+    }
+    // 数值合法性：非数值 value 会以 NaN 流入图表 XML；饼/环图的
+    // 负值在原生图表中直接渲染异常（SVG 预览取 abs 掩盖了问题）
+    const badValue = points.some(
+      (p) =>
+        typeof p !== "object" ||
+        p === null ||
+        !Number.isFinite(Number((p as { value?: unknown }).value)),
+    );
+    if (badValue) {
+      issues.push({
+        severity: "error",
+        message: `图表数据非法：value 必须是有限数值（${type} 图）`,
+        code: "svg.chartInvalidValue",
+        params: { type },
+        location: "g",
+      });
+      continue;
+    }
+    if (
+      (type === "pie" || type === "doughnut") &&
+      points.some((p) => Number((p as { value?: unknown }).value) < 0)
+    ) {
+      issues.push({
+        severity: "error",
+        message: `饼/环图数据含负值：负值无法用扇区表达，请改用柱状/折线图或修正数据`,
+        code: "svg.chartNegativeValue",
         params: { type },
         location: "g",
       });

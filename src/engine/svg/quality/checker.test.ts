@@ -972,3 +972,56 @@ describe("端侧实跑第 5 轮回归（E2E 实锤问题）", () => {
     ).toBe(false);
   });
 });
+
+describe("checker 误报回归（attr 词边界 + text-anchor 越界口径）", () => {
+  it("attr 匹配不受同名前缀属性干扰：rx/stroke-width 在前时 x/width 仍取正确值", () => {
+    // rx= 在 x= 之前、stroke-width= 在 width= 之前（旧正则会把 rx 当 x、
+    // stroke-width 当 width 读取，产生错误越界判定）
+    const svg = wrap(
+      `<rect rx="8" x="40" ry="4" y="60" stroke-width="2" width="200" height="80" fill="#111"/>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const errors = issues.filter((i) => i.severity === "error");
+    expect(errors).toHaveLength(0);
+  });
+
+  it("text-anchor=middle 的居中长标题不再误报水平越界", () => {
+    // 44px 中文标题约 15 字（≈660px），中心锚点 x=640 时实际跨度 310–970，
+    // 旧逻辑按左缘 640 + 660 = 1300 > 1280 误判越界（error 级，会硬锁导出）
+    const svg = wrap(
+      `<text x="640" y="120" font-size="44" fill="#111" text-anchor="middle">三季度经营复盘与增长分析汇报</text>`,
+    );
+    const issues = checkSvg(svg, specLock);
+    const bounds = issues.filter((i) => i.code === "svg.textOutOfBounds");
+    expect(bounds).toHaveLength(0);
+  });
+
+  it("text-anchor=end 的右对齐文本按右缘判定（真越界仍报错）", () => {
+    // end 锚点 x=1200，估宽约 320px → 左缘 880，右缘 1200，不越界
+    const ok = wrap(
+      `<text x="1200" y="100" font-size="28" fill="#111" text-anchor="end">季度数据对比分析</text>`,
+    );
+    expect(
+      checkSvg(ok, specLock).filter((i) => i.code === "svg.textOutOfBounds"),
+    ).toHaveLength(0);
+
+    // end 锚点 x=1300 → 右缘 1300 > 1280，真越界必须照报
+    const bad = wrap(
+      `<text x="1300" y="100" font-size="28" fill="#111" text-anchor="end">季度数据对比分析</text>`,
+    );
+    expect(
+      checkSvg(bad, specLock).filter((i) => i.code === "svg.textOutOfBounds")
+        .length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("无锚点 text 仍按左缘判定越界（行为不变）", () => {
+    const svg = wrap(
+      `<text x="1300" y="100" font-size="24" fill="#000">hello</text>`,
+    );
+    expect(
+      checkSvg(svg, specLock).filter((i) => i.code === "svg.textOutOfBounds")
+        .length,
+    ).toBeGreaterThan(0);
+  });
+});

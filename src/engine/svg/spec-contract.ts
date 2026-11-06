@@ -159,6 +159,22 @@ export function validateSvgContract(
     }
   }
 
+  // 裁剪/蒙版/滤镜属性检查：导出端（pptx-translator）不实现这三类效果，
+  // 预览被裁剪的内容导出后会原样画出——契约层直接拦下并回喂重画
+  const clipAttrRegex = /\s(clip-path|mask|filter)\s*=\s*["'][^"']*["']/i;
+  for (const t of tags) {
+    if (t.closing) continue;
+    if (t.name === "svg") continue;
+    const m = t.raw.match(clipAttrRegex);
+    if (m) {
+      errors.push({
+        code: "svg.contractUnsupportedAttribute",
+        params: { attr: m[1].trim(), name: t.name },
+        message: `不支持的属性 ${m[1].trim()}（导出不裁剪/不蒙版，需改用几何形状表达）`,
+      });
+    }
+  }
+
   // 外部引用检查只看真实标签的属性：正文里写 href="https://…" 只是文字
   const hrefRegex = /(href|xlink:href)\s*=\s*["']([^"']+)["']/gi;
   for (const t of tags) {

@@ -125,6 +125,16 @@ export function buildRenderSlide(
   }
 
   // 正文 / bullets / items
+  // 图表让区：布局无 visual 区（如正文）但 slide.chart 存在时，图表落到
+  // 下半区默认矩形，正文相应收窄——否则检查器允许添加的图表在预览与导出
+  // 中都不可见（死数据）。预览与导出共享本 builder，两端口径天然一致。
+  const chartRect: Rect | undefined =
+    layout.visual ??
+    (slide.chart ? { x: 0.08, y: 0.46, w: 0.84, h: 0.46 } : undefined);
+  const bodyClamp =
+    slide.chart && !layout.visual && layout.body
+      ? { ...layout.body, h: Math.max(0.45 - layout.body.y, 0.12) }
+      : layout.body;
   if (
     (isColsLayout(slide.layout) || slide.layout === "two-column") &&
     slide.items &&
@@ -138,19 +148,19 @@ export function buildRenderSlide(
     const area: Rect =
       slide.layout === "two-column" && !hasVisual
         ? { x: 0.08, y: 0.22, w: 0.84, h: 0.7 }
-        : (layout.body ?? { x: 0.08, y: 0.22, w: 0.84, h: 0.7 });
+        : (bodyClamp ?? { x: 0.08, y: 0.22, w: 0.84, h: 0.7 });
     buildColumns(nodes, slide.items.slice(0, colCount), area, colCount, theme);
-  } else if (layout.body) {
+  } else if (bodyClamp) {
     if (slide.bullets && slide.bullets.length > 0) {
       nodes.push(
-        buildBulletTextNode("slide-body", slide.bullets, layout.body, theme),
+        buildBulletTextNode("slide-body", slide.bullets, bodyClamp, theme),
       );
     } else if (slide.body) {
       nodes.push(
         buildTextNode(
           "slide-body",
           slide.body,
-          layout.body,
+          bodyClamp,
           resolveTextStyle({
             fontSize: theme.fontSize.body,
             fontFamily: theme.fonts.body,
@@ -163,11 +173,11 @@ export function buildRenderSlide(
   }
 
   // 图表
-  if (slide.chart && layout.visual) {
+  if (slide.chart && chartRect) {
     nodes.push({
       type: "chart",
       id: "slide-chart",
-      rect: layout.visual,
+      rect: chartRect,
       chart: slide.chart,
       style: {
         showLegend: true,

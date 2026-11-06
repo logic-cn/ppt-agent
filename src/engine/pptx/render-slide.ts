@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import type { RenderSlide, RenderNode } from "@/engine/render-ir/types";
+import { DEFAULT_CHART_COLORS } from "../chart-colors";
 
 export interface SlideInches {
   w: number;
@@ -188,6 +189,14 @@ async function renderImageNode(
 
   try {
     const resp = await fetch(node.src);
+    // 非 2xx / 非图片响应（404 HTML 等）同样按失败处理，否则会把
+    // image/html 塞进 OOXML 产成损坏图片
+    if (
+      !resp.ok ||
+      !(resp.headers.get("content-type") ?? "").startsWith("image/")
+    ) {
+      throw new Error(`图片响应不可用: ${resp.status}`);
+    }
     const blob = await resp.blob();
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -234,7 +243,9 @@ function renderChartNode(
 ): void {
   const r = rect(node.rect, inches);
   const chart = node.chart;
-  const chartColors = node.style.colors ?? ["#f59e0b", "#7c3aed", "#1a56db"];
+  // 与导出端同源的默认调色板（engine/chart-colors 单一事实源）
+  const chartColors =
+    node.style.colors ?? (DEFAULT_CHART_COLORS as unknown as string[]);
 
   const chartData = [
     {

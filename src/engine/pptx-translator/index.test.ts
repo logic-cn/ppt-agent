@@ -734,8 +734,8 @@ describe("translateSvgToSlide 元素覆盖与备注", () => {
       string,
       { fontSize: number },
     ];
-    // 默认 18px × 0.75 = 13.5pt
-    expect(opts.fontSize).toBeCloseTo(13.5, 2);
+    // 缺省字号与校验器同口径（DEFAULT_FONT_PX=16）× 0.75 = 12pt
+    expect(opts.fontSize).toBeCloseTo(12, 2);
   });
 });
 
@@ -1012,5 +1012,70 @@ describe("defineDeckMasters（B3 原生母版 · 逐角色版式）", () => {
     expect(roleMasterForLayout("two-column")).toBe("PPT_AGENT_CONTENT");
     expect(roleMasterForLayout("chart")).toBe("PPT_AGENT_CONTENT");
     expect(roleMasterForLayout(undefined)).toBe("PPT_AGENT_CONTENT");
+  });
+});
+
+describe("translateSvgToSlide 图表组与线段方向回归", () => {
+  it("图表组手绘子元素不再逐个翻译（避免原生图表上叠加重复形状）", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <g data-chart-type="bar" data-chart-data='[{"label":"A","value":1},{"label":"B","value":3}]' x="100" y="200" width="600" height="400">
+        <rect x="140" y="300" width="80" height="260" fill="#1A56DB"/>
+        <rect x="260" y="380" width="80" height="180" fill="#1A56DB"/>
+        <text x="150" y="600" font-size="16" fill="#334155">A</text>
+      </g>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const chartCalls = slide._calls.filter((c) => c.kind === "chart");
+    expect(chartCalls).toHaveLength(1);
+    // 子元素 rect/text 被跳过：不产生任何形状或文本调用
+    expect(slide._calls.filter((c) => c.kind === "shape")).toHaveLength(0);
+    expect(slide._calls.filter((c) => c.kind === "text")).toHaveLength(0);
+  });
+
+  it("负斜率 line 加 flipH 保留原始走向（正斜率不翻转）", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <line x1="18" y1="6" x2="6" y2="18" stroke="#000000"/>
+      <line x1="6" y1="6" x2="18" y2="18" stroke="#000000"/>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const lineCalls = slide._calls.filter((c) => c.kind === "shape");
+    expect(lineCalls).toHaveLength(2);
+    const [negative, positive] = lineCalls.map(
+      (c) => (c.args[1] as { flipH?: boolean }).flipH,
+    );
+    expect(negative).toBe(true);
+    expect(positive).toBeUndefined();
+  });
+
+  it("cross 图标两条对角线导出为交叉的 X 而非重合单线", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <line x1="6" y1="6" x2="18" y2="18" stroke="#334155" stroke-width="2"/>
+      <line x1="18" y1="6" x2="6" y2="18" stroke="#334155" stroke-width="2"/>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const lineCalls = slide._calls.filter((c) => c.kind === "shape");
+    expect(lineCalls).toHaveLength(2);
+    const flips = lineCalls.map(
+      (c) => (c.args[1] as { flipH?: boolean }).flipH,
+    );
+    // 一条正斜率不翻转、一条负斜率翻转 → 两条线在导出中呈现 X
+    expect(flips.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("polyline 逐段绘制且负斜率段翻转", () => {
+    const slide = createMockSlide();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+      <polyline points="100,300 300,200 500,360" stroke="#1A56DB" fill="none"/>
+    </svg>`;
+    translateSvgToSlide(svg, slide);
+    const lineCalls = slide._calls.filter((c) => c.kind === "shape");
+    expect(lineCalls).toHaveLength(2);
+    const flips = lineCalls.map(
+      (c) => (c.args[1] as { flipH?: boolean }).flipH,
+    );
+    expect(flips.filter(Boolean)).toHaveLength(1);
   });
 });

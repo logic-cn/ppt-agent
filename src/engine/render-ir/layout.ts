@@ -21,18 +21,6 @@ export function getColCount(layout: string): number {
   return match ? parseInt(match[1]) : 0;
 }
 
-export const PPTX_W = 13.333;
-export const PPTX_H = 7.5;
-
-export function rectToPptx(rect: Rect) {
-  return {
-    x: rect.x * PPTX_W,
-    y: rect.y * PPTX_H,
-    w: rect.w * PPTX_W,
-    h: rect.h * PPTX_H,
-  };
-}
-
 export function rectToCss(rect: Rect) {
   return {
     left: `${rect.x * 100}%`,

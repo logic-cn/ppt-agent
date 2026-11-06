@@ -25,6 +25,7 @@ import { compactSvgOutput } from "./quality/compact";
 import { finalizeSvgPresets } from "./presets";
 import { finalizeSvgIcons } from "./icons";
 import type { SvgPage } from "./types";
+import { t } from "@/services/i18n";
 
 /** 进度回调：已完成页数、总页数 */
 export type SvgProgress = (done: number, total: number) => void;
@@ -151,7 +152,10 @@ export async function generateSlideSvg(
         !opts.signal?.aborted
       ) {
         throw new Error(
-          `第 ${opts.pageIndex + 1} 页 SVG 生成超时（${timeLimitMs / 1000} 秒），请重试`,
+          t("gen.pageTimeout", {
+            page: opts.pageIndex + 1,
+            seconds: timeLimitMs / 1000,
+          }),
         );
       }
       throw e;

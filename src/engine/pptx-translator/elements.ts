@@ -5,12 +5,17 @@ import {
   resolveGradientFill,
   resolveTokenColor,
   sampleGradient,
+  sampleGradientOpacity,
   setTokenColorScope,
   type ResolvedFill,
 } from "./gradient";
 import { translateChart } from "./chart";
 import { isPresetShape } from "../svg/presets";
-import { glyphWidthPx, estimateTextWidthPx } from "../svg/text-measure";
+import {
+  DEFAULT_FONT_PX,
+  glyphWidthPx,
+  estimateTextWidthPx,
+} from "../svg/text-measure";
 import type { SpecLock } from "@/design/spec-lock";
 
 // 画布作用域（B5）：SVG viewBox 像素 ↔ PPTX 英寸。默认 16:9，
@@ -205,14 +210,47 @@ function textAnchorToAlign(
   return "left";
 }
 
-// SVG opacity / fill-opacity → pptxgenjs transparency（0-100，100 为全透明）
-function transparencyOf(el: Element | undefined): number | undefined {
+// SVG opacity / fill-opacity / stroke-opacity → pptxgenjs transparency
+// （0-100，100 为全透明）。祖先链上的 <g opacity> 乘积一并计入：
+// 浏览器预览里组透明度会累积生效，只看元素自身会让 glassmorphism
+// 等半透明面板导出成全不透明。fill 与 stroke 各取自己的 -opacity 分量。
+function transparencyOf(
+  el: Element | undefined,
+  kind: "fill" | "stroke" = "fill",
+): number | undefined {
   if (!el) return undefined;
-  const raw = el.getAttribute("opacity") ?? el.getAttribute("fill-opacity");
-  if (raw == null) return undefined;
-  const o = Number.parseFloat(raw);
-  if (!Number.isFinite(o) || o >= 1) return undefined;
-  return Math.round((1 - Math.max(0, o)) * 100);
+  const numOr = (v: string | null): number | null => {
+    if (v == null) return null;
+    const o = Number.parseFloat(v);
+    return Number.isFinite(o) ? Math.max(0, Math.min(1, o)) : null;
+  };
+  let opacity = 1;
+  let seen = false;
+  // 元素自身：opacity 通吃，加 (fill|stroke)-opacity 对应分量
+  const own = numOr(el.getAttribute("opacity"));
+  if (own != null) {
+    opacity *= own;
+    seen = true;
+  }
+  const ownKind = numOr(
+    el.getAttribute(kind === "fill" ? "fill-opacity" : "stroke-opacity"),
+  );
+  if (ownKind != null) {
+    opacity *= ownKind;
+    seen = true;
+  }
+  // 祖先：只有 opacity 会向下传播
+  let cur = el.parentElement;
+  while (cur && cur.tagName.toLowerCase() !== "svg") {
+    const o = numOr(cur.getAttribute("opacity"));
+    if (o != null) {
+      opacity *= o;
+      seen = true;
+    }
+    cur = cur.parentElement;
+  }
+  if (!seen || opacity >= 1) return undefined;
+  return Math.round((1 - opacity) * 100);
 }
 
 // transparency 属于 ShapeFillProps（fill 内），合并进 ResolvedFill
@@ -240,14 +278,19 @@ function shapeFill(
 // SVG stroke → pptxgenjs line 选项；无描边时返回零宽线
 function shapeLine(
   el: Element,
-): { color: string; width: number } | { width: 0 } {
+): { color: string; width: number; transparency?: number } | { width: 0 } {
   const stroke = el.getAttribute("stroke");
   if (!stroke || stroke === "none") return { width: 0 };
+  // token 名（stroke="accent"）先经兑换表解析，再判 hex——先判会把
+  // token 描边静默丢掉（存量 deck / 手改 SVG 的描边导出后消失）
+  const resolved = resolveTokenColor(stroke.trim()) ?? stroke.trim();
   // 仅接受 hex 颜色；渐变引用 url(#g)、命名色等非 hex 值无法写入 PPTX，回退无描边
-  if (!/^#?[0-9a-fA-F]{3,8}$/.test(stroke.trim())) return { width: 0 };
+  if (!/^#?[0-9a-fA-F]{3,8}$/.test(resolved)) return { width: 0 };
+  const transparency = transparencyOf(el, "stroke");
   return {
-    color: hexColor(stroke),
+    color: hexColor(resolved),
     width: Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25),
+    ...(transparency != null ? { transparency } : {}),
   };
 }
 
@@ -284,10 +327,18 @@ export function translateSvgToSlide(
   const elements = root.querySelectorAll(
     "rect, circle, ellipse, line, text, tspan, path, g, polygon, polyline, image",
   );
+  // 含 data-chart-type 的 group 视为原生图表标记，走图表翻译；其手绘子元素
+  // （模型柱条/标签、检查器 sync-chart 写回的渲染结果）不再逐个翻译，
+  // 否则原生图表上会叠加一层重复形状。这里收集全部后代用于循环内跳过。
+  const chartGroupDescendants = new Set<Element>();
+  root.querySelectorAll("g[data-chart-type]").forEach((chartGroup) => {
+    chartGroup.querySelectorAll("*").forEach((child) => {
+      chartGroupDescendants.add(child);
+    });
+  });
   elements.forEach((el) => {
+    if (chartGroupDescendants.has(el)) return;
     const tag = el.nodeName.toLowerCase();
-    // 含 data-chart-type 的 group 视为原生图表标记，走图表翻译，
-    // 不再按普通 group 处理其 children，避免重复绘制。
     if (tag === "g") {
       if (el.getAttribute("data-chart-type")) {
         translateChart(el, pptxSlide, specLock);
@@ -452,21 +503,33 @@ function translateRect(
  */
 function drawGradientSlices(
   slide: PptxGenJS.Slide,
-  gradient: { stops: { offset: number; color: string }[] },
+  gradient: {
+    stops: { offset: number; color: string; opacity: number }[];
+    direction: "vertical" | "horizontal";
+  },
   b: { x: number; y: number; w: number; h: number },
   line: ReturnType<typeof shapeLine>,
 ): void {
-  // 等分 n 段，每段用其中点处的插值色（视觉接近连续渐变）
+  // 等分 n 段，每段用其中点处的插值色（视觉接近连续渐变）；
+  // 按渐变主方向切分，横向渐变不再出现 90° 旋转的色带伪影
   const n = Math.max(2, gradient.stops.length);
-  const sliceH = b.h / n;
+  const horizontal = gradient.direction === "horizontal";
+  const sliceW = horizontal ? b.w / n : b.w;
+  const sliceH = horizontal ? b.h : b.h / n;
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n;
+    const op = sampleGradientOpacity(gradient.stops, t);
+    const fill: {
+      color: string;
+      transparency?: number;
+    } = { color: sampleGradient(gradient.stops, t) };
+    if (op < 1) fill.transparency = Math.round((1 - op) * 100);
     slide.addShape("rect", {
-      x: toX(b.x),
-      y: toY(b.y + i * sliceH),
-      w: toW(b.w),
+      x: toX(b.x + (horizontal ? i * sliceW : 0)),
+      y: toY(b.y + (horizontal ? 0 : i * sliceH)),
+      w: toW(sliceW),
       h: toH(sliceH),
-      fill: { color: sampleGradient(gradient.stops, t) },
+      fill,
       line: { width: 0 },
     });
   }
@@ -521,6 +584,20 @@ function translateEllipse(
   }
 }
 
+/**
+ * pptxgenjs 的 line 形状恒为「包围盒左上 → 右下」走向；负斜率线段（↗↙）
+ * 不加翻转会被画成镜像的「╲」，内置 cross 图标等对角线因此失真。
+ * 依据线段斜率符号返回 flipH，使包围盒画法还原原始走向。
+ */
+function lineFlipFor(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): { flipH?: boolean } {
+  return (x2 - x1) * (y2 - y1) < 0 ? { flipH: true } : {};
+}
+
 function translateLine(el: Element, slide: PptxGenJS.Slide): void {
   const x1 = num(el.getAttribute("x1"));
   const y1 = num(el.getAttribute("y1"));
@@ -547,6 +624,7 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
           h: Math.abs(y2 - y1),
         };
   slide.addShape("line", {
+    ...lineFlipFor(x1, y1, x2, y2),
     x: toX(b.x),
     y: toY(b.y),
     w: toW(Math.max(b.w, 0.01)),
@@ -561,11 +639,12 @@ function translateLine(el: Element, slide: PptxGenJS.Slide): void {
 // 解析 font-size：仅接受裸数字或 px 单位，em/% 等其他单位按规范无法换算，回退默认
 function fontSizePxOf(el: Element): number {
   const raw = attrFromChain(el, "font-size");
-  if (raw == null) return 18;
+  // 与质量校验器同口径的缺省字号（SVG 语义缺省 16px；此前 18 与 checker 16 不一致）
+  if (raw == null) return DEFAULT_FONT_PX;
   const m = raw.trim().match(/^(-?\d+(?:\.\d+)?)\s*(px)?$/i);
-  if (!m) return 18;
+  if (!m) return DEFAULT_FONT_PX;
   const n = Number.parseFloat(m[1]);
-  return Number.isFinite(n) && n > 0 ? n : 18;
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_FONT_PX;
 }
 
 // text / tspan 属性链：自身 + 沿 tspan/text 祖先（嵌套 tspan 也能继承），到 <text> 为止
@@ -747,6 +826,11 @@ function translateTextLike(
   yBox += t.ty;
 
   const fill = resolveFill({ fill: attr("fill") ?? undefined }, defsById);
+  // 斜体 / 下划线：预览可呈现，导出此前被静默丢弃
+  const fontStyle = (attr("font-style") ?? "").trim().toLowerCase();
+  const italic = fontStyle === "italic" || fontStyle === "oblique";
+  const textDecoration = (attr("text-decoration") ?? "").trim().toLowerCase();
+  const underline = textDecoration.includes("underline");
   slide.addText(text, {
     x: toX(xBox),
     y: toY(yBox),
@@ -757,6 +841,8 @@ function translateTextLike(
     transparency: transparencyFromChain(el),
     fontFace: ooxmlFontFace(attr("font-family")),
     bold: isBold(attr("font-weight")),
+    italic: italic || undefined,
+    underline: underline ? { style: "sng" } : undefined,
     align: anchor,
     valign: "top",
     wrap: false,
@@ -1242,6 +1328,7 @@ function translatePath(
               h: Math.abs(cls.y2 - cls.y1),
             };
       slide.addShape("line", {
+        ...lineFlipFor(cls.x1, cls.y1, cls.x2, cls.y2),
         x: toX(b.x),
         y: toY(b.y),
         w: toW(Math.max(b.w, 0.01)),
@@ -1296,22 +1383,43 @@ function translatePolygon(
 function translatePolyline(el: Element, slide: PptxGenJS.Slide): void {
   const { xs, ys } = parsePointsAttr(el.getAttribute("points"));
   if (xs.length < 2) return;
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const w = Math.max(...xs) - minX;
-  const h = Math.max(...ys) - minY;
   const color = hexColor(el.getAttribute("stroke") ?? "#000000");
-  const b = transposedBBox(el, minX, minY, w, h);
-  slide.addShape("line", {
-    x: toX(b.x),
-    y: toY(b.y),
-    w: toW(Math.max(b.w, 0.01)),
-    h: toH(Math.max(b.h, 0.01)),
-    line: {
-      color,
-      width: Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25),
-    },
-  });
+  const width = Math.max(toPt(num(el.getAttribute("stroke-width"), 1)), 0.25);
+  const t = elementTransform(el);
+  // 逐段绘制折线：整条按包围盒画对角线会吞掉中间拐点（图标轮廓明显失真）；
+  // 每段沿用负斜率翻转规则，保持原始走向。
+  for (let i = 0; i + 1 < xs.length; i++) {
+    const rx1 = xs[i] + t.tx;
+    const ry1 = ys[i] + t.ty;
+    const rx2 = xs[i + 1] + t.tx;
+    const ry2 = ys[i + 1] + t.ty;
+    // 与其他线形状同口径：rotate 走包围盒旋转近似
+    const b =
+      t.rotate && t.rotate.angle
+        ? rotateBBox(
+            Math.min(rx1, rx2),
+            Math.min(ry1, ry2),
+            Math.abs(rx2 - rx1),
+            Math.abs(ry2 - ry1),
+            t.rotate.angle,
+            t.rotate.cx,
+            t.rotate.cy,
+          )
+        : {
+            x: Math.min(rx1, rx2),
+            y: Math.min(ry1, ry2),
+            w: Math.abs(rx2 - rx1),
+            h: Math.abs(ry2 - ry1),
+          };
+    slide.addShape("line", {
+      ...lineFlipFor(rx1, ry1, rx2, ry2),
+      x: toX(b.x),
+      y: toY(b.y),
+      w: toW(Math.max(b.w, 0.01)),
+      h: toH(Math.max(b.h, 0.01)),
+      line: { color, width },
+    });
+  }
 }
 
 function translateImage(el: Element, slide: PptxGenJS.Slide): void {
@@ -1319,6 +1427,17 @@ function translateImage(el: Element, slide: PptxGenJS.Slide): void {
     el.getAttribute("href") ?? el.getAttribute("xlink:href") ?? undefined;
   // 契约只允许 data: 内嵌图；外部 URL 跳过（导出端不做网络抓取）
   if (!href || !href.startsWith("data:")) return;
+  // 仅接受 base64 编码的位图 data URL：svg+xml / 百分号编码的 data URL
+  // 写进 OOXML 会变成损坏图片，宁可跳过也不产坏图
+  const dataUrlMatch = href.match(
+    /^data:image\/(png|jpeg|jpg|gif|webp);base64,(.+)$/i,
+  );
+  if (!dataUrlMatch) {
+    console.warn(
+      "[pptx-translator] 跳过不支持的图片 data URL（非 base64 位图）",
+    );
+    return;
+  }
   const w = num(el.getAttribute("width"));
   const h = num(el.getAttribute("height"));
   if (w <= 0 || h <= 0) return;
@@ -1330,7 +1449,7 @@ function translateImage(el: Element, slide: PptxGenJS.Slide): void {
     h,
   );
   slide.addImage({
-    data: href.replace(/^data:/, ""),
+    data: `image/${dataUrlMatch[1]};base64,${dataUrlMatch[2]}`,
     x: toX(b.x),
     y: toY(b.y),
     w: toW(b.w),

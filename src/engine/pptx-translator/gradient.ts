@@ -9,12 +9,19 @@
 export interface GradientStop {
   offset: number;
   color: string;
+  /** stop-opacity（缺省 1）：分段近似时转为每片的透明度 */
+  opacity: number;
 }
 
 export interface GradientDef {
   id: string;
   type: "linear" | "radial";
   stops: GradientStop[];
+  /**
+   * 线性渐变主方向（按 x1/y1/x2/y2 判定，缺省纵向）。
+   * 分段近似按方向切分：横向渐变按纵向切会出现色带旋转 90° 的伪影。
+   */
+  direction: "vertical" | "horizontal";
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -64,10 +71,29 @@ export function collectDefs(svg: string): Record<string, GradientDef> {
     g.querySelectorAll("stop").forEach((s) => {
       const color = s.getAttribute("stop-color") ?? "#000000";
       const offset = Number.parseFloat(s.getAttribute("offset") ?? "0") || 0;
-      stops.push({ offset, color: normalizeHex(color) });
+      const opacity =
+        Number.parseFloat(
+          s.getAttribute("stop-opacity") ??
+            s.getAttribute("style")?.match(/stop-opacity:\s*([\d.]+)/)?.[1] ??
+            "1",
+        ) || 0;
+      stops.push({
+        offset,
+        color: normalizeHex(color),
+        opacity: Math.max(0, Math.min(1, opacity)),
+      });
     });
     if (stops.length > 0) {
-      defs[id] = { id, type, stops };
+      // 主方向：|x2-x1| ≥ |y2-y1| 判横向（objectBoundingBox 缺省 0%→100% 纵向）
+      let direction: GradientDef["direction"] = "vertical";
+      if (type === "linear") {
+        const x1 = Number.parseFloat(g.getAttribute("x1") ?? "0") || 0;
+        const x2 = Number.parseFloat(g.getAttribute("x2") ?? "0") || 0;
+        const y1 = Number.parseFloat(g.getAttribute("y1") ?? "0") || 0;
+        const y2 = Number.parseFloat(g.getAttribute("y2") ?? "1") || 0;
+        if (Math.abs(x2 - x1) > Math.abs(y2 - y1)) direction = "horizontal";
+      }
+      defs[id] = { id, type, stops, direction };
     }
   });
   return defs;
@@ -172,6 +198,30 @@ export function resolveGradientFill(
     }
   }
   return { color: plain.color };
+}
+
+/**
+ * 计算渐变在某相对位置 t∈[0,1] 的插值透明度（stop-opacity 分段线性）。
+ * 与 sampleGradient 同口径：分段近似把半透明渐变转成逐片透明，
+ * 而不是整体降级为不透明（glassmorphism 面板导出保真的关键）。
+ */
+export function sampleGradientOpacity(
+  stops: GradientStop[],
+  t: number,
+): number {
+  if (stops.length === 0) return 1;
+  const sorted = [...stops].sort((a, b) => a.offset - b.offset);
+  const clamp = Math.max(0, Math.min(1, t));
+  if (clamp <= sorted[0].offset) return sorted[0].opacity;
+  const last = sorted[sorted.length - 1];
+  if (clamp >= last.offset) return last.opacity;
+  let i = 0;
+  while (i + 1 < sorted.length && sorted[i + 1].offset < clamp) i++;
+  const a = sorted[i];
+  const b = sorted[i + 1];
+  const span = b.offset - a.offset || 1;
+  const k = (clamp - a.offset) / span;
+  return a.opacity + (b.opacity - a.opacity) * k;
 }
 
 /**
