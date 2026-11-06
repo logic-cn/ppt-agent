@@ -163,20 +163,28 @@ export default function Editor() {
     useQualityStore.getState().setReport(null);
     if (isNew && deck) return;
     if (!id) return;
-    load(id).then(() => {
-      const current = useDeckStore.getState().deck;
-      if (!current && !isNew) {
+    load(id)
+      .then(() => {
+        const current = useDeckStore.getState().deck;
+        if (!current && !isNew) {
+          addToast({
+            type: "error",
+            title: t("editor.projectNotFound"),
+            message: t("editor.projectNotFoundMessage"),
+          });
+          const deckStore = useDeckStore.getState();
+          void deckStore.createDeck().then((d) => {
+            window.history.replaceState(null, "", `/editor/${d.id}?new=1`);
+          });
+        }
+      })
+      .catch((e) => {
         addToast({
           type: "error",
           title: t("editor.projectNotFound"),
-          message: t("editor.projectNotFoundMessage"),
+          message: (e as Error).message,
         });
-        const deckStore = useDeckStore.getState();
-        void deckStore.createDeck().then((d) => {
-          window.history.replaceState(null, "", `/editor/${d.id}?new=1`);
-        });
-      }
-    });
+      });
   }, [id, isNew, load, params]);
 
   useKeyboardShortcuts();
@@ -391,7 +399,8 @@ export default function Editor() {
             a.href = url;
             a.download = `${deck.title}.pptx`;
             a.click();
-            URL.revokeObjectURL(url);
+            // 延迟释放：Safari/WKWebView 在点击后立刻 revoke 可能中断下载
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
             return "download" as const;
           }
           if (savePath) {
@@ -415,6 +424,8 @@ export default function Editor() {
         });
       }
     } catch (e) {
+      // 用户在任务面板取消导出时不应提示“导出失败”
+      if ((e as Error).name === "AbortError") return;
       addToast({
         type: "error",
         title: t("editor.exportFailed"),
@@ -551,7 +562,7 @@ export default function Editor() {
                   className="fixed inset-0 z-10"
                   onClick={() => setDesignOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 w-80 origin-top-right rounded-xl border border-border bg-bg-elevated p-3 shadow-lg animate-dialog">
+                <div className="absolute right-0 top-full z-20 mt-1 max-h-[calc(100vh-3.5rem)] w-80 origin-top-right overflow-y-auto rounded-xl border border-border bg-bg-elevated p-3 shadow-lg animate-dialog">
                   <DesignPanel
                     design={deck?.design ?? DEFAULT_DESIGN}
                     onChange={(d) => setDesign(d)}
@@ -991,7 +1002,11 @@ function PanelDivider({
           ? t("model.loaded")
           : modelState === "absent" || modelState === "error"
             ? t("model.absent")
-            : t("model.downloaded")
+            : modelState === "unsupported"
+              ? t("model.unsupported")
+              : modelState === "unknown"
+                ? t("common.loading")
+                : t("model.downloaded")
     : cfg.apiKey
       ? t("settings.inUse")
       : t("settings.missingApiKey");
