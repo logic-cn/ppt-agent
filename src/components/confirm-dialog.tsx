@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useT } from "@/hooks/use-page-t";
 import { useDialogFocus } from "@/hooks/use-dialog-focus";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   open: boolean;
@@ -58,24 +59,20 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-title"
       >
-        <h3 className="mb-2 text-sm font-semibold text-text-primary">
+        <h3
+          id="confirm-title"
+          className="mb-2 text-sm font-semibold text-text-primary"
+        >
           {title}
         </h3>
         <p className="mb-4 text-sm text-text-secondary">{message}</p>
         <div className="flex justify-end gap-2">
-          <button
-            ref={cancelRef}
-            onClick={onCancel}
-            className="rounded-lg border border-border bg-bg-elevated px-3 py-1.5 text-sm text-text-primary hover:bg-bg-hover"
-          >
+          <Button ref={cancelRef} variant="secondary" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className="rounded-lg bg-danger px-3 py-1.5 text-sm text-white hover:bg-danger/90"
-          >
+          </Button>
+          <Button variant="danger" onClick={onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </>

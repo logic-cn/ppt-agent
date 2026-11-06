@@ -44,7 +44,7 @@ export function DesignPanel({
                 className={[
                   "rounded-md px-2.5 py-1.5 text-sm transition",
                   selected
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-on-accent"
                     : "bg-bg-surface text-text-secondary hover:bg-bg-hover hover:text-text-primary",
                 ].join(" ")}
               >

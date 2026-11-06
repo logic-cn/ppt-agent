@@ -50,7 +50,7 @@ export function SlideRedrawButton({
       disabled={loading}
       className={`rounded-md px-3 py-1 text-sm disabled:opacity-50 ${
         stale
-          ? "bg-accent text-white hover:bg-accent-hover"
+          ? "bg-accent text-on-accent hover:bg-accent-hover"
           : "text-text-secondary hover:bg-bg-hover"
       } ${className ?? ""}`}
     >

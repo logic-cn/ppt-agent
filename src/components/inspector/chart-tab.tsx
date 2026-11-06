@@ -119,7 +119,7 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
               data: [{ label: t("inspector.chartSeedLabel"), value: 100 }],
             })
           }
-          className="mt-2 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-xs text-white transition-opacity hover:opacity-90"
+          className="mt-2 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-3 py-1.5 text-xs text-on-accent transition-opacity hover:opacity-90"
         >
           {t("inspector.chartAdd")}
         </button>

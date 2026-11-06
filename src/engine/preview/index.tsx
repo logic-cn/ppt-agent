@@ -172,7 +172,7 @@ export const SlidePreview = memo(function SlidePreview({
               onClick={() => setEditMode((v) => !v)}
               className={`absolute right-2 top-2 z-30 flex items-center gap-1 rounded-md px-2 py-1 text-xs backdrop-blur transition ${
                 editMode
-                  ? "bg-accent text-white"
+                  ? "bg-accent text-on-accent"
                   : "bg-black/40 text-white/90 hover:bg-black/60"
               }`}
               title={
@@ -217,7 +217,7 @@ export const SlidePreview = memo(function SlidePreview({
           {currentSlide.svg && currentSlide.svgStale && (
             <div
               role="status"
-              className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-warning px-3 py-1 text-xs font-medium text-white shadow"
+              className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-warning px-3 py-1 text-xs font-medium text-on-warning shadow"
             >
               <span aria-hidden>⚠</span>
               {t("preview.staleBadge")}
@@ -309,7 +309,7 @@ export const SlideThumbnail = memo(function SlideThumbnail({
         <div
           role="img"
           aria-label={t("preview.staleBadge")}
-          className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] leading-none text-white"
+          className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] leading-none text-on-warning"
         >
           <span aria-hidden>!</span>
         </div>

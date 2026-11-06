@@ -27,7 +27,10 @@ export const en = {
   "common.generating": "Generating…",
   "common.empty": "No content",
   "common.redrawSync": "Redraw Sync",
+  "common.more": "More",
+  "common.notifications": "Notifications",
   "editor.pageOf": "Page {n} of {total}",
+  "editor.backHome": "Back to home",
 
   "settings.secretStoreWarning":
     "Failed to write the key to secure storage. The key you just entered may not have been saved. Please retry or check keychain permissions:",
@@ -355,6 +358,14 @@ export const en = {
   "import.generatingOutline": "Generating outline…",
   "import.complete": "Import complete",
   "import.generatedPages": "Generated a {count}-page outline",
+  "import.applyTitle": "Choose where to place the result",
+  "import.applyAffected":
+    "{count} pages generated. This deck already has {existing} pages — replacing will discard them.",
+  "import.appendEnd": "Append to end",
+  "import.replaceExisting": "Replace existing",
+  "import.replaceConfirmTitle": "Replace existing pages?",
+  "import.replaceConfirmMessage":
+    "The current {count} pages will be replaced by the imported outline. This cannot be undone here.",
   "import.failed": "Import failed",
   "import.unsupportedFormat": "Unsupported file format",
   "import.unsupportedFormatMsg": "Only .pdf, .docx and .md files are supported",
@@ -487,10 +498,12 @@ export const en = {
   "outline.empty":
     "Enter a topic in the right-hand AI chat to generate an outline",
   "outline.pageTitle": "Page Title",
+  "outline.listLabel": "Slide list",
   "outline.qHard": "Has critical quality issues",
   "outline.qSoft": "Has suggestions",
   "outline.moveUp": "Move up",
   "outline.moveDown": "Move down",
+  "outline.dragHandle": "Reorder",
   "outline.deleteSlideConfirm": "Delete this slide?",
 
   "present.empty": "No slides",

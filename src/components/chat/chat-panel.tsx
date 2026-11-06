@@ -815,7 +815,7 @@ export function ChatPanel() {
                   <div className="flex-1" />
                   <button
                     onClick={() => applyPatches(msg)}
-                    className="rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90 shadow-sm shadow-ai/20"
+                    className="rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1 text-xs font-medium text-on-ai transition-opacity hover:opacity-90 shadow-sm shadow-ai/20"
                   >
                     {t("chat.apply")}
                   </button>
@@ -908,7 +908,7 @@ export function ChatPanel() {
             <button
               onClick={() => void handleSubmit()}
               disabled={!input.trim()}
-              className="rounded-lg bg-gradient-to-r from-ai to-ai-hover p-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm shadow-ai/20"
+              className="rounded-lg bg-gradient-to-r from-ai to-ai-hover p-1.5 text-on-ai transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm shadow-ai/20"
             >
               <Sparkles className="h-4 w-4" />
             </button>

@@ -29,7 +29,10 @@ export const zh: Record<TranslationKey, string> = {
   "common.generating": "生成中…",
   "common.empty": "暂无内容",
   "common.redrawSync": "重画同步",
+  "common.more": "更多",
+  "common.notifications": "通知",
   "editor.pageOf": "第 {n} / {total} 页",
+  "editor.backHome": "返回首页",
 
   "settings.secretStoreWarning":
     "密钥写入系统安全存储失败，本次输入的密钥可能未被保存。请重试或检查系统钥匙串权限：",
@@ -332,6 +335,14 @@ export const zh: Record<TranslationKey, string> = {
   "import.generatingOutline": "正在生成大纲…",
   "import.complete": "导入完成",
   "import.generatedPages": "已生成 {count} 页大纲",
+  "import.applyTitle": "选择结果落点",
+  "import.applyAffected":
+    "已生成 {count} 页。当前项目已有 {existing} 页，替换会丢弃现有内容。",
+  "import.appendEnd": "追加到末尾",
+  "import.replaceExisting": "替换现有页面",
+  "import.replaceConfirmTitle": "替换现有页面？",
+  "import.replaceConfirmMessage":
+    "当前 {count} 页将被导入结果替换，此操作不可撤销。",
   "import.failed": "导入失败",
   "import.unsupportedFormat": "不支持的文件格式",
   "import.unsupportedFormatMsg": "仅支持 .pdf、.docx 和 .md 文件",
@@ -459,10 +470,12 @@ export const zh: Record<TranslationKey, string> = {
   "outline.addSlide": "添加页面",
   "outline.empty": "在右侧 AI 助手聊天框中输入主题生成大纲",
   "outline.pageTitle": "页面标题",
+  "outline.listLabel": "页面列表",
   "outline.qHard": "存在严重质量问题",
   "outline.qSoft": "存在提示",
   "outline.moveUp": "上移",
   "outline.moveDown": "下移",
+  "outline.dragHandle": "拖拽排序",
   "outline.deleteSlideConfirm": "删除这一页？",
 
   "present.empty": "暂无幻灯片",

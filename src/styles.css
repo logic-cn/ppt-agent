@@ -8,20 +8,30 @@
     --bg-surface: 245 244 240;
     --bg-elevated: 255 255 255;
     --bg-hover: 238 237 232;
-    --border: 232 231 226;
-    --border-strong: 212 211 206;
+    /* 装饰性分隔线：保证可见但不抢层级 */
+    --border: 205 204 198;
+    /* 交互控件边界：对 bg/base 与 elevated ≥3:1（WCAG 1.4.11） */
+    --border-strong: 139 138 134;
     --text-primary: 26 26 30;
-    --text-secondary: 107 107 118;
-    --text-muted: 154 154 168;
-    --accent: 79 111 255;
-    --accent-hover: 59 95 255;
+    /* 次级/辅助文字：对 base 分别约 7.4:1 与 5.0:1 */
+    --text-secondary: 82 82 94;
+    --text-muted: 108 108 120;
+    /* 强调底色：白字约 5.6:1，作为文字对白底约 5.6:1 */
+    --accent: 59 87 232;
+    --accent-hover: 45 68 206;
     --accent-soft: 238 240 255;
-    --ai: 255 107 107;
-    --ai-hover: 255 82 82;
-    --ai-soft: 255 245 245;
-    --success: 34 197 94;
-    --warning: 245 158 11;
-    --danger: 239 68 68;
+    --ai: 192 53 55;
+    --ai-hover: 168 40 43;
+    --ai-soft: 255 241 241;
+    --success: 21 128 61;
+    --warning: 146 64 14;
+    --danger: 180 35 24;
+    /* 彩色底上的文字：浅色主题统一用白字 */
+    --on-accent: 255 255 255;
+    --on-ai: 255 255 255;
+    --on-success: 255 255 255;
+    --on-warning: 255 255 255;
+    --on-danger: 255 255 255;
   }
 
   .dark {
@@ -29,13 +39,15 @@
     --bg-surface: 24 24 27;
     --bg-elevated: 28 28 32;
     --bg-hover: 39 39 42;
-    --border: 39 39 42;
-    --border-strong: 63 63 70;
+    /* 深色下避免 1.1:1 的“消失边框”，装饰线约 1.7:1 */
+    --border: 60 60 68;
+    --border-strong: 115 115 123;
     --text-primary: 228 228 231;
     --text-secondary: 161 161 170;
-    --text-muted: 113 113 122;
-    --accent: 99 123 255;
-    --accent-hover: 124 145 255;
+    /* 辅助文字对 elevated 约 4.9:1 */
+    --text-muted: 138 138 148;
+    --accent: 110 136 255;
+    --accent-hover: 140 162 255;
     --accent-soft: 40 45 75;
     --ai: 255 107 107;
     --ai-hover: 255 130 130;
@@ -43,6 +55,12 @@
     --success: 52 211 153;
     --warning: 251 191 36;
     --danger: 248 113 113;
+    /* 深色主题彩色底较亮，改用深色文字保证 ≥4.5:1 */
+    --on-accent: 18 18 20;
+    --on-ai: 18 18 20;
+    --on-success: 18 18 20;
+    --on-warning: 18 18 20;
+    --on-danger: 18 18 20;
   }
 
   * {
@@ -62,6 +80,14 @@
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
     @apply bg-bg-base text-text-primary;
+  }
+
+  /* 表单控件边界统一使用高对比令牌：保证输入框/下拉框可被识别（WCAG 1.4.11）。
+     卡片与分隔线仍用低对比 border，避免整屏描边造成视觉噪音。 */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    border-color: rgb(var(--border-strong));
   }
 
   /* 键盘导航可见性：仅 focus-visible 显示焦点环，不影响鼠标点击 */

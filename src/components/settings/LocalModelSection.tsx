@@ -91,7 +91,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
           setConfirmDelete(false);
           void remove();
         }}
-        className="rounded bg-danger px-2 py-0.5 text-white transition hover:bg-danger/90"
+        className="rounded bg-danger px-2 py-0.5 text-on-danger transition hover:bg-danger/90"
       >
         {t("common.confirm")}
       </button>
@@ -171,7 +171,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={() => void download()}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-white transition hover:opacity-90"
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
           >
             <Download className="h-4 w-4" />
             {t("model.download")}
@@ -185,7 +185,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
             <button
               type="button"
               onClick={() => void load()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white transition hover:opacity-90"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
             >
               {t("model.load")}
             </button>
@@ -208,7 +208,7 @@ export function LocalModelSection({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={() => void download()}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-white transition hover:opacity-90"
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm text-on-accent transition hover:opacity-90"
           >
             <Download className="h-4 w-4" />
             {t("model.download")}

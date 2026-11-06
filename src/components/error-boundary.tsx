@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
         </div>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm text-white transition hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm text-on-accent transition hover:opacity-90"
         >
           <RotateCw className="h-4 w-4" />
           {t("errorBoundary.reload")}

@@ -467,7 +467,7 @@ export function SvgEditorCanvas({
               />
               <button
                 type="submit"
-                className="mt-1 w-full rounded bg-gradient-to-r from-ai to-ai-hover px-2 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                className="mt-1 w-full rounded bg-gradient-to-r from-ai to-ai-hover px-2 py-1 text-xs font-medium text-on-ai transition-opacity hover:opacity-90"
               >
                 {t("preview.aiEditSubmit")}
               </button>

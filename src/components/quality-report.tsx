@@ -115,7 +115,7 @@ export function QualityReport({
         <button
           onClick={onAutoFix}
           disabled={fixing || autoFixableCount === 0}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-ai to-ai-hover px-3 py-1.5 text-xs font-medium text-on-ai transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm shadow-ai/20"
         >
           <Wand2 className="h-3.5 w-3.5" />
           {fixing

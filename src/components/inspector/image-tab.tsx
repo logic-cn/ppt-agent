@@ -423,7 +423,7 @@ export function ImageTab({ slide, onUpdate }: Props) {
             </span>
             <button
               onClick={handleDelete}
-              className="rounded-lg bg-danger px-3 py-1.5 text-xs text-white hover:bg-danger/90"
+              className="rounded-lg bg-danger px-3 py-1.5 text-xs text-on-danger hover:bg-danger/90"
             >
               {t("common.confirm")}
             </button>

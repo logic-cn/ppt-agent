@@ -34,6 +34,14 @@ const config: Config = {
         success: "rgb(var(--success) / <alpha-value>)",
         warning: "rgb(var(--warning) / <alpha-value>)",
         danger: "rgb(var(--danger) / <alpha-value>)",
+        /* 彩色底上的文字色：浅色=白、深色=深灰，保证两种主题对比度 */
+        on: {
+          accent: "rgb(var(--on-accent) / <alpha-value>)",
+          ai: "rgb(var(--on-ai) / <alpha-value>)",
+          success: "rgb(var(--on-success) / <alpha-value>)",
+          warning: "rgb(var(--on-warning) / <alpha-value>)",
+          danger: "rgb(var(--on-danger) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: [
