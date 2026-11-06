@@ -40,8 +40,10 @@ export default function Home() {
   const addToast = useToastStore((s) => s.add);
 
   useEffect(() => {
-    void loadRecent();
-    const onShow = () => void loadRecent();
+    // 列表加载失败不产生未处理的 Promise 拒绝；失败时保持空状态，
+    // 页面重新获得焦点时会自动重试
+    void loadRecent().catch(() => {});
+    const onShow = () => void loadRecent().catch(() => {});
     window.addEventListener("pageshow", onShow);
     window.addEventListener("focus", onShow);
     return () => {
@@ -354,10 +356,18 @@ export default function Home() {
             message={t("home.deleteProjectConfirm")}
             confirmText={t("common.delete")}
             onConfirm={async () => {
-              if (deleteTarget) {
+              if (!deleteTarget) return;
+              try {
                 await deleteDeck(deleteTarget);
                 setDeleteTarget(null);
-                void loadRecent();
+                void loadRecent().catch(() => {});
+              } catch (e) {
+                // 删除失败保留确认框，让用户可重试而不是静默失败
+                addToast({
+                  type: "error",
+                  title: t("common.error"),
+                  message: (e as Error).message,
+                });
               }
             }}
             onCancel={() => setDeleteTarget(null)}
