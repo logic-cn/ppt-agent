@@ -117,6 +117,9 @@ export function ImportDialog({ open, onClose }: Props) {
         doc.sections.map((s) => s.id),
       );
     } else {
+      // 长文档需用户确认章节后再生成，这里必须结束“解析中”状态，
+      // 否则生成按钮会一直处于 loading 且被禁用
+      setImporting(false);
       setStep("parsed");
     }
   };
@@ -158,7 +161,8 @@ export function ImportDialog({ open, onClose }: Props) {
         useQualityStore.getState().setReport(
           current
             ? checkDeckQuality(current, {
-                sourceText: parsed?.rawText ?? undefined,
+                // 直接导入时 parsed state 尚未提交，必须使用入参 doc
+                sourceText: doc.rawText || undefined,
               })
             : null,
         );
@@ -172,6 +176,11 @@ export function ImportDialog({ open, onClose }: Props) {
       onClose();
     } catch (e) {
       activeJobRef.current = null;
+      // 用户主动取消（Esc/点遮罩）时，弹框状态已被重置，不能再报错或回填 parsed
+      if ((e as Error).name === "AbortError") {
+        setImporting(false);
+        return;
+      }
       addToast({
         type: "error",
         title: t("import.failed"),
@@ -179,20 +188,18 @@ export function ImportDialog({ open, onClose }: Props) {
           (e as Error).message +
           appendErrorSuggestion((e as Error).message, (key) => t(key)),
       });
-      if (doc) {
-        setStep("parsed");
-        setImporting(false);
-      }
-    } finally {
-      if (step === "generating") setImporting(false);
+      setStep("parsed");
+      setImporting(false);
     }
   };
 
   const handleFile = async (file: File) => {
     if (importing) return;
     setImporting(true);
+    // 扩展名大小写不敏感：.MD / .PDF / .DOCX 同样应被接受
+    const lowerName = file.name.toLowerCase();
     try {
-      if (file.name.endsWith(".docx")) {
+      if (lowerName.endsWith(".docx")) {
         const result = await importDocx(file);
         await handleParseSuccess({
           type: "docx",
@@ -205,7 +212,7 @@ export function ImportDialog({ open, onClose }: Props) {
             level: 1,
           })),
         });
-      } else if (file.name.endsWith(".pdf")) {
+      } else if (lowerName.endsWith(".pdf")) {
         const result = await importPdf(file);
         await handleParseSuccess({
           type: "pdf",
@@ -218,7 +225,7 @@ export function ImportDialog({ open, onClose }: Props) {
             level: 1,
           })),
         });
-      } else if (file.name.endsWith(".md")) {
+      } else if (lowerName.endsWith(".md")) {
         const result = await importMarkdown(file);
         await handleParseSuccess({
           type: "markdown",
@@ -502,6 +509,8 @@ export function ImportDialog({ open, onClose }: Props) {
                 accept=".docx,.md,.pdf"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
+                  // 清空 value，允许解析失败后重新选择同一个文件
+                  e.target.value = "";
                   if (f) void handleFile(f);
                 }}
                 className="hidden"
