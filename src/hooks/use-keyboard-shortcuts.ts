@@ -35,8 +35,11 @@ export function useKeyboardShortcuts() {
         target.isContentEditable;
 
       const meta = e.metaKey || e.ctrlKey;
+      // 统一小写比较：Shift+Z 在部分 WebView/键盘布局下 e.key 仍是 "z"，
+      // 旧逻辑会导致 Cmd/Ctrl+Shift+Z 落到下方的“撤销”分支
+      const key = e.key.toLowerCase();
 
-      if (meta && e.key === "s") {
+      if (meta && key === "s") {
         e.preventDefault();
         void persist().then(() => {
           useToastStore.getState().add({
@@ -51,15 +54,13 @@ export function useKeyboardShortcuts() {
       // 在输入框中不触发撤销/重做，避免与原生文本编辑冲突
       if (isInput) return;
 
-      if (meta && e.shiftKey && e.key === "Z") {
+      if (meta && key === "z") {
         e.preventDefault();
-        if (canRedo) redo();
-        return;
-      }
-
-      if (meta && e.key === "z") {
-        e.preventDefault();
-        if (canUndo) undo();
+        if (e.shiftKey) {
+          if (canRedo) redo();
+        } else if (canUndo) {
+          undo();
+        }
         return;
       }
     };

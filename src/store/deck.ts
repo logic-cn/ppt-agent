@@ -170,7 +170,15 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
       if (deck) {
         clearRenderCache();
         lastCoalesce = { key: null, at: 0 };
-        set({ deck, loading: false, dirty: false, past: [], future: [] });
+        set({
+          deck,
+          loading: false,
+          dirty: false,
+          past: [],
+          future: [],
+          canUndo: false,
+          canRedo: false,
+        });
       } else {
         set({ deck: null, loading: false });
       }
@@ -185,7 +193,16 @@ export const useDeckStore = create<DeckStore>((set, get) => ({
     const deck = createEmptyDeck(title ?? t("editor.untitled"));
     await saveDeck(deck);
     clearRenderCache();
-    set({ deck, dirty: false, past: [], future: [] });
+    // 新项目不能继承上一个项目的历史合并键，否则首次编辑可能无法撤销
+    lastCoalesce = { key: null, at: 0 };
+    set({
+      deck,
+      dirty: false,
+      past: [],
+      future: [],
+      canUndo: false,
+      canRedo: false,
+    });
     return deck;
   },
 
