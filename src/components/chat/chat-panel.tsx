@@ -562,7 +562,6 @@ export function ChatPanel() {
                     patches,
                     baseUpdatedAt: deck.updatedAt,
                   };
-                  return { kind: "patches" as const, patches };
                 } catch (e) {
                   if (job.signal.aborted) throw e;
                   // 本地兜底：用简单规则解析并执行（无 key / AI 失败场景）
