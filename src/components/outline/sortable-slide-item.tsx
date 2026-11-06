@@ -148,7 +148,15 @@ export const SortableSlideItem = memo(function SortableSlideItem({
             <span className="mx-0.5 h-3 w-px bg-border" />
 
             <button
-              onClick={() => index > 0 && moveSlide(index, index - 1)}
+              onClick={(e) => {
+                // 阻止冒泡，避免移动后父容器再把选中索引设回旧位置
+                e.stopPropagation();
+                if (index > 0) {
+                  moveSlide(index, index - 1);
+                  // 选中跟随被移动的页面，避免画布跳成相邻页
+                  onSelect?.(index - 1);
+                }
+              }}
               disabled={index === 0}
               className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
               title={t("outline.moveUp")}
@@ -156,7 +164,13 @@ export const SortableSlideItem = memo(function SortableSlideItem({
               <ChevronUp className="h-3.5 w-3.5" />
             </button>
             <button
-              onClick={() => index < total - 1 && moveSlide(index, index + 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (index < total - 1) {
+                  moveSlide(index, index + 1);
+                  onSelect?.(index + 1);
+                }
+              }}
               disabled={index === total - 1}
               className="rounded p-0.5 text-text-muted hover:bg-bg-hover hover:text-text-primary disabled:opacity-20"
               title={t("outline.moveDown")}

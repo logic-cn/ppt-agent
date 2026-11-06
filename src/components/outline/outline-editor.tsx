@@ -61,8 +61,18 @@ export function OutlineEditor({
     if (!over || active.id === over.id) return;
     const oldIndex = slides.findIndex((s) => s.id === active.id);
     const newIndex = slides.findIndex((s) => s.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      moveSlide(oldIndex, newIndex);
+    if (oldIndex === -1 || newIndex === -1) return;
+    moveSlide(oldIndex, newIndex);
+    // 拖拽后按 id 重新定位选中页：排序不应让画布跳到另一页
+    const selectedId = slides[selectedIndex ?? -1]?.id;
+    if (selectedId && onSelectSlide) {
+      const reordered = [...slides];
+      const [moved] = reordered.splice(oldIndex, 1);
+      reordered.splice(newIndex, 0, moved);
+      const nextIndex = reordered.findIndex((s) => s.id === selectedId);
+      if (nextIndex !== -1 && nextIndex !== selectedIndex) {
+        onSelectSlide(nextIndex);
+      }
     }
   };
 
