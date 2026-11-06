@@ -94,3 +94,70 @@ describe("OpenAICompatProvider.chat 传输层重试", () => {
     expect(fetchMock.mock.calls.length).toBe(3);
   });
 });
+
+describe("OpenAICompatProvider.chat 截断检测与推理模型兜底", () => {
+  it("finish_reason=length 时抛出可行动的截断错误（不静默返回坏 JSON）", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [
+          { message: { content: '{"partial":' }, finish_reason: "length" },
+        ],
+      }),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+
+    const p = new OpenAICompatProvider(baseConfig);
+    await expect(p.chat(makeReq({ responseFormat: "json" }))).rejects.toThrow(
+      /截断|finish_reason=length/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("content 为空时回退读取 reasoning_content（推理模型）", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "",
+              reasoning_content: "推理结论：答案为 42",
+            },
+            finish_reason: "stop",
+          },
+        ],
+      }),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+
+    const p = new OpenAICompatProvider(baseConfig);
+    const res = await p.chat(makeReq());
+    expect(res.content).toBe("推理结论：答案为 42");
+  });
+
+  it("content 正常时不使用 reasoning_content", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "最终答案",
+              reasoning_content: "推理过程……",
+            },
+            finish_reason: "stop",
+          },
+        ],
+      }),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+
+    const p = new OpenAICompatProvider(baseConfig);
+    const res = await p.chat(makeReq());
+    expect(res.content).toBe("最终答案");
+  });
+});

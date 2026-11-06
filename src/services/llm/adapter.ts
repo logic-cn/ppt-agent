@@ -2,6 +2,7 @@ import type { ChatRequest, ChatResponse } from "@/types/llm";
 import type { LLMProviderConfig } from "@/types/llm";
 import { isLocalProviderConfig } from "@/types/llm";
 import { httpRequest } from "@/services/http-client";
+import { t } from "@/services/i18n";
 import { LocalLlmProvider } from "./local-provider";
 import type { FailureKind } from "@/services/recovery";
 
@@ -10,6 +11,30 @@ class NonRetryableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "NonRetryableError";
+  }
+}
+
+/** OpenAI 兼容响应里 message 字段的宽松视图（含推理模型的 reasoning_content） */
+interface CompatMessage {
+  content?: unknown;
+  reasoning_content?: unknown;
+}
+
+/** 从兼容响应提取文本内容；content 缺失时回退推理模型的 reasoning_content */
+function extractMessageText(message: CompatMessage | undefined): string {
+  const content = typeof message?.content === "string" ? message.content : "";
+  if (content.trim()) return content;
+  const reasoning = message?.reasoning_content;
+  return typeof reasoning === "string" ? reasoning : "";
+}
+
+/**
+ * 校验 finish_reason：length 表示输出被 max_tokens 截断。
+ * 截断的 JSON/SVG 下游必然解析失败且报错误导用户，这里直接给出可行动的错误。
+ */
+function assertNotTruncated(finishReason: unknown, model: string): void {
+  if (finishReason === "length") {
+    throw new NonRetryableError(t("llm.truncated", { model }));
   }
 }
 
@@ -74,16 +99,19 @@ export class OpenAICompatProvider {
           // 4xx（鉴权/参数错误）属于业务错误，标记后直接抛出，不应重试
           if (res.status >= 400 && res.status < 500) {
             throw new NonRetryableError(
-              `LLM API 调用失败 (${res.status}): ${err}`,
+              t("llm.requestFailed", { status: res.status, detail: err }),
             );
           }
           // 5xx 等服务端瞬态错误，进入下一轮传输层重试
-          lastError = new Error(`LLM API 调用失败 (${res.status}): ${err}`);
+          lastError = new Error(
+            t("llm.requestFailed", { status: res.status, detail: err }),
+          );
           continue;
         }
 
         const data = await res.json();
-        const content = data.choices?.[0]?.message?.content ?? "";
+        assertNotTruncated(data.choices?.[0]?.finish_reason, req.model);
+        const content = extractMessageText(data.choices?.[0]?.message);
         return {
           content,
           usage: {
@@ -99,7 +127,7 @@ export class OpenAICompatProvider {
         continue;
       }
     }
-    throw lastError ?? new Error("LLM 调用重试失败");
+    throw lastError ?? new Error(t("llm.retryFailed"));
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<string> {
@@ -146,12 +174,15 @@ export class OpenAICompatProvider {
                 `LLM 流式调用失败 (${res.status}): ${err}`,
               );
             }
-            lastError = new Error(`LLM 流式调用失败 (${res.status}): ${err}`);
+            lastError = new Error(
+              t("llm.streamFailed", { status: res.status, detail: err }),
+            );
             continue;
           }
 
           const data = await res.json();
-          const content = data.choices?.[0]?.message?.content ?? "";
+          assertNotTruncated(data.choices?.[0]?.finish_reason, req.model);
+          const content = extractMessageText(data.choices?.[0]?.message);
           if (content) yield content;
           return;
         } catch (e) {
@@ -161,7 +192,7 @@ export class OpenAICompatProvider {
           continue;
         }
       }
-      throw lastError ?? new Error("LLM 流式调用重试失败");
+      throw lastError ?? new Error(t("llm.streamRetryFailed"));
     }
 
     // 浏览器环境：用原生 fetch 流式，带 120s 超时，带传输层重试
@@ -194,10 +225,12 @@ export class OpenAICompatProvider {
           const err = await res.text().catch(() => "未知错误");
           if (res.status >= 400 && res.status < 500) {
             throw new NonRetryableError(
-              `LLM 流式调用失败 (${res.status}): ${err}`,
+              t("llm.streamFailed", { status: res.status, detail: err }),
             );
           }
-          lastError = new Error(`LLM 流式调用失败 (${res.status}): ${err}`);
+          lastError = new Error(
+            t("llm.streamFailed", { status: res.status, detail: err }),
+          );
           continue;
         }
 
@@ -239,7 +272,7 @@ export class OpenAICompatProvider {
         continue;
       }
     }
-    throw lastError ?? new Error("LLM 流式调用重试失败");
+    throw lastError ?? new Error(t("llm.streamRetryFailed"));
   }
 }
 
@@ -258,9 +291,7 @@ export async function createProviderAsync(
     return new LocalLlmProvider(config);
   }
   if (!config.apiKey) {
-    throw new Error(
-      `Provider「${config.label}」未配置 API Key，请前往设置页填写。`,
-    );
+    throw new Error(t("llm.noApiKey", { label: config.label }));
   }
   return new OpenAICompatProvider(config);
 }
