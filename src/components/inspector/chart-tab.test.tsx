@@ -120,6 +120,22 @@ describe("ChartTab", () => {
     expect(patch.svgStale).toBe(true);
   });
 
+  it("输入标题后立刻切换图表类型，不会被防抖快照覆盖回旧类型", () => {
+    vi.useFakeTimers();
+    const onUpdate = vi.fn();
+    const slide = { ...makeSlide("", true), svg: undefined };
+    render(<ChartTab slide={slide} specLock={spec} onUpdate={onUpdate} />);
+    const titleInput = screen.getByDisplayValue("旧标题");
+    const typeSelect = screen.getByRole("combobox");
+    fireEvent.change(titleInput, { target: { value: "季度营收" } });
+    fireEvent.change(typeSelect, { target: { value: "pie" } });
+    vi.advanceTimersByTime(300);
+    vi.useRealTimers();
+    const patch = onUpdate.mock.calls.at(-1)?.[0] as Partial<Slide>;
+    expect(patch.chart?.type).toBe("pie");
+    expect(patch.chart?.title).toBe("季度营收");
+  });
+
   it("无 SVG 的历史页只更新结构化图表数据", async () => {
     const onUpdate = vi.fn();
     const slide = { ...makeSlide("", true), svg: undefined };

@@ -93,7 +93,13 @@ function WebImageSearchPanel({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void handleSearch();
+            // 中文输入法选词回车不触发搜索
+            if (
+              e.key === "Enter" &&
+              !(e.nativeEvent as KeyboardEvent).isComposing
+            ) {
+              void handleSearch();
+            }
           }}
           placeholder={t("inspector.imageSearchPlaceholder")}
           aria-label={t("inspector.imageSearchPlaceholder")}
@@ -285,7 +291,11 @@ export function ImageTab({ slide, onUpdate }: Props) {
             <input
               value={image.alt}
               onChange={(e) =>
-                onUpdate({ image: { ...image, alt: e.target.value } })
+                onUpdate({
+                  image: { ...image, alt: e.target.value },
+                  // 仅改替代文本不影响现有 SVG 画面，保持过期标记不变
+                  svgStale: slide.svgStale,
+                })
               }
               aria-label={t("inspector.imageAlt")}
               className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"

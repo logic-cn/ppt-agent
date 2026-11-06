@@ -64,13 +64,18 @@ export function SlideTab({ slide, onUpdate }: Props) {
       setBodyDraft(incoming.body);
       lastCommitted.current = { ...incoming, id: slide.id };
     }
-    // 切换页面时清掉上一页未触发的防抖定时器，避免把旧草稿写到新页
+  }, [slide.id, slide.title, slide.subtitle, slide.body]);
+
+  // 仅在切换页面/卸载时清理定时器。不能放在上面的同步 effect 里：
+  // 某字段落盘引起 props 变化时，会把其它字段仍在等待的防抖定时器一并清掉，
+  // 导致刚输入的内容永远不会被持久化。
+  useEffect(() => {
     return () => {
       if (titleTimer.current) clearTimeout(titleTimer.current);
       if (subtitleTimer.current) clearTimeout(subtitleTimer.current);
       if (bodyTimer.current) clearTimeout(bodyTimer.current);
     };
-  }, [slide.id, slide.title, slide.subtitle, slide.body]);
+  }, [slide.id]);
 
   const debouncedUpdate = (
     timer: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>,

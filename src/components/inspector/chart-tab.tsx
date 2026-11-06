@@ -26,11 +26,22 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
   const t = useT();
   const chart = slide.chart;
   const commitTimer = useRef<ReturnType<typeof setTimeout>>();
+  // 记录尚未落盘的草稿：结构类修改（切类型/增删行）必须基于草稿合并，
+  // 否则 300ms 后晚到的旧快照会把用户刚选的类型/新增行覆盖回去
+  const pendingChart = useRef<ChartSpec | null>(null);
 
   // 切换页面时丢弃未落库的输入，避免写进上一页
-  useEffect(() => () => clearTimeout(commitTimer.current), [slide.id]);
+  useEffect(
+    () => () => {
+      clearTimeout(commitTimer.current);
+      pendingChart.current = null;
+    },
+    [slide.id],
+  );
 
   const applyChart = (next: ChartSpec | undefined) => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    pendingChart.current = null;
     if (!slide.svg) {
       onUpdate({ chart: next });
       return;
@@ -53,27 +64,35 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
     });
   };
 
+  /** 当前最新值：优先使用等待落盘的草稿，保证结构修改不丢失文本输入 */
+  const currentChart = () => pendingChart.current ?? chart;
+
   const updateChart = (patch: Partial<ChartSpec>) => {
-    applyChart({ ...chart!, ...patch });
+    applyChart({ ...currentChart()!, ...patch });
   };
 
   /** 连续输入合并为一次历史（§9.5），与 slide-tab 的防抖约定一致 */
   const scheduleChart = (next: ChartSpec) => {
     if (commitTimer.current) clearTimeout(commitTimer.current);
-    commitTimer.current = setTimeout(() => applyChart(next), 300);
+    pendingChart.current = next;
+    commitTimer.current = setTimeout(() => {
+      const latest = pendingChart.current;
+      if (latest) applyChart(latest);
+    }, 300);
   };
 
   const updateChartText = (patch: Partial<ChartSpec>) => {
-    scheduleChart({ ...chart!, ...patch });
+    scheduleChart({ ...currentChart()!, ...patch });
   };
 
   const addRow = () => {
-    const data = [...(chart?.data ?? []), { label: "", value: 0 }];
-    applyChart({ ...chart!, type: chart?.type ?? "bar", data });
+    const base = currentChart();
+    const data = [...(base?.data ?? []), { label: "", value: 0 }];
+    applyChart({ ...base!, type: base?.type ?? "bar", data });
   };
 
   const removeRow = (index: number) => {
-    const data = chart?.data.filter((_, i) => i !== index) ?? [];
+    const data = currentChart()?.data.filter((_, i) => i !== index) ?? [];
     if (data.length === 0) {
       applyChart(undefined);
     } else {
@@ -83,9 +102,10 @@ export function ChartTab({ slide, specLock, onUpdate }: Props) {
 
   const updateRow = (index: number, patch: Partial<ChartDataPoint>) => {
     const data =
-      chart?.data.map((row, i) => (i === index ? { ...row, ...patch } : row)) ??
-      [];
-    scheduleChart({ ...chart!, data });
+      currentChart()?.data.map((row, i) =>
+        i === index ? { ...row, ...patch } : row,
+      ) ?? [];
+    scheduleChart({ ...currentChart()!, data });
   };
 
   if (!chart) {
