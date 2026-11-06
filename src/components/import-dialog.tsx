@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useDialogFocus } from "@/hooks/use-dialog-focus";
-import { Upload, Link, FileText, Loader2, X, Check } from "lucide-react";
+import { Upload, Link, FileText, X, Check } from "lucide-react";
 import {
   importDocx,
   importMarkdown,
@@ -21,13 +21,17 @@ import { useToastStore } from "@/store/toast";
 import { checkDeckQuality } from "@/services/quality";
 import { appendErrorSuggestion } from "@/services/error-suggest";
 import { useT } from "@/hooks/use-page-t";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import type { Slide } from "@/types/deck";
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-type ImportStep = "input" | "parsed" | "generating";
+type ImportStep = "input" | "parsed" | "generating" | "apply";
 
 export function ImportDialog({ open, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -45,7 +49,15 @@ export function ImportDialog({ open, onClose }: Props) {
   >("direct");
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceSlides = useDeckStore((s) => s.replaceSlides);
+  // 现有页数：导入结果落点需要据此提示影响范围
+  const existingSlideCount = useDeckStore((s) => s.deck?.slides.length ?? 0);
   const addToast = useToastStore((s) => s.add);
+  // 生成完成但尚未落地：让用户选择「替换」或「追加」
+  const [pending, setPending] = useState<{
+    slides: Slide[];
+    doc: ParsedDocument;
+  } | null>(null);
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   // 记录正在进行的导入任务，便于在关闭/取消时终止后台生成
   const activeJobRef = useRef<string | null>(null);
 
@@ -60,6 +72,8 @@ export function ImportDialog({ open, onClose }: Props) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // 替换确认框自己处理 Escape，避免连带关闭整个导入弹窗
+      if (replaceConfirmOpen) return;
       if (step === "generating") {
         cancelActiveJob();
         setStep("input");
@@ -69,9 +83,10 @@ export function ImportDialog({ open, onClose }: Props) {
       } else {
         setStep("input");
         setParsed(null);
+        setPending(null);
       }
     },
-    [onClose, step],
+    [onClose, step, replaceConfirmOpen],
   );
 
   useEffect(() => {
@@ -86,6 +101,8 @@ export function ImportDialog({ open, onClose }: Props) {
       setParsed(null);
       setSelectedSectionIds([]);
       setImporting(false);
+      setPending(null);
+      setReplaceConfirmOpen(false);
     }
   }, [open]);
 
@@ -124,6 +141,34 @@ export function ImportDialog({ open, onClose }: Props) {
     }
   };
 
+  const applyGenerated = async (
+    slides: Slide[],
+    doc: ParsedDocument,
+    mode: "replace" | "append",
+  ) => {
+    const current = useDeckStore.getState().deck;
+    // 追加时保留现有页面顺序，新页统一落到末尾
+    const nextSlides =
+      mode === "append" && current ? [...current.slides, ...slides] : slides;
+    await replaceSlides(nextSlides);
+    const next = useDeckStore.getState().deck;
+    useQualityStore.getState().setReport(
+      next
+        ? checkDeckQuality(next, {
+            // 直接导入时 parsed state 尚未提交，必须使用入参 doc
+            sourceText: doc.rawText || undefined,
+          })
+        : null,
+    );
+    addToast({
+      type: "success",
+      title: t("import.complete"),
+      message: t("import.generatedPages", { count: slides.length }),
+    });
+    setPending(null);
+    onClose();
+  };
+
   const handleGenerate = async (doc: ParsedDocument, selectedIds: string[]) => {
     setStep("generating");
     setImporting(true);
@@ -154,26 +199,16 @@ export function ImportDialog({ open, onClose }: Props) {
 
       activeJobRef.current = null;
 
-      const deck = useDeckStore.getState().deck;
-      if (deck) {
-        await replaceSlides(slides);
-        const current = useDeckStore.getState().deck;
-        useQualityStore.getState().setReport(
-          current
-            ? checkDeckQuality(current, {
-                // 直接导入时 parsed state 尚未提交，必须使用入参 doc
-                sourceText: doc.rawText || undefined,
-              })
-            : null,
-        );
+      // 已有页面时不直接覆盖：停在结果页，让用户选择替换或追加
+      const existing = useDeckStore.getState().deck?.slides.length ?? 0;
+      if (existing > 0) {
+        setPending({ slides, doc });
+        setStep("apply");
+        setImporting(false);
+        return;
       }
 
-      addToast({
-        type: "success",
-        title: t("import.complete"),
-        message: t("import.generatedPages", { count: slides.length }),
-      });
-      onClose();
+      await applyGenerated(slides, doc, "replace");
     } catch (e) {
       activeJobRef.current = null;
       // 用户主动取消（Esc/点遮罩）时，弹框状态已被重置，不能再报错或回填 parsed
@@ -373,189 +408,247 @@ export function ImportDialog({ open, onClose }: Props) {
           )}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => {
               setStep("input");
               setParsed(null);
             }}
-            className="rounded-lg px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover"
           >
             {t("import.reselect")}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            loading={importing}
             onClick={() => parsed && handleGenerate(parsed, selectedSectionIds)}
-            disabled={importing || selectedSectionIds.length === 0}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-4 py-1.5 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            disabled={selectedSectionIds.length === 0}
           >
-            {importing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="h-4 w-4" />
-            )}
+            {!importing && <Check className="h-4 w-4" aria-hidden="true" />}
             {t("import.generatePpt")}
-          </button>
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  /** 生成结果落点：已有页面时由用户选择替换或追加，替换需二次确认 */
+  const renderApply = () => {
+    if (!pending) return null;
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-bg-surface p-3 text-sm">
+          <div className="font-medium text-text-primary">
+            {t("import.applyTitle")}
+          </div>
+          <p className="mt-1 text-text-secondary">
+            {t("import.applyAffected", {
+              count: pending.slides.length,
+              existing: existingSlideCount,
+            })}
+          </p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setPending(null);
+              setStep("parsed");
+            }}
+          >
+            {t("preset.back")}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              void applyGenerated(pending.slides, pending.doc, "append")
+            }
+          >
+            {t("import.appendEnd")}
+          </Button>
+          <Button variant="danger" onClick={() => setReplaceConfirmOpen(true)}>
+            {t("import.replaceExisting")}
+          </Button>
         </div>
       </div>
     );
   };
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="import-dialog-title"
-      onClick={() => {
-        if (step === "generating") {
-          cancelActiveJob();
-          setStep("input");
-          setParsed(null);
-        } else if (step === "input") {
-          onClose();
-        } else {
-          setStep("input");
-          setParsed(null);
-        }
-      }}
-    >
+    <>
       <div
-        ref={dialogRef}
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-dialog-title"
+        onClick={() => {
+          if (step === "generating") {
+            cancelActiveJob();
+            setStep("input");
+            setParsed(null);
+          } else if (step === "input") {
+            onClose();
+          } else {
+            setStep("input");
+            setParsed(null);
+            setPending(null);
+          }
+        }}
       >
-        {/* 标题 */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 id="import-dialog-title" className="text-base font-semibold">
-            {t("import.title")}
-          </h2>
-          <button
-            onClick={
-              step === "input"
-                ? onClose
-                : () => {
-                    if (step === "generating") cancelActiveJob();
-                    setStep("input");
-                    setParsed(null);
-                  }
-            }
-            className="rounded p-1 text-text-muted hover:bg-bg-hover"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Tab 切换 */}
-        {step === "input" && (
-          <div className="flex border-b border-border">
-            <button
-              onClick={() => setTab("file")}
-              className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
-                tab === "file"
-                  ? "border-b-2 border-accent text-accent"
-                  : "text-text-muted hover:text-text-secondary"
-              }`}
-            >
-              <Upload className="h-4 w-4" />
-              {t("import.uploadFile")}
-            </button>
-            <button
-              onClick={() => setTab("url")}
-              className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
-                tab === "url"
-                  ? "border-b-2 border-accent text-accent"
-                  : "text-text-muted hover:text-text-secondary"
-              }`}
-            >
-              <Link className="h-4 w-4" />
-              {t("import.webLink")}
-            </button>
+        <div
+          ref={dialogRef}
+          className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-bg-elevated shadow-xl animate-dialog"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 标题 */}
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <h2 id="import-dialog-title" className="text-base font-semibold">
+              {t("import.title")}
+            </h2>
+            <IconButton
+              label={t("common.close")}
+              onClick={
+                step === "input"
+                  ? onClose
+                  : () => {
+                      if (step === "generating") cancelActiveJob();
+                      setStep("input");
+                      setParsed(null);
+                      setPending(null);
+                    }
+              }
+              icon={<X className="h-4 w-4" />}
+            />
           </div>
-        )}
 
-        {/* 内容 */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {step === "input" && tab === "file" ? (
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const file = e.dataTransfer.files?.[0];
-                if (file) void handleFile(file);
-              }}
-              className={`flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed px-6 py-12 text-center transition ${
-                dragOver
-                  ? "border-accent bg-accent-soft/20"
-                  : "border-border hover:border-accent hover:bg-accent-soft/10"
-              }`}
-            >
-              <FileText className="h-10 w-10 text-text-muted" />
-              <div>
-                <p className="font-medium text-text-primary">
-                  {t("import.uploadHint")}
-                </p>
-                <p className="mt-1 text-sm text-text-muted">
-                  {t("import.uploadFormats")}
-                </p>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".docx,.md,.pdf"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  // 清空 value，允许解析失败后重新选择同一个文件
-                  e.target.value = "";
-                  if (f) void handleFile(f);
-                }}
-                className="hidden"
-              />
-            </div>
-          ) : step === "input" && tab === "url" ? (
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block text-sm text-text-secondary">
-                  {t("import.webLink")}
-                </label>
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-                />
-              </div>
-              <p className="text-xs text-text-muted">{t("import.urlNote")}</p>
+          {/* Tab 切换 */}
+          {step === "input" && (
+            <div className="flex border-b border-border">
               <button
-                onClick={handleUrl}
-                disabled={importing || !url.trim()}
-                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-hover px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                onClick={() => setTab("file")}
+                className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
+                  tab === "file"
+                    ? "border-b-2 border-accent text-accent"
+                    : "text-text-muted hover:text-text-secondary"
+                }`}
               >
-                {importing && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t("import.parseAndImport")}
+                <Upload className="h-4 w-4" />
+                {t("import.uploadFile")}
+              </button>
+              <button
+                onClick={() => setTab("url")}
+                className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm ${
+                  tab === "url"
+                    ? "border-b-2 border-accent text-accent"
+                    : "text-text-muted hover:text-text-secondary"
+                }`}
+              >
+                <Link className="h-4 w-4" />
+                {t("import.webLink")}
               </button>
             </div>
-          ) : step === "parsed" || step === "generating" ? (
-            renderParsedPreview()
-          ) : null}
-        </div>
+          )}
 
-        {/* 底部（input 模式显示） */}
-        {step === "input" && (
-          <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
-            <button
-              onClick={onClose}
-              className="rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-bg-hover"
-            >
-              {t("common.cancel")}
-            </button>
+          {/* 内容 */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            {step === "input" && tab === "file" ? (
+              <div
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) void handleFile(file);
+                }}
+                className={`flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed px-6 py-12 text-center transition ${
+                  dragOver
+                    ? "border-accent bg-accent-soft/20"
+                    : "border-border hover:border-accent hover:bg-accent-soft/10"
+                }`}
+              >
+                <FileText className="h-10 w-10 text-text-muted" />
+                <div>
+                  <p className="font-medium text-text-primary">
+                    {t("import.uploadHint")}
+                  </p>
+                  <p className="mt-1 text-sm text-text-muted">
+                    {t("import.uploadFormats")}
+                  </p>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".docx,.md,.pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    // 清空 value，允许解析失败后重新选择同一个文件
+                    e.target.value = "";
+                    if (f) void handleFile(f);
+                  }}
+                  className="hidden"
+                />
+              </div>
+            ) : step === "input" && tab === "url" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-sm text-text-secondary">
+                    {t("import.webLink")}
+                  </label>
+                  <input
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com/article"
+                    className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
+                  />
+                </div>
+                <p className="text-xs text-text-muted">{t("import.urlNote")}</p>
+                <Button
+                  variant="primary"
+                  size="md"
+                  loading={importing}
+                  onClick={handleUrl}
+                  disabled={!url.trim()}
+                >
+                  {t("import.parseAndImport")}
+                </Button>
+              </div>
+            ) : step === "parsed" || step === "generating" ? (
+              renderParsedPreview()
+            ) : step === "apply" ? (
+              renderApply()
+            ) : null}
           </div>
-        )}
+
+          {/* 底部（input 模式显示） */}
+          {step === "input" && (
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="ghost" size="md" onClick={onClose}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={replaceConfirmOpen}
+        title={t("import.replaceConfirmTitle")}
+        message={t("import.replaceConfirmMessage", {
+          count: existingSlideCount,
+        })}
+        confirmText={t("import.replaceExisting")}
+        onConfirm={() => {
+          setReplaceConfirmOpen(false);
+          if (pending)
+            void applyGenerated(pending.slides, pending.doc, "replace");
+        }}
+        onCancel={() => setReplaceConfirmOpen(false)}
+      />
+    </>
   );
 }
