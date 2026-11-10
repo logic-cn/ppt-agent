@@ -53,7 +53,9 @@ pnpm tauri:build
 
 发布后，更新端点为 `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`；其中 `version` 高于当前安装版本时，用户端即可检测到更新。
 
-> **发布状态（2026-11-10）**：v0.1.0 已正式发布；v0.1.1 的 draft release 产物已构建完整（macOS arm64 / x86_64、Linux deb / AppImage、Windows NSIS / MSI、全部 `.sig` 与 `latest.json`），**待人工验证后手动发布**。v0.1.1 之后的 26 个提交（可访问性、交互死点、导入健壮性、安全硬化、检查器一致性等）尚未进入任何发布产物，需随下个版本发布。Windows 安装包未代码签名，SmartScreen 可能提示；Windows / Linux 的安装启动与自动更新链路仍待人工验证。
+> **发布状态（2026-11-10）**：v0.1.0 与 v0.1.1 均已正式发布，包含 macOS arm64 / x86_64、Linux deb / AppImage、Windows NSIS / MSI 产物、updater 签名与 `latest.json`。v0.1.1 之后的 26 个提交（可访问性、交互死点、导入健壮性、安全硬化、检查器一致性等）尚未进入任何发布产物，需随下个版本发布。Windows 安装包未代码签名，SmartScreen 可能提示；Windows / Linux 的安装启动链路仍待人工验证。
+
+> **⚠️ 仓库必须保持公开**：`plugins.updater.endpoints` 指向 GitHub 的公开下载地址，该地址**不带任何凭据**请求。仓库若为私有，`latest.json` 与更新包一律返回 404，自动更新会静默失效（v0.1.0 与 v0.1.1 早期即因此失效过）。若将来必须转回私有，须先把 `latest.json` 与更新包迁到公开镜像并同步修改 `endpoints`，否则应同时下线「检查更新」入口。
 
 本地手动签名构建：
 

@@ -53,7 +53,9 @@ The app integrates the Tauri updater (Settings → General → About & Updates; 
 
 After publishing, the update endpoint is `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`; when its `version` is higher than the installed version, clients detect an update.
 
-> **Release status (2026-11-10)**: v0.1.0 is published. v0.1.1 has a complete draft release (macOS arm64 / x86_64, Linux deb / AppImage, Windows NSIS / MSI, all `.sig` files and `latest.json`) and is **awaiting manual verification before publishing**. The 26 commits landed after v0.1.1 (accessibility, interaction dead-ends, import robustness, security hardening, inspector consistency) are not part of any release artifact yet and need the next version. Windows installers are not code-signed, so SmartScreen may warn. Installer launch and auto-update on Windows/Linux still need manual verification.
+> **Release status (2026-11-10)**: v0.1.0 and v0.1.1 are both published, with macOS arm64 / x86_64, Linux deb / AppImage and Windows NSIS / MSI artifacts, updater signatures and `latest.json`. The 26 commits landed after v0.1.1 (accessibility, interaction dead-ends, import robustness, security hardening, inspector consistency) are not part of any release artifact yet and need the next version. Windows installers are not code-signed, so SmartScreen may warn. Installer launch on Windows/Linux still needs manual verification.
+
+> **⚠️ The repository must stay public**: `plugins.updater.endpoints` points at a public GitHub download URL that is requested **without any credentials**. If the repository is private, `latest.json` and every update bundle return 404 and auto-update silently breaks (this is exactly why v0.1.0 and early v0.1.1 failed). If it ever has to go private again, first move `latest.json` and the update bundles to a public mirror and update `endpoints` accordingly — otherwise also remove the "Check for updates" entry point.
 
 Local signed build:
 
