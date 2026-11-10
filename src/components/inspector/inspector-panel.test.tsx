@@ -67,7 +67,12 @@ describe("InspectorPanel ARIA Tabs", () => {
           signal: AbortSignal;
           update: (p: unknown) => void;
         }) => Promise<unknown>,
-      ) => task({ id: "j1", signal: new AbortController().signal, update: vi.fn() }),
+      ) =>
+        task({
+          id: "j1",
+          signal: new AbortController().signal,
+          update: vi.fn(),
+        }),
     );
     generateSlideContentMock.mockClear();
   });
