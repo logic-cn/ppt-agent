@@ -53,7 +53,7 @@ The app integrates the Tauri updater (Settings → General → About & Updates; 
 
 After publishing, the update endpoint is `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`; when its `version` is higher than the installed version, clients detect an update.
 
-> **Release status (2026-10-26)**: v0.1.0 is published with macOS (arm64 / x86_64), Linux (deb / AppImage) and Windows (NSIS / MSI) artifacts, updater signatures, and `latest.json`. Windows installers are not code-signed, so SmartScreen may warn. Installer launch and auto-update on Windows/Linux still need manual verification before the next release.
+> **Release status (2026-11-10)**: v0.1.0 is published. v0.1.1 has a complete draft release (macOS arm64 / x86_64, Linux deb / AppImage, Windows NSIS / MSI, all `.sig` files and `latest.json`) and is **awaiting manual verification before publishing**. The 26 commits landed after v0.1.1 (accessibility, interaction dead-ends, import robustness, security hardening, inspector consistency) are not part of any release artifact yet and need the next version. Windows installers are not code-signed, so SmartScreen may warn. Installer launch and auto-update on Windows/Linux still need manual verification.
 
 Local signed build:
 

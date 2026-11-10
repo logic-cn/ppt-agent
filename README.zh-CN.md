@@ -53,7 +53,7 @@ pnpm tauri:build
 
 发布后，更新端点为 `https://github.com/logic-cn/ppt-agent/releases/latest/download/latest.json`；其中 `version` 高于当前安装版本时，用户端即可检测到更新。
 
-> **发布状态（2026-10-26）**：v0.1.0 已发布，包含 macOS（arm64 / x86_64）、Linux（deb / AppImage）、Windows（NSIS / MSI）产物、updater 签名与 `latest.json`。Windows 安装包未代码签名，SmartScreen 可能提示；Windows / Linux 的安装启动与自动更新链路仍建议在下个版本前人工验证。
+> **发布状态（2026-11-10）**：v0.1.0 已正式发布；v0.1.1 的 draft release 产物已构建完整（macOS arm64 / x86_64、Linux deb / AppImage、Windows NSIS / MSI、全部 `.sig` 与 `latest.json`），**待人工验证后手动发布**。v0.1.1 之后的 26 个提交（可访问性、交互死点、导入健壮性、安全硬化、检查器一致性等）尚未进入任何发布产物，需随下个版本发布。Windows 安装包未代码签名，SmartScreen 可能提示；Windows / Linux 的安装启动与自动更新链路仍待人工验证。
 
 本地手动签名构建：
 
