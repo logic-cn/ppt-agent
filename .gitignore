@@ -10,6 +10,9 @@ dist-ssr/
 src-tauri/target/
 src-tauri/gen/
 
+# 测试覆盖率报告（pnpm test 生成）
+coverage/
+
 # updater 签名私钥与备份（禁止提交；公钥见 src-tauri/updater.key.pub 与 tauri.conf.json）
 src-tauri/updater.key
 src-tauri/updater.key.bak
