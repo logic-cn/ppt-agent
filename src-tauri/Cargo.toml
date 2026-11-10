@@ -1,6 +1,6 @@
 [package]
 name = "ppt-agent"
-version = "0.1.1"
+version = "0.1.2"
 description = "轻量级 AI PPT 工作站"
 authors = ["PPT Agent"]
 edition = "2021"
